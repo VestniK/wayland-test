@@ -54,7 +54,7 @@ public:
 
     size_t idx = 0;
     string_joiner joiner{", "};
-    ((joiner + (ids_[idx++] ? T::interface_name : ""sv)), ...);
+    ((joiner + (!ids_[idx++] ? T::interface_name : ""sv)), ...);
     const std::string missing_services = joiner;
 
     if (!missing_services.empty())
@@ -90,20 +90,35 @@ private:
   std::array<std::optional<wl::id>, sizeof...(T)> ids_;
 };
 
-int start(wl::compositor compositor, wl::shell shell) {
+pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm) {
   std::cout << "Compositor version: " << compositor.get_version() << '\n';
   std::cout << "Shell version: " << shell.get_version() << '\n';
+  std::cout << "SHM version: " << shm.get_version() << '\n';
+
   wl::surface surface = compositor.create_surface();
   std::cout << "Created a surface of version: " << surface.get_version() << '\n';
   wl::shell_surface shsurf = shell.get_shell_surface(surface);
   std::cout << "Created a shell surface of version: " << shsurf.get_version() << '\n';
-  return EXIT_SUCCESS;
+  shsurf.set_toplevel();
+
+  wl::shm_listener shm_listener = [](wl::shm_ref, uint32_t fmt) {
+    std::cout << "\tsupported pixel format code: " << std::hex << fmt << '\n';
+  };
+  shm.add_listener(shm_listener);
+
+  pc::promise<void> p;
+  wl::callback::listener sync_listener = [&](wl::callback_ref, uint32_t) {p.set_value();};
+  wl::callback sync_cb = display.sync();
+  sync_cb.add_listener(sync_listener);
+  co_await p.get_future();
+
+  co_return EXIT_SUCCESS;
 }
 
 int main(int argc, char** argv) try {
   wl::display display{argc > 1 ? argv[1] : nullptr};
 
-  registry_searcher<wl::compositor, wl::shell> searcher;
+  registry_searcher<wl::compositor, wl::shell, wl::shm> searcher;
 
   wl::registry::listener iface_listener = std::ref(searcher);
   wl::registry registry = display.get_registry();
@@ -113,7 +128,8 @@ int main(int argc, char** argv) try {
   wl::callback sync_cb = display.sync();
   sync_cb.add_listener(sync_listener);
 
-  auto f = searcher.on_found(start);
+  using namespace std::placeholders;
+  auto f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3));
   while (!f.is_ready())
     display.dispatch();
   return f.get();

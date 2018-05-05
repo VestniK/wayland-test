@@ -24,6 +24,7 @@ struct deleter {
   void operator() (wl_callback* ptr) {wl_callback_destroy(ptr);}
   void operator() (wl_surface* ptr) {wl_surface_destroy(ptr);}
   void operator() (wl_shell_surface* ptr) {wl_shell_surface_destroy(ptr);}
+  void operator() (wl_shm* ptr) {wl_shm_destroy(ptr);}
 };
 template<typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;

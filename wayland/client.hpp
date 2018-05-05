@@ -9,6 +9,7 @@
 #include "wl/callback.hpp"
 #include "wl/error.hpp"
 #include "wl/registry.hpp"
+#include "wl/shm.hpp"
 #include "wl/util.hpp"
 
 namespace wl {
@@ -54,6 +55,8 @@ public:
   shell_surface(unique_ptr<wl_shell_surface> resource): ptr_(std::move(resource)) {}
 
   version get_version() const noexcept {return version{wl_shell_surface_get_version(ptr_.get())};}
+
+  void set_toplevel() const {wl_shell_surface_set_toplevel(ptr_.get());}
 
 private:
   unique_ptr<wl_shell_surface> ptr_;
