@@ -33,14 +33,14 @@ template<typename... T>
 class registry_searcher {
 public:
 
-  void operator() (wl::registry_ref registry, wl::id id, std::string_view iface, wl::version ver) {
+  void operator() (wl::registry::ref registry, wl::id id, std::string_view iface, wl::version ver) {
     const bool iface_matched = match_bind(registry, id, iface, ver, std::make_index_sequence<sizeof...(T)>{});
 
     if (iface_matched && std::count(ids_.begin(), ids_.end(), std::nullopt) == 0)
       promise_.set_value(std::move(ifaces_));
   }
 
-  void operator() (wl::registry_ref, wl::id id) {
+  void operator() (wl::registry::ref, wl::id id) {
     size_t idx = 0;
     std::string_view gone_service;
     ((ids_[idx++] == id ? gone_service = T::interface_name : ""sv), ...);
@@ -76,7 +76,7 @@ public:
 private:
   template<size_t... I>
   bool match_bind(
-    wl::registry_ref registry, wl::id id, std::string_view iface, wl::version ver,
+    wl::registry::ref registry, wl::id id, std::string_view iface, wl::version ver,
     std::index_sequence<I...>
   ) {
     return (
@@ -101,7 +101,7 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   std::cout << "Created a shell surface of version: " << shsurf.get_version() << '\n';
   shsurf.set_toplevel();
 
-  wl::shm_listener shm_listener = [](wl::shm_ref, uint32_t fmt) {
+  wl::shm::listener shm_listener = [](wl::shm::ref, uint32_t fmt) {
     std::cout << "\tsupported pixel format code: " << std::hex << fmt << '\n';
   };
   shm.add_listener(shm_listener);

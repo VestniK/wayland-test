@@ -11,9 +11,11 @@ set_target_properties(wayland::client PROPERTIES INTERFACE_LINK_LIBRARIES waylan
 
 add_library(wlpp-ide OBJECT
   wayland/client.hpp
+  wayland/wl/basic_resource.hpp
   wayland/wl/callback.hpp
   wayland/wl/error.hpp
   wayland/wl/registry.hpp
+  wayland/wl/shm.hpp
   wayland/wl/util.hpp
 )
 set_target_properties(wlpp-ide PROPERTIES LINKER_LANGUAGE CXX)

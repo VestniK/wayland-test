@@ -2,13 +2,13 @@
 
 #include <wayland-client.h>
 
-#include "error.hpp"
-#include "util.hpp"
+#include "basic_resource.hpp"
 
 namespace wl {
+namespace detail {
 
 template<typename Registry>
-struct registry_interface {
+struct registry {
   version get_version() const {
     return version{wl_registry_get_version(static_cast<const Registry&>(*this).native_handle())};
   }
@@ -26,26 +26,6 @@ struct registry_interface {
       )}
     };
   }
-};
-
-class registry_ref: public registry_interface<registry_ref> {
-public:
-  using native_handle_type = wl_registry*;
-  native_handle_type native_handle() const {return &ref_.get();}
-
-  registry_ref(native_handle_type handle): ref_(*handle) {}
-
-private:
-  std::reference_wrapper<wl_registry> ref_;
-};
-
-class registry: public registry_interface<registry> {
-public:
-  using native_handle_type = wl_registry*;
-
-  explicit registry(unique_ptr<wl_registry> inst): ptr_(std::move(inst)) {}
-
-  wl_registry* native_handle() const {return ptr_.get();}
 
   template<typename F>
   class listener;
@@ -53,13 +33,11 @@ public:
 
   template<typename F>
   void add_listener(listener<F>& l);
-
-private:
-  unique_ptr<wl_registry> ptr_;
 };
 
+template<typename Registry>
 template<typename F>
-class registry::listener: public F {
+class registry<Registry>::listener: public F {
 public:
   listener(): F() {}
   template<typename... A>
@@ -70,28 +48,45 @@ public:
   listener(listener&&) = delete;
   listener& operator= (listener&&) = delete;
 
+  operator const wl_registry_listener& () const noexcept {return listener_;}
+
 private:
   F& get_function() {return static_cast<F&>(*this);}
 
-  static void on_added(void* data, wl_registry* handle, uint32_t id, const char* iface, uint32_t ver) {
-    listener* self = static_cast<listener*>(data);
-    std::invoke(self->get_function(), registry_ref{handle}, ::wl::id{id}, std::string_view{iface}, version{ver});
-  }
+  static void on_added(void* data, wl_registry* handle, uint32_t id, const char* iface, uint32_t ver);
 
-  static void on_removed(void* data, struct wl_registry* handle, uint32_t id) {
-    listener* self = static_cast<listener*>(data);
-    std::invoke(self->get_function(), registry_ref{handle}, ::wl::id{id});
-  }
-
-  friend class ::wl::registry;
+  static void on_removed(void* data, struct wl_registry* handle, uint32_t id);
 
   wl_registry_listener listener_ = {&on_added, &on_removed};
 };
 
+template<typename Registry>
 template<typename F>
-void registry::add_listener(listener<F>& l) {
-  if (::wl_registry_add_listener(ptr_.get(), &l.listener_, &l) != 0)
+void registry<Registry>::add_listener(listener<F>& l) {
+  const wl_registry_listener& native_listener = l;
+  wl_registry* reg = static_cast<Registry&>(*this).native_handle();
+  if (::wl_registry_add_listener(reg, &native_listener, &l) != 0)
     throw std::system_error{errc::add_registry_listener_failed};
+}
+
+}
+
+using registry = detail::basic_resource<wl_registry, detail::registry>;
+
+template<typename Registry>
+template<typename F>
+void detail::registry<Registry>::listener<F>::on_added(
+  void* data, wl_registry* handle, uint32_t id, const char* iface, uint32_t ver
+) {
+  listener* self = static_cast<listener*>(data);
+  std::invoke(self->get_function(), ::wl::registry::ref{*handle}, ::wl::id{id}, std::string_view{iface}, version{ver});
+}
+
+template<typename Registry>
+template<typename F>
+void detail::registry<Registry>::listener<F>::on_removed(void* data, struct wl_registry* handle, uint32_t id) {
+  listener* self = static_cast<listener*>(data);
+  std::invoke(self->get_function(), ::wl::registry::ref{*handle}, ::wl::id{id});
 }
 
 }
