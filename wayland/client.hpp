@@ -6,6 +6,7 @@
 
 #include <wayland-client.h>
 
+#include "wl/basic_resource.hpp"
 #include "wl/callback.hpp"
 #include "wl/error.hpp"
 #include "wl/registry.hpp"
@@ -14,75 +15,71 @@
 
 namespace wl {
 
-class surface {
-public:
-  using native_handle_type = wl_surface*;
-  native_handle_type native_handle() const {return ptr_.get();}
+namespace detail {
 
-  surface() noexcept = default;
-  surface(unique_ptr<wl_surface> resource) noexcept: ptr_(std::move(resource)) {}
-
-  version get_version() const noexcept {return version{wl_surface_get_version(ptr_.get())};}
-private:
-  unique_ptr<wl_surface> ptr_;
+template<typename Surface>
+struct surface {
+  version get_version() const noexcept {
+    return version{wl_surface_get_version(native_handle<Surface>(*this))};
+  }
 };
 
-class compositor {
-public:
+template<typename Compositor>
+struct compositor {
   using resource_type = wl_compositor;
   static const wl_interface& resource_interface;
   static constexpr std::string_view interface_name = "wl_compositor"sv;
 
-  compositor() noexcept = default;
-  compositor(unique_ptr<resource_type> resource) noexcept: ptr_(std::move(resource)) {}
+  version get_version() const noexcept {
+    return version{wl_compositor_get_version(native_handle<Compositor>(*this))};
+  }
 
-  explicit operator bool () const noexcept {return static_cast<bool>(ptr_);}
-  version get_version() const noexcept {return version{wl_compositor_get_version(ptr_.get())};}
-
-  surface create_surface() {return unique_ptr<wl_surface>{wl_compositor_create_surface(ptr_.get())};}
-
-private:
-  unique_ptr<resource_type> ptr_;
+  basic_resource<wl_surface, surface> create_surface() {
+    return unique_ptr<wl_surface>{wl_compositor_create_surface(native_handle<Compositor>(*this))};
+  }
 };
-const wl_interface& compositor::resource_interface = wl_compositor_interface;
+template<typename Compositor>
+const wl_interface& compositor<Compositor>::resource_interface = wl_compositor_interface;
 
-class shell_surface {
-public:
-  using native_handle_type = wl_shell_surface*;
-  native_handle_type native_handle() const {return ptr_.get();}
+template<typename ShellSurface>
+struct shell_surface {
+  version get_version() const noexcept {
+    return version{wl_shell_surface_get_version(native_handle<ShellSurface>(*this))};
+  }
 
-  shell_surface() noexcept = default;
-  shell_surface(unique_ptr<wl_shell_surface> resource): ptr_(std::move(resource)) {}
-
-  version get_version() const noexcept {return version{wl_shell_surface_get_version(ptr_.get())};}
-
-  void set_toplevel() const {wl_shell_surface_set_toplevel(ptr_.get());}
-
-private:
-  unique_ptr<wl_shell_surface> ptr_;
+  void set_toplevel() const {
+    wl_shell_surface_set_toplevel(native_handle<ShellSurface>(*this));
+  }
 };
 
-class shell {
-public:
+template<typename Shell>
+struct shell {
   using resource_type = wl_shell;
   static const wl_interface& resource_interface;
   static constexpr std::string_view interface_name = "wl_shell"sv;
 
-  shell() noexcept = default;
-  shell(unique_ptr<resource_type> resource) noexcept: ptr_(std::move(resource)) {}
-
   explicit operator bool () const noexcept {return static_cast<bool>(ptr_);}
 
-  version get_version() const noexcept {return version{wl_shell_get_version(ptr_.get())};}
+  version get_version() const noexcept {
+    return version{wl_shell_get_version(native_handle<Shell>(*this))};
+  }
 
-  shell_surface get_shell_surface(const surface& surf) {
-    return {unique_ptr<wl_shell_surface>{wl_shell_get_shell_surface(ptr_.get(), surf.native_handle())}};
+  basic_resource<wl_shell_surface, shell_surface> get_shell_surface(const basic_resource<wl_surface, surface>& surf) {
+    return {unique_ptr<wl_shell_surface>{wl_shell_get_shell_surface(native_handle<Shell>(*this), surf.native_handle())}};
   }
 
 private:
   unique_ptr<resource_type> ptr_;
 };
-const wl_interface& shell::resource_interface = wl_shell_interface;
+template<typename Shell>
+const wl_interface& shell<Shell>::resource_interface = wl_shell_interface;
+
+}
+
+using surface = detail::basic_resource<wl_surface, detail::surface>;
+using compositor = detail::basic_resource<wl_compositor, detail::compositor>;
+using shell_surface = detail::basic_resource<wl_shell_surface, detail::shell_surface>;
+using shell = detail::basic_resource<wl_shell, detail::shell>;
 
 class display {
 public:

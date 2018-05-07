@@ -41,7 +41,6 @@ struct shm {
       std::invoke(self->get_function(), resource_ref_t<SHM>{*handle}, fmt);
     }
 
-
     wl_shm_listener listener_ = {&format};
   };
   template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
