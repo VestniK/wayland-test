@@ -10,6 +10,25 @@ namespace wl {
 
 namespace detail {
 
+template<typename NativeListener, typename F>
+class basic_listener: private F {
+public:
+  template<typename... A>
+  basic_listener(NativeListener listener, A&&... a): F{std::forward<A>(a)...}, native_listener_{listener} {}
+
+  basic_listener(const basic_listener&) = delete;
+  basic_listener& operator= (const basic_listener&) = delete;
+  basic_listener(basic_listener&&) = delete;
+  basic_listener& operator= (basic_listener&&) = delete;
+
+  const NativeListener& native_listener() const {return native_listener_;}
+
+protected:
+  F& get_function() {return static_cast<F&>(*this);}
+
+  NativeListener native_listener_;
+};
+
 template<typename SHM>
 struct shm {
   static const wl_interface& resource_interface;
@@ -20,35 +39,22 @@ struct shm {
   }
 
   template<typename F>
-  class listener: public F {
+  class listener: public basic_listener<wl_shm_listener, F> {
   public:
-    listener(): F() {}
     template<typename... A>
-    listener(A&&... a): F(std::forward<F>(a)...) {}
-
-    listener(const listener&) = delete;
-    listener& operator= (const listener&) = delete;
-    listener(listener&&) = delete;
-    listener& operator= (listener&&) = delete;
-
-    operator const wl_shm_listener& () const noexcept {return listener_;}
+    listener(A&&... a): basic_listener<wl_shm_listener, F>{{&format}, std::forward<F>(a)...} {}
 
   private:
-    F& get_function() {return static_cast<F&>(*this);}
-
     static void format(void* data, wl_shm* handle, uint32_t fmt) {
       listener* self = static_cast<listener*>(data);
       std::invoke(self->get_function(), resource_ref_t<SHM>{*handle}, fmt);
     }
-
-    wl_shm_listener listener_ = {&format};
   };
   template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
 
   template<typename F>
   void add_listener(listener<F>& listener) {
-    const wl_shm_listener& native_listener = listener;
-    if (::wl_shm_add_listener(native_handle<SHM>(*this), &native_listener, &listener) != 0)
+    if (::wl_shm_add_listener(native_handle<SHM>(*this), &listener.native_listener(), &listener) != 0)
       throw std::system_error{errc::add_shm_listener_failed};
   }
 };
