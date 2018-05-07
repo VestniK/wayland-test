@@ -32,6 +32,7 @@ add_executable(lswl
 target_link_libraries(lswl PRIVATE wlpp)
 
 add_executable(wayland_test
+  registry_searcher.hpp
   main.cpp
 )
 target_link_libraries(wayland_test
