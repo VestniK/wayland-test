@@ -48,4 +48,7 @@ struct resource_ref<basic_ref<Resource, Iface>> {
 template<typename T>
 using resource_ref_t = typename resource_ref<T>::type;
 
+template<typename Resource, typename T>
+auto native_handle(const T& t) {return static_cast<const Resource&>(t).native_handle();}
+
 }

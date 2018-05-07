@@ -12,7 +12,7 @@ namespace detail {
 template<typename Callback>
 struct callback {
   version get_version() const {
-    return version{wl_callback_get_version(static_cast<const Callback&>(*this).native_handle())};
+    return version{wl_callback_get_version(native_handle<Callback>(*this))};
   }
 
   template<typename F>
@@ -44,8 +44,7 @@ struct callback {
   template<typename F>
   void add_listener(listener<F>& l) {
     const wl_callback_listener& native_listener = l;
-    wl_callback* cb = static_cast<const Callback&>(*this).native_handle();
-    if (wl_callback_add_listener(cb, &native_listener, &l) < 0)
+    if (wl_callback_add_listener(native_handle<Callback>(*this), &native_listener, &l) < 0)
       throw std::system_error{errc::add_callback_listener_failed};
   }
 };
