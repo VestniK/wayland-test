@@ -49,7 +49,7 @@ public:
       error_.set_exception(std::make_exception_ptr(std::runtime_error{std::string{gone_service} + " is gone"}));
   }
 
-  void operator() (wl::callback_ref, uint32_t) {
+  void operator() (wl::callback::ref, uint32_t) {
     using std::literals::string_view_literals::operator""sv;
     if (std::count(ids_.begin(), ids_.end(), std::nullopt) == 0)
       return;

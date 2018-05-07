@@ -26,7 +26,7 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   shm.add_listener(shm_listener);
 
   pc::promise<void> p;
-  wl::callback::listener sync_listener = [&](wl::callback_ref, uint32_t) {p.set_value();};
+  wl::callback::listener sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
   wl::callback sync_cb = display.sync();
   sync_cb.add_listener(sync_listener);
   co_await p.get_future();
