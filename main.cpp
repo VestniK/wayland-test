@@ -25,6 +25,19 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   };
   shm.add_listener(shm_listener);
 
+  struct shell_surface_logger {
+    void ping(wl::shell_surface::ref surf, uint32_t serial) {
+      std::cout << "ping: " << serial << '\n';
+      surf.pong(serial);
+    }
+    void configure(wl::shell_surface::ref, uint32_t edges, uint32_t w, uint32_t h) {
+      std::cout << "\tshell_surface cofiguration: edges = " << edges << "size = " << w << 'x' << h << '\n';
+    }
+    void popup_done(wl::shell_surface::ref) {}
+  };
+  wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
+  shsurf.add_listener(sh_srf_listener);
+
   pc::promise<void> p;
   wl::callback::listener sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
   wl::callback sync_cb = display.sync();

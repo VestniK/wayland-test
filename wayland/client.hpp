@@ -10,6 +10,7 @@
 #include "wl/callback.hpp"
 #include "wl/error.hpp"
 #include "wl/registry.hpp"
+#include "wl/shell_surface.hpp"
 #include "wl/shm.hpp"
 #include "wl/util.hpp"
 
@@ -41,17 +42,6 @@ struct compositor {
 template<typename Compositor>
 const wl_interface& compositor<Compositor>::resource_interface = wl_compositor_interface;
 
-template<typename ShellSurface>
-struct shell_surface {
-  version get_version() const noexcept {
-    return version{wl_shell_surface_get_version(native_handle<ShellSurface>(*this))};
-  }
-
-  void set_toplevel() const {
-    wl_shell_surface_set_toplevel(native_handle<ShellSurface>(*this));
-  }
-};
-
 template<typename Shell>
 struct shell {
   using resource_type = wl_shell;
@@ -78,7 +68,6 @@ const wl_interface& shell<Shell>::resource_interface = wl_shell_interface;
 
 using surface = detail::basic_resource<wl_surface, detail::surface>;
 using compositor = detail::basic_resource<wl_compositor, detail::compositor>;
-using shell_surface = detail::basic_resource<wl_shell_surface, detail::shell_surface>;
 using shell = detail::basic_resource<wl_shell, detail::shell>;
 
 class display {
