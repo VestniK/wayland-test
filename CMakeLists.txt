@@ -35,6 +35,11 @@ add_executable(lswl
 target_link_libraries(lswl PRIVATE wlpp)
 
 add_executable(wayland_test
+  bitmask.h
+  io.h
+  io.cpp
+  xdg.h
+  xdg.cpp
   registry_searcher.hpp
   main.cpp
 )

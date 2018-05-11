@@ -5,7 +5,9 @@
 
 #include "wayland/client.hpp"
 
+#include "io.h"
 #include "registry_searcher.hpp"
+#include "xdg.h"
 
 using namespace std::literals;
 
@@ -37,6 +39,14 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   };
   wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
   shsurf.add_listener(sh_srf_listener);
+
+  io::file_descriptor fd =  io::open(
+    xdg::runtime_dir(),
+    io::mode::read_write | io::mode::tmpfile,
+    io::perm::owner_read | io::perm::owner_write
+  );
+  wl::shm::pool pool = shm.create_pool(fd.native_handle(), 1024);
+  std::cout << "wl_shm_pool version: " << pool.get_version() << '\n';
 
   pc::promise<void> p;
   wl::callback::listener sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
