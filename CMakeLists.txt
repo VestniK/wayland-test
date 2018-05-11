@@ -18,6 +18,7 @@ add_library(wlpp-ide OBJECT
   wayland/wl/registry.hpp
   wayland/wl/shell_surface.hpp
   wayland/wl/shm.hpp
+  wayland/wl/shm_pool.hpp
   wayland/wl/util.hpp
 )
 set_target_properties(wlpp-ide PROPERTIES LINKER_LANGUAGE CXX)
