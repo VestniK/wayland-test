@@ -40,11 +40,10 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
   shsurf.add_listener(sh_srf_listener);
 
-  io::file_descriptor fd =  io::open(
-    xdg::runtime_dir(),
-    io::mode::read_write | io::mode::tmpfile,
-    io::perm::owner_read | io::perm::owner_write
-  );
+  io::file_descriptor fd =  io::open(xdg::runtime_dir(), io::mode::read_write | io::mode::tmpfile);
+  io::truncate(fd, 1024);
+  [[maybe_unused]]
+  io::mem_mapping shmem = io::mmap(1024, io::prot::read | io::prot::write, io::map::shared, fd);
   wl::shm::pool pool = shm.create_pool(fd.native_handle(), 1024);
   std::cout << "wl_shm_pool version: " << pool.get_version() << '\n';
 
