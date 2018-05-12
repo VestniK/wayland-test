@@ -39,6 +39,7 @@ private:
 
 enum class mode: int {
   create = O_CREAT,
+  close_exec = O_CLOEXEC,
   write_only = O_WRONLY,
   read_only = O_RDONLY,
   read_write = O_RDWR,

@@ -17,6 +17,8 @@ struct shm {
   static const wl_interface& resource_interface;
   static constexpr std::string_view interface_name = "wl_shm"sv;
 
+  using format = wl::format;
+
   version get_version() const noexcept {
     return version{wl_shm_get_version(native_handle<SHM>(*this))};
   }
@@ -35,7 +37,7 @@ struct shm {
   private:
     static void format(void* data, wl_shm* handle, uint32_t fmt) {
       listener* self = static_cast<listener*>(data);
-      std::invoke(self->get_function(), resource_ref_t<SHM>{*handle}, fmt);
+      std::invoke(self->get_function(), resource_ref_t<SHM>{*handle}, wl::format{fmt});
     }
   };
   template<typename F> listener(F&&) -> listener<std::decay_t<F>>;

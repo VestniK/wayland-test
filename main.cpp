@@ -11,6 +11,26 @@
 
 using namespace std::literals;
 
+class shared_memory {
+public:
+  shared_memory(size_t size):
+    fd_{io::open(xdg::runtime_dir(), io::mode::read_write | io::mode::tmpfile | io::mode::close_exec)}
+  {
+    io::truncate(fd_, size);
+    mem_ = io::mmap(size, io::prot::read | io::prot::write, io::map::shared, fd_);
+  }
+
+  std::byte* data() noexcept {return mem_.data();}
+  const std::byte* data() const noexcept {return mem_.data();}
+  size_t size() const noexcept {return mem_.size();}
+
+  const io::file_descriptor& fd() const noexcept {return fd_;}
+
+private:
+  io::file_descriptor fd_;
+  io::mem_mapping mem_;
+};
+
 pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm) {
   std::cout << "Compositor version: " << compositor.get_version() << '\n';
   std::cout << "Shell version: " << shell.get_version() << '\n';
@@ -22,8 +42,8 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   std::cout << "Created a shell surface of version: " << shsurf.get_version() << '\n';
   shsurf.set_toplevel();
 
-  wl::shm::listener shm_listener = [](wl::shm::ref, uint32_t fmt) {
-    std::cout << "\tsupported pixel format code: " << std::hex << fmt << '\n';
+  wl::shm::listener shm_listener = [](wl::shm::ref, wl::shm::format fmt) {
+    std::cout << "\tsupported pixel format code: " << std::hex << static_cast<uint32_t>(fmt) << '\n';
   };
   shm.add_listener(shm_listener);
 
@@ -40,11 +60,8 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
   shsurf.add_listener(sh_srf_listener);
 
-  io::file_descriptor fd =  io::open(xdg::runtime_dir(), io::mode::read_write | io::mode::tmpfile);
-  io::truncate(fd, 1024);
-  [[maybe_unused]]
-  io::mem_mapping shmem = io::mmap(1024, io::prot::read | io::prot::write, io::map::shared, fd);
-  wl::shm::pool pool = shm.create_pool(fd.native_handle(), 1024);
+  shared_memory shmem{1024};
+  wl::shm::pool pool = shm.create_pool(shmem.fd().native_handle(), shmem.size());
   std::cout << "wl_shm_pool version: " << pool.get_version() << '\n';
 
   pc::promise<void> p;
