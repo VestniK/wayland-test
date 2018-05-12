@@ -6,6 +6,7 @@
 #include "basic_resource.hpp"
 #include "bitmask.hpp"
 #include "error.hpp"
+#include "keyboard.hpp"
 #include "util.hpp"
 
 namespace wl {
@@ -54,6 +55,10 @@ struct seat {
   void add_listener(listener<F>& listener) {
     if (wl_seat_add_listener(native_handle<Seat>(*this), &listener.native_listener(), &listener) != 0)
       throw std::system_error{errc::add_seat_listener_failed};
+  }
+
+  wl::keyboard get_keyboard() {
+    return unique_ptr<wl_keyboard>{wl_seat_get_keyboard(native_handle<Seat>(*this))};
   }
 };
 template<typename Seat>

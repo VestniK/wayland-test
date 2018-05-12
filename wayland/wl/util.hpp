@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string_view>
@@ -9,25 +10,36 @@
 
 namespace wl {
 
+struct clock {
+  using duration = std::chrono::milliseconds;
+  using time_point = std::chrono::time_point<clock, duration>;
+  using rep = duration::rep;
+  using period = duration::period;
+  static constexpr bool is_steady = true;
+};
+
 template<typename E>
 auto underlying_cast(E e) noexcept {return static_cast<std::underlying_type_t<E>>(e);}
 
 enum class id: uint32_t {};
 enum class version: uint32_t {};
+enum class serial: uint32_t {};
 inline std::ostream& operator<< (std::ostream& out, version ver) {return out << underlying_cast(ver);}
+inline std::ostream& operator<< (std::ostream& out, serial val) {return out << std::hex << underlying_cast(val);}
 
 struct deleter {
-  void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
-  void operator() (wl_registry* ptr) {wl_registry_destroy(ptr);}
-  void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
-  void operator() (wl_shell* ptr) {wl_shell_destroy(ptr);}
+  void operator() (wl_buffer* ptr) {wl_buffer_destroy(ptr);}
   void operator() (wl_callback* ptr) {wl_callback_destroy(ptr);}
+  void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
+  void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
+  void operator() (wl_keyboard* ptr) {wl_keyboard_destroy(ptr);}
+  void operator() (wl_registry* ptr) {wl_registry_destroy(ptr);}
   void operator() (wl_seat* ptr) {wl_seat_destroy(ptr);}
-  void operator() (wl_surface* ptr) {wl_surface_destroy(ptr);}
+  void operator() (wl_shell* ptr) {wl_shell_destroy(ptr);}
   void operator() (wl_shell_surface* ptr) {wl_shell_surface_destroy(ptr);}
   void operator() (wl_shm* ptr) {wl_shm_destroy(ptr);}
   void operator() (wl_shm_pool* ptr) {wl_shm_pool_destroy(ptr);}
-  void operator() (wl_buffer* ptr) {wl_buffer_destroy(ptr);}
+  void operator() (wl_surface* ptr) {wl_surface_destroy(ptr);}
 };
 template<typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;

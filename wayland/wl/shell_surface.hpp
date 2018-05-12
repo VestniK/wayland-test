@@ -20,7 +20,7 @@ struct shell_surface {
     wl_shell_surface_set_toplevel(native_handle<ShellSurface>(*this));
   }
 
-  void pong(uint32_t serial) {wl_shell_surface_pong(native_handle<ShellSurface>(*this), serial);}
+  void pong(serial eid) {wl_shell_surface_pong(native_handle<ShellSurface>(*this), underlying_cast(eid));}
 
   template<typename F>
   class listener: public basic_listener<wl_shell_surface_listener, F> {
@@ -33,9 +33,9 @@ struct shell_surface {
     {}
 
   private:
-    static void ping(void *data, wl_shell_surface *shell_surface, uint32_t serial) {
+    static void ping(void *data, wl_shell_surface *shell_surface, uint32_t eid) {
       auto* self = static_cast<listener*>(data);
-      self->get_function().ping(resource_ref_t<ShellSurface>{*shell_surface}, serial);
+      self->get_function().ping(resource_ref_t<ShellSurface>{*shell_surface}, serial{eid});
     }
 
     static void configure(void *data, wl_shell_surface *shell_surface, uint32_t edges, int32_t width, int32_t height) {

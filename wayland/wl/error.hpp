@@ -9,7 +9,8 @@ enum class errc: int {
   add_registry_listener_failed = 1,
   add_shm_listener_failed,
   add_seat_listener_failed,
-  add_callback_listener_failed
+  add_callback_listener_failed,
+  add_keyboard_listener_failed
 };
 
 const std::error_category& wayland_category() noexcept {
@@ -21,6 +22,7 @@ const std::error_category& wayland_category() noexcept {
       case errc::add_shm_listener_failed: return "Filed to add shm listener";
       case errc::add_seat_listener_failed: return "Filed to add seat listener";
       case errc::add_callback_listener_failed: return "Filed to add callbck listener";
+      case errc::add_keyboard_listener_failed: return "Filed to add keyboard listener";
       }
       return "unknown wyland error " + std::to_string(cond);
     }

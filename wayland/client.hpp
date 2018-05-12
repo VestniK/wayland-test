@@ -14,24 +14,12 @@
 #include "wl/seat.hpp"
 #include "wl/shell_surface.hpp"
 #include "wl/shm.hpp"
+#include "wl/surface.hpp"
 #include "wl/util.hpp"
 
 namespace wl {
 
 namespace detail {
-
-template<typename Surface>
-struct surface {
-  version get_version() const noexcept {
-    return version{wl_surface_get_version(native_handle<Surface>(*this))};
-  }
-
-  void attach(const wl::buffer& buf, int32_t x = 0, int32_t y = 0) {
-    wl_surface_attach(native_handle<Surface>(*this), buf.native_handle(), x, y);
-  }
-
-  void commit() {wl_surface_commit(native_handle<Surface>(*this));}
-};
 
 template<typename Compositor>
 struct compositor {
@@ -74,7 +62,6 @@ const wl_interface& shell<Shell>::resource_interface = wl_shell_interface;
 
 }
 
-using surface = detail::basic_resource<wl_surface, detail::surface>;
 using compositor = detail::basic_resource<wl_compositor, detail::compositor>;
 using shell = detail::basic_resource<wl_shell, detail::shell>;
 

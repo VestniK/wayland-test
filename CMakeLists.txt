@@ -17,11 +17,13 @@ add_library(wlpp-ide OBJECT
   wayland/wl/buffer.hpp
   wayland/wl/callback.hpp
   wayland/wl/error.hpp
+  wayland/wl/keyboard.hpp
   wayland/wl/registry.hpp
   wayland/wl/seat.hpp
   wayland/wl/shell_surface.hpp
   wayland/wl/shm.hpp
   wayland/wl/shm_pool.hpp
+  wayland/wl/surface.hpp
   wayland/wl/util.hpp
 )
 set_target_properties(wlpp-ide PROPERTIES LINKER_LANGUAGE CXX)

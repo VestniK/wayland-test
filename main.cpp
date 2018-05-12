@@ -40,6 +40,7 @@ pc::future<void> wait_quit(wl::seat& seat) {
   };
   wl::seat::listener<seat_logger> listner;
   seat.add_listener(listner);
+  wl::keyboard kb = seat.get_keyboard();
   co_return;
 }
 
@@ -61,7 +62,7 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   shm.add_listener(shm_listener);
 
   struct shell_surface_logger {
-    void ping(wl::shell_surface::ref surf, uint32_t serial) {
+    void ping(wl::shell_surface::ref surf, wl::serial serial) {
       std::cout << "ping: " << serial << '\n';
       surf.pong(serial);
     }
