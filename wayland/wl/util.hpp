@@ -97,4 +97,9 @@ enum class format: uint32_t {
   YVU444 = WL_SHM_FORMAT_YVU444
 };
 
+struct size {
+  int32_t width = 0;
+  int32_t height = 0;
+};
+
 }

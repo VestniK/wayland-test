@@ -40,7 +40,7 @@ struct shell_surface {
 
     static void configure(void *data, wl_shell_surface *shell_surface, uint32_t edges, int32_t width, int32_t height) {
       auto* self = static_cast<listener*>(data);
-      self->get_function().configure(resource_ref_t<ShellSurface>{*shell_surface}, edges, width, height);
+      self->get_function().configure(resource_ref_t<ShellSurface>{*shell_surface}, edges, size{width, height});
     }
 
     static void popup_done(void *data, wl_shell_surface *shell_surface) {

@@ -52,17 +52,22 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
       std::cout << "ping: " << serial << '\n';
       surf.pong(serial);
     }
-    void configure(wl::shell_surface::ref, uint32_t edges, uint32_t w, uint32_t h) {
-      std::cout << "\tshell_surface cofiguration: edges = " << edges << "size = " << w << 'x' << h << '\n';
+    void configure(wl::shell_surface::ref, uint32_t edges, wl::size sz) {
+      std::cout << "\tshell_surface cofiguration: edges = " << edges << "size = " << sz.width << 'x' << sz.height << '\n';
     }
     void popup_done(wl::shell_surface::ref) {}
   };
   wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
   shsurf.add_listener(sh_srf_listener);
 
-  shared_memory shmem{1024};
+  shared_memory shmem{4*240*480};
   wl::shm::pool pool = shm.create_pool(shmem.fd().native_handle(), shmem.size());
   std::cout << "wl_shm_pool version: " << pool.get_version() << '\n';
+  wl::buffer buf = pool.create_buffer(0, wl::size{240, 480}, 4*240, wl::shm::format::ARGB8888);
+  std::cout << "wl_buffer version: " << buf.get_version() << '\n';
+  std::fill(shmem.data(), shmem.data() + shmem.size(), std::byte{0x88});
+  surface.attach(buf);
+  surface.commit();
 
   pc::promise<void> p;
   wl::callback::listener sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
