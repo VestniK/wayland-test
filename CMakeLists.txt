@@ -13,10 +13,12 @@ add_library(wlpp-ide OBJECT
   wayland/client.hpp
   wayland/wl/basic_listener.hpp
   wayland/wl/basic_resource.hpp
+  wayland/wl/bitmask.hpp
   wayland/wl/buffer.hpp
   wayland/wl/callback.hpp
   wayland/wl/error.hpp
   wayland/wl/registry.hpp
+  wayland/wl/seat.hpp
   wayland/wl/shell_surface.hpp
   wayland/wl/shm.hpp
   wayland/wl/shm_pool.hpp
@@ -36,7 +38,6 @@ add_executable(lswl
 target_link_libraries(lswl PRIVATE wlpp)
 
 add_executable(wayland_test
-  bitmask.h
   io.h
   io.cpp
   xdg.h

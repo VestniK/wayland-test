@@ -22,6 +22,7 @@ struct deleter {
   void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
   void operator() (wl_shell* ptr) {wl_shell_destroy(ptr);}
   void operator() (wl_callback* ptr) {wl_callback_destroy(ptr);}
+  void operator() (wl_seat* ptr) {wl_seat_destroy(ptr);}
   void operator() (wl_surface* ptr) {wl_surface_destroy(ptr);}
   void operator() (wl_shell_surface* ptr) {wl_shell_surface_destroy(ptr);}
   void operator() (wl_shm* ptr) {wl_shm_destroy(ptr);}

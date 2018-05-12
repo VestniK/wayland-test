@@ -31,10 +31,23 @@ private:
   io::mem_mapping mem_;
 };
 
-pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm) {
+pc::future<void> wait_quit(wl::seat& seat) {
+  struct seat_logger {
+    void capabilities(wl::seat::ref, wl::bitmask<wl::seat::capability> caps) {
+      std::cout << "\tSeat capabilities: " << caps.value() << '\n';
+    }
+    void name(wl::seat::ref, const char* seat_name) {std::cout << "\tSeat name: " << seat_name << '\n';}
+  };
+  wl::seat::listener<seat_logger> listner;
+  seat.add_listener(listner);
+  co_return;
+}
+
+pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
   std::cout << "Compositor version: " << compositor.get_version() << '\n';
   std::cout << "Shell version: " << shell.get_version() << '\n';
   std::cout << "SHM version: " << shm.get_version() << '\n';
+  std::cout << "Seat version: " << seat.get_version() << '\n';
 
   wl::surface surface = compositor.create_surface();
   std::cout << "Created a surface of version: " << surface.get_version() << '\n';
@@ -73,7 +86,9 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   wl::callback::listener sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
   wl::callback sync_cb = display.sync();
   sync_cb.add_listener(sync_listener);
-  co_await p.get_future();
+  auto [sync_res, quit_res] = co_await pc::when_all(p.get_future(), wait_quit(seat));
+  sync_res.get();
+  quit_res.get();
 
   co_return EXIT_SUCCESS;
 }
@@ -81,7 +96,7 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
 int main(int argc, char** argv) try {
   wl::display display{argc > 1 ? argv[1] : nullptr};
 
-  registry_searcher<wl::compositor, wl::shell, wl::shm> searcher;
+  registry_searcher<wl::compositor, wl::shell, wl::shm, wl::seat> searcher;
 
   wl::registry::listener iface_listener = std::ref(searcher);
   wl::registry registry = display.get_registry();
@@ -92,7 +107,7 @@ int main(int argc, char** argv) try {
   sync_cb.add_listener(sync_listener);
 
   using namespace std::placeholders;
-  auto f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3));
+  auto f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3, _4));
   while (!f.is_ready())
     display.dispatch();
   return f.get();

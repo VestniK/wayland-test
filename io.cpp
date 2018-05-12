@@ -26,7 +26,7 @@ void file_descriptor::close() noexcept {
     ::close(fd);
 }
 
-file_descriptor open(const fs::path& path, bitmask<mode> flags, bitmask<perm> perms) {
+file_descriptor open(const fs::path& path, wl::bitmask<mode> flags, wl::bitmask<perm> perms) {
   int fd = ::open(path.c_str(), flags.value(), perms.value());
   if (fd < 0)
     throw std::system_error{errno, std::system_category(), "open " + path.string()};

@@ -9,7 +9,7 @@
 
 #include <experimental/filesystem>
 
-#include "bitmask.h"
+#include "wayland/wl/bitmask.hpp"
 
 namespace fs = std::experimental::filesystem;
 
@@ -46,8 +46,8 @@ enum class mode: int {
   truncate = O_TRUNC,
   tmpfile = O_TMPFILE
 };
-constexpr bitmask<mode> operator| (mode lhs, mode rhs) noexcept {
-  return bitmask<mode>{lhs} | rhs;
+constexpr wl::bitmask<mode> operator| (mode lhs, mode rhs) noexcept {
+  return wl::bitmask<mode>{lhs} | rhs;
 }
 
 enum class perm: mode_t {
@@ -63,12 +63,12 @@ enum class perm: mode_t {
   other_write = S_IWOTH,
   other_exec = S_IXOTH,
 };
-constexpr bitmask<perm> operator| (perm lhs, perm rhs) noexcept {
-  return bitmask<perm>{lhs} | rhs;
+constexpr wl::bitmask<perm> operator| (perm lhs, perm rhs) noexcept {
+  return wl::bitmask<perm>{lhs} | rhs;
 }
-constexpr bitmask<perm> default_perms = perm::owner_read | perm::owner_write | perm::grp_read | perm::other_read;
+constexpr wl::bitmask<perm> default_perms = perm::owner_read | perm::owner_write | perm::grp_read | perm::other_read;
 
-file_descriptor open(const fs::path& path, bitmask<mode> flags, bitmask<perm> perms = default_perms);
+file_descriptor open(const fs::path& path, wl::bitmask<mode> flags, wl::bitmask<perm> perms = default_perms);
 
 void sync(const file_descriptor& fd, std::error_code& ec) noexcept;
 void sync(const file_descriptor& fd);
@@ -115,14 +115,14 @@ private:
 };
 
 enum class prot: int {exec = PROT_EXEC, read = PROT_READ, write = PROT_WRITE, none = PROT_NONE};
-constexpr bitmask<prot> operator | (prot lhs, prot rhs) noexcept {return bitmask<prot>{lhs} | rhs;}
+constexpr wl::bitmask<prot> operator | (prot lhs, prot rhs) noexcept {return wl::bitmask<prot>{lhs} | rhs;}
 
 enum class map: int {shared = MAP_SHARED, priv = MAP_PRIVATE, anon = MAP_ANONYMOUS};
-constexpr bitmask<map> operator | (map lhs, map rhs) noexcept {return bitmask<map>{lhs} | rhs;}
+constexpr wl::bitmask<map> operator | (map lhs, map rhs) noexcept {return wl::bitmask<map>{lhs} | rhs;}
 
 inline
 mem_mapping mmap(
-  size_t length, bitmask<prot> prt, bitmask<map> flags,
+  size_t length, wl::bitmask<prot> prt, wl::bitmask<map> flags,
   const file_descriptor& fd, std::streamoff off,
   std::error_code& ec
 ) noexcept {
@@ -136,7 +136,9 @@ mem_mapping mmap(
 }
 
 inline
-mem_mapping mmap(size_t length, bitmask<prot> prt, bitmask<map> flags, const file_descriptor& fd, std::streamoff off = 0) {
+mem_mapping mmap(
+  size_t length, wl::bitmask<prot> prt, wl::bitmask<map> flags, const file_descriptor& fd, std::streamoff off = 0
+) {
   std::error_code ec;
   mem_mapping res = mmap(length, prt, flags, fd, off, ec);
   if (ec)

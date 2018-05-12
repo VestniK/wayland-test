@@ -2,12 +2,15 @@
 
 #include <type_traits>
 
+namespace wl {
+
 template<typename E>
 class bitmask {
 public:
   using value_type = std::underlying_type_t<E>;
 
   constexpr bitmask(const E e) noexcept: val(static_cast<value_type>(e)) {}
+  constexpr explicit bitmask(value_type val): val(val) {}
   constexpr bitmask() = default;
 
   constexpr bitmask operator|(const bitmask rhs) const noexcept {return bitmask(val | rhs.val);}
@@ -33,8 +36,7 @@ public:
   constexpr value_type value() const noexcept {return val;}
 
 private:
-  constexpr bitmask(const value_type t) noexcept : val(t) {}
-
-private:
   value_type val = 0;
 };
+
+}
