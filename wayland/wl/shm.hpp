@@ -32,7 +32,7 @@ struct shm {
   class listener: public basic_listener<wl_shm_listener, F> {
   public:
     template<typename... A>
-    listener(A&&... a): basic_listener<wl_shm_listener, F>{{&format}, std::forward<F>(a)...} {}
+    listener(A&&... a): basic_listener<wl_shm_listener, F>{{&format}, std::forward<A>(a)...} {}
 
   private:
     static void format(void* data, wl_shm* handle, uint32_t fmt) {

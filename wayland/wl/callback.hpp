@@ -20,7 +20,7 @@ struct callback {
   public:
     listener(): F() {}
     template<typename... A>
-    listener(A&&... a): F(std::forward<F>(a)...) {}
+    listener(A&&... a): F(std::forward<A>(a)...) {}
 
     listener(const listener&) = delete;
     listener& operator= (const listener&) = delete;

@@ -25,7 +25,12 @@ enum class id: uint32_t {};
 enum class version: uint32_t {};
 enum class serial: uint32_t {};
 inline std::ostream& operator<< (std::ostream& out, version ver) {return out << underlying_cast(ver);}
-inline std::ostream& operator<< (std::ostream& out, serial val) {return out << std::hex << underlying_cast(val);}
+inline std::ostream& operator<< (std::ostream& out, serial val) {
+  const auto flags = out.flags();
+  out << std::hex << underlying_cast(val);
+  out.setf(flags);
+  return out;
+}
 
 struct deleter {
   void operator() (wl_buffer* ptr) {wl_buffer_destroy(ptr);}

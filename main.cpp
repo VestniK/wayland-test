@@ -32,6 +32,7 @@ private:
 };
 
 pc::future<void> wait_quit(wl::seat& seat) {
+  std::cout << "==== Press Esc to quit ====\n";
   struct seat_logger {
     void capabilities(wl::seat::ref, wl::bitmask<wl::seat::capability> caps) {
       std::cout << "\tSeat capabilities: " << caps.value() << '\n';
@@ -40,8 +41,63 @@ pc::future<void> wait_quit(wl::seat& seat) {
   };
   wl::seat::listener<seat_logger> listner;
   seat.add_listener(listner);
+
+  pc::promise<void> p;
+  pc::future esc_future = p.get_future();
+  struct kb_logger {
+    kb_logger(pc::promise<void> p): promise{std::move(p)} {}
+
+    void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) {
+      io::file_descriptor fdesc{fd};
+      std::cout << "Received keymap. Format: " << wl::underlying_cast(fmt) << "; of size: " << size << '\n';
+    }
+    void enter(wl::keyboard::ref, wl::serial eid, wl::surface::ref, wl_array*) {
+      esc_pressed = false;
+      std::cout << "Surface get focus[" << eid << "]\n";
+    }
+    void leave(wl::keyboard::ref, wl::serial eid, wl::surface::ref) {
+      esc_pressed = false;
+      std::cout << "Surface lost focus[" << eid << "]\n";
+    }
+    void key(wl::keyboard::ref, wl::serial eid, wl::clock::time_point time, uint32_t key, wl::keyboard::key_state state) {
+      std::cout
+        << "Key event[" << eid << "] timestamp: " << time.time_since_epoch().count() << "; key code: " << key
+        << "; key state: " << wl::underlying_cast(state) << '\n';
+
+      constexpr uint32_t esc_keycde = 1;
+      if (key != esc_keycde) {
+        esc_pressed = false;
+        return;
+      }
+
+      if (esc_pressed && state == wl::keyboard::key_state::released) {
+        promise.set_value();
+        return;
+      }
+
+      esc_pressed = state == wl::keyboard::key_state::pressed;
+    }
+    void modifiers(
+      wl::keyboard::ref, wl::serial eid, uint32_t mods_depressed, uint32_t mods_latched,
+      uint32_t mods_locked, uint32_t group
+    ) {
+      esc_pressed = false;
+      std::cout
+        << "Modifiers event[" << eid << "] mds_depresed: " << mods_depressed << "; mods latched: " << mods_latched
+        << "; mods locked: " << mods_locked << "; group: " << group << '\n';
+    }
+    void repeat_info(wl::keyboard::ref, int32_t rate, std::chrono::milliseconds delay) {
+      std::cout << "Repeat info: rate: " << rate << "; delay: " << delay.count() << "ms\n";
+    }
+
+    pc::promise<void> promise;
+    bool esc_pressed = false;
+  };
+  wl::keyboard::listener<kb_logger> kb_listener{std::move(p)};
   wl::keyboard kb = seat.get_keyboard();
-  co_return;
+  kb.add_listener(kb_listener);
+
+  co_await esc_future;
 }
 
 pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
@@ -57,7 +113,9 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   shsurf.set_toplevel();
 
   wl::shm::listener shm_listener = [](wl::shm::ref, wl::shm::format fmt) {
+    const auto flags = std::cout.flags();
     std::cout << "\tsupported pixel format code: " << std::hex << static_cast<uint32_t>(fmt) << '\n';
+    std::cout.setf(flags);
   };
   shm.add_listener(shm_listener);
 

@@ -32,12 +32,12 @@ struct keyboard {
   }
 
   template<typename F>
-  class listener: basic_listener<wl_keyboard_listener, F> {
+  class listener: public basic_listener<wl_keyboard_listener, F> {
   public:
     template<typename... A>
     listener(A&&... a):
       basic_listener<wl_keyboard_listener, F>{
-        {&keymap, &enter, &leave, &key, &modifiers, &repeat_info}, std::forward<F>(a)...
+        {&keymap, &enter, &leave, &key, &modifiers, &repeat_info}, std::forward<A>(a)...
       }
     {}
   private:
@@ -49,7 +49,7 @@ struct keyboard {
       listener* self = static_cast<listener*>(data);
       self->get_function().enter(resource_ref_t<KB>{*handle}, serial{eid}, wl::surface::ref(*surf), pressed_keys);
     }
-    static void leave(void* data, wl_keyboard* handle, uint32_t eid, wl::surface::ref(*surf)) {
+    static void leave(void* data, wl_keyboard* handle, uint32_t eid, wl_surface* surf) {
       listener* self = static_cast<listener*>(data);
       self->get_function().leave(resource_ref_t<KB>{*handle}, serial{eid}, wl::surface::ref(*surf));
     }
@@ -69,7 +69,7 @@ struct keyboard {
     }
     static void repeat_info(void* data, wl_keyboard* handle, int32_t rate, int32_t delay) {
       listener* self = static_cast<listener*>(data);
-      self->get_function().key(resource_ref_t<KB>{*handle}, rate, std::chrono::milliseconds(delay));
+      self->get_function().repeat_info(resource_ref_t<KB>{*handle}, rate, std::chrono::milliseconds(delay));
     }
   };
   template<typename F> listener(F&&) -> listener<std::decay_t<F>>;

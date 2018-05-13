@@ -37,7 +37,7 @@ struct seat {
   class listener: public basic_listener<wl_seat_listener, F> {
   public:
     template<typename... A>
-    listener(A&&... a): basic_listener<wl_seat_listener, F>{{&capabilities, &name}, std::forward<F>(a)...} {}
+    listener(A&&... a): basic_listener<wl_seat_listener, F>{{&capabilities, &name}, std::forward<A>(a)...} {}
 
   private:
     static void capabilities(void* data, wl_seat* handle, uint32_t caps) {
