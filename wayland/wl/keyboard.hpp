@@ -14,7 +14,7 @@ namespace detail {
 
 enum class keymap_format: uint32_t {
   no_keymap = WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP,
-  xcb_v1 = WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1
+  xkb_v1 = WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1
 };
 
 enum class key_state: uint32_t {

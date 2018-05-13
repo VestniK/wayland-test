@@ -9,6 +9,9 @@ find_package(portable_concurrency REQUIRED)
 add_library(wayland::client INTERFACE IMPORTED)
 set_target_properties(wayland::client PROPERTIES INTERFACE_LINK_LIBRARIES wayland-client)
 
+add_library(xkb::common INTERFACE IMPORTED)
+set_target_properties(xkb::common PROPERTIES INTERFACE_LINK_LIBRARIES xkbcommon)
+
 add_library(wlpp-ide OBJECT
   wayland/client.hpp
   wayland/wl/basic_listener.hpp
@@ -44,11 +47,13 @@ add_executable(wayland_test
   io.cpp
   xdg.h
   xdg.cpp
+  xkb.hpp
   registry_searcher.hpp
   main.cpp
 )
 target_link_libraries(wayland_test
   portable_concurrency::portable_concurrency
+  xkb::common
   wlpp
 )
 target_compile_options(wayland_test PRIVATE

@@ -8,17 +8,20 @@
 #include "io.h"
 #include "registry_searcher.hpp"
 #include "xdg.h"
+#include "xkb.hpp"
 
 using namespace std::literals;
 
 class shared_memory {
 public:
-  shared_memory(size_t size):
-    fd_{io::open(xdg::runtime_dir(), io::mode::read_write | io::mode::tmpfile | io::mode::close_exec)}
-  {
+  shared_memory(io::file_descriptor fd, size_t size): fd_(std::move(fd)) {
     io::truncate(fd_, size);
     mem_ = io::mmap(size, io::prot::read | io::prot::write, io::map::shared, fd_);
   }
+
+  explicit shared_memory(size_t size):
+    shared_memory(io::open(xdg::runtime_dir(), io::mode::read_write | io::mode::tmpfile | io::mode::close_exec), size)
+  {}
 
   std::byte* data() noexcept {return mem_.data();}
   const std::byte* data() const noexcept {return mem_.data();}
@@ -47,10 +50,24 @@ pc::future<void> wait_quit(wl::seat& seat) {
   struct kb_logger {
     kb_logger(pc::promise<void> p): promise{std::move(p)} {}
 
-    void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) {
-      io::file_descriptor fdesc{fd};
+    void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
+      shared_memory shmem{io::file_descriptor{fd}, size};
       std::cout << "Received keymap. Format: " << wl::underlying_cast(fmt) << "; of size: " << size << '\n';
+      if (fmt != wl::keyboard::keymap_format::xkb_v1) {
+        promise.set_exception(std::make_exception_ptr(std::runtime_error{"Unsupported keymap format"}));
+        return;
+      }
+      xkb::context ctx;
+      xkb::keymap kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
+      const xkb_keycode_t esc_xkb = kmap.key_by_name("ESC");
+      if (esc_xkb == XKB_KEYCODE_INVALID)
+        throw std::runtime_error{"failed to find Escape key code"};
+      esc_keycode = esc_xkb - 8; // TODO: wrap conversion properly with strong typedef
+      std::cout << "Escape keycode: " << esc_keycode << '\n';
+    } catch(...) {
+      promise.set_exception(std::current_exception());
     }
+
     void enter(wl::keyboard::ref, wl::serial eid, wl::surface::ref, wl_array*) {
       esc_pressed = false;
       std::cout << "Surface get focus[" << eid << "]\n";
@@ -91,6 +108,7 @@ pc::future<void> wait_quit(wl::seat& seat) {
     }
 
     pc::promise<void> promise;
+    uint32_t esc_keycode = 0;
     bool esc_pressed = false;
   };
   wl::keyboard::listener<kb_logger> kb_listener{std::move(p)};
