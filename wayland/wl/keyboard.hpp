@@ -10,6 +10,8 @@
 
 namespace wl {
 
+enum class keycode: uint32_t {};
+
 namespace detail {
 
 enum class keymap_format: uint32_t {
@@ -56,7 +58,7 @@ struct keyboard {
     static void key(void* data, wl_keyboard* handle, uint32_t eid, uint32_t time, uint32_t key, uint32_t state) {
       listener* self = static_cast<listener*>(data);
       self->get_function().key(
-        resource_ref_t<KB>{*handle}, serial{eid}, clock::time_point{clock::duration{time}}, key, key_state{state});
+        resource_ref_t<KB>{*handle}, serial{eid}, clock::time_point{clock::duration{time}}, keycode{key}, key_state{state});
     }
     static void modifiers(
       void* data, wl_keyboard* handle, uint32_t eid, uint32_t mods_depressed, uint32_t mods_latched,

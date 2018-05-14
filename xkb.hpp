@@ -7,6 +7,11 @@
 
 namespace xkb {
 
+enum class keycode: xkb_keycode_t {
+  max = XKB_KEYCODE_MAX,
+  invalid = XKB_KEYCODE_INVALID
+};
+
 struct deleter {
   void operator() (xkb_context* ptr) {xkb_context_unref(ptr);}
   void operator() (xkb_keymap* ptr) {xkb_keymap_unref(ptr);}
@@ -20,15 +25,15 @@ public:
   keymap() noexcept = default;
   keymap(unique_ptr<xkb_keymap> ptr): ptr_(std::move(ptr)) {}
 
-  xkb_keycode_t key_by_name(const char* name) const {
-    return xkb_keymap_key_by_name(ptr_.get(), name);
+  keycode key_by_name(const char* name) const {
+    return keycode{xkb_keymap_key_by_name(ptr_.get(), name)};
   }
-  xkb_keycode_t key_by_name(const std::string& name) const {
+  keycode key_by_name(const std::string& name) const {
     return key_by_name(name.c_str());
   }
 
-  const char* key_get_name(xkb_keycode_t key) const {
-    return xkb_keymap_key_get_name(ptr_.get(), key);
+  const char* key_get_name(keycode key) const {
+    return xkb_keymap_key_get_name(ptr_.get(), static_cast<xkb_keycode_t>(key));
   }
 private:
   unique_ptr<xkb_keymap> ptr_;

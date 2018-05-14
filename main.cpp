@@ -12,6 +12,14 @@
 
 using namespace std::literals;
 
+wl::keycode keycode_conv(xkb::keycode val) noexcept {
+  return wl::keycode{wl::underlying_cast(val) - 8};
+}
+
+xkb::keycode keycode_conv(wl::keycode val) noexcept {
+  return xkb::keycode{wl::underlying_cast(val) + 8};
+}
+
 class shared_memory {
 public:
   shared_memory(io::file_descriptor fd, size_t size): fd_(std::move(fd)) {
@@ -34,6 +42,60 @@ private:
   io::mem_mapping mem_;
 };
 
+struct kb_logger {
+  kb_logger(pc::promise<void> p): promise{std::move(p)} {}
+
+  void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
+    shared_memory shmem{io::file_descriptor{fd}, size};
+    std::cout << "Received keymap. Format: " << wl::underlying_cast(fmt) << "; of size: " << size << '\n';
+    if (fmt != wl::keyboard::keymap_format::xkb_v1) {
+      promise.set_exception(std::make_exception_ptr(std::runtime_error{"Unsupported keymap format"}));
+      return;
+    }
+    xkb::context ctx;
+    kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
+    const xkb::keycode esc_xkb = kmap.key_by_name("ESC");
+    if (esc_xkb == xkb::keycode::invalid)
+      throw std::runtime_error{"failed to find Escape key code"};
+    esc_keycode = keycode_conv(esc_xkb);
+    std::cout << "Escape keycode: " << wl::underlying_cast(esc_keycode) << '\n';
+  } catch(...) {
+    promise.set_exception(std::current_exception());
+  }
+
+  void enter(wl::keyboard::ref, wl::serial eid, wl::surface::ref, wl_array*) {
+    std::cout << "Surface get focus[" << eid << "]\n";
+  }
+  void leave(wl::keyboard::ref, wl::serial eid, wl::surface::ref) {
+    std::cout << "Surface lost focus[" << eid << "]\n";
+  }
+  void key(wl::keyboard::ref, wl::serial eid, wl::clock::time_point time, wl::keycode key, wl::keyboard::key_state state) {
+    std::cout
+      << "Key event[" << eid << "] timestamp: " << time.time_since_epoch().count() << "; key code: " << wl::underlying_cast(key)
+      << " [" << kmap.key_get_name(keycode_conv(key)) << "] " << "; key state: " << wl::underlying_cast(state) << '\n';
+
+    if (key == esc_keycode && state == wl::keyboard::key_state::pressed) {
+      promise.set_value();
+      return;
+    }
+  }
+  void modifiers(
+    wl::keyboard::ref, wl::serial eid, uint32_t mods_depressed, uint32_t mods_latched,
+    uint32_t mods_locked, uint32_t group
+  ) {
+    std::cout
+      << "Modifiers event[" << eid << "] mds_depresed: " << mods_depressed << "; mods latched: " << mods_latched
+      << "; mods locked: " << mods_locked << "; group: " << group << '\n';
+  }
+  void repeat_info(wl::keyboard::ref, int32_t rate, std::chrono::milliseconds delay) {
+    std::cout << "Repeat info: rate: " << rate << "; delay: " << delay.count() << "ms\n";
+  }
+
+  pc::promise<void> promise;
+  xkb::keymap kmap;
+  wl::keycode esc_keycode = {};
+};
+
 pc::future<void> wait_quit(wl::seat& seat) {
   std::cout << "==== Press Esc to quit ====\n";
   struct seat_logger {
@@ -47,59 +109,6 @@ pc::future<void> wait_quit(wl::seat& seat) {
 
   pc::promise<void> p;
   pc::future esc_future = p.get_future();
-  struct kb_logger {
-    kb_logger(pc::promise<void> p): promise{std::move(p)} {}
-
-    void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
-      shared_memory shmem{io::file_descriptor{fd}, size};
-      std::cout << "Received keymap. Format: " << wl::underlying_cast(fmt) << "; of size: " << size << '\n';
-      if (fmt != wl::keyboard::keymap_format::xkb_v1) {
-        promise.set_exception(std::make_exception_ptr(std::runtime_error{"Unsupported keymap format"}));
-        return;
-      }
-      xkb::context ctx;
-      kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
-      const xkb_keycode_t esc_xkb = kmap.key_by_name("ESC");
-      if (esc_xkb == XKB_KEYCODE_INVALID)
-        throw std::runtime_error{"failed to find Escape key code"};
-      esc_keycode = esc_xkb - 8; // TODO: wrap conversion properly with strong typedef
-      std::cout << "Escape keycode: " << esc_keycode << '\n';
-    } catch(...) {
-      promise.set_exception(std::current_exception());
-    }
-
-    void enter(wl::keyboard::ref, wl::serial eid, wl::surface::ref, wl_array*) {
-      std::cout << "Surface get focus[" << eid << "]\n";
-    }
-    void leave(wl::keyboard::ref, wl::serial eid, wl::surface::ref) {
-      std::cout << "Surface lost focus[" << eid << "]\n";
-    }
-    void key(wl::keyboard::ref, wl::serial eid, wl::clock::time_point time, uint32_t key, wl::keyboard::key_state state) {
-      std::cout
-        << "Key event[" << eid << "] timestamp: " << time.time_since_epoch().count() << "; key code: " << key
-        << " [" << kmap.key_get_name(key + 8) << "] " << "; key state: " << wl::underlying_cast(state) << '\n';
-
-      if (key == esc_keycode && state == wl::keyboard::key_state::pressed) {
-        promise.set_value();
-        return;
-      }
-    }
-    void modifiers(
-      wl::keyboard::ref, wl::serial eid, uint32_t mods_depressed, uint32_t mods_latched,
-      uint32_t mods_locked, uint32_t group
-    ) {
-      std::cout
-        << "Modifiers event[" << eid << "] mds_depresed: " << mods_depressed << "; mods latched: " << mods_latched
-        << "; mods locked: " << mods_locked << "; group: " << group << '\n';
-    }
-    void repeat_info(wl::keyboard::ref, int32_t rate, std::chrono::milliseconds delay) {
-      std::cout << "Repeat info: rate: " << rate << "; delay: " << delay.count() << "ms\n";
-    }
-
-    pc::promise<void> promise;
-    xkb::keymap kmap;
-    uint32_t esc_keycode = 0;
-  };
   wl::keyboard::listener<kb_logger> kb_listener{std::move(p)};
   wl::keyboard kb = seat.get_keyboard();
   kb.add_listener(kb_listener);
