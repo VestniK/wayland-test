@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace wl {
+namespace ut {
 
 template<typename E>
 class bitmask {

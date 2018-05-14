@@ -2,9 +2,10 @@
 
 #include <string_view>
 
+#include <util/bitmask.hpp>
+
 #include "basic_listener.hpp"
 #include "basic_resource.hpp"
-#include "bitmask.hpp"
 #include "error.hpp"
 #include "keyboard.hpp"
 #include "util.hpp"
@@ -18,8 +19,8 @@ enum class seat_capability: uint32_t {
   keyboard = WL_SEAT_CAPABILITY_KEYBOARD,
   touch = WL_SEAT_CAPABILITY_TOUCH
 };
-constexpr bitmask<seat_capability> operator | (seat_capability l, seat_capability r) noexcept {
-  return bitmask<seat_capability>(l) | r;
+constexpr ut::bitmask<seat_capability> operator | (seat_capability l, seat_capability r) noexcept {
+  return ut::bitmask<seat_capability>(l) | r;
 }
 
 template<typename Seat>
@@ -42,7 +43,7 @@ struct seat {
   private:
     static void capabilities(void* data, wl_seat* handle, uint32_t caps) {
       listener* self = static_cast<listener*>(data);
-      self->get_function().capabilities(resource_ref_t<Seat>{*handle}, bitmask<capability>{caps});
+      self->get_function().capabilities(resource_ref_t<Seat>{*handle}, ut::bitmask<capability>{caps});
     }
     static void name(void* data, wl_seat* handle, const char* name) {
       listener* self = static_cast<listener*>(data);

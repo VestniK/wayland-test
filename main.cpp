@@ -3,11 +3,12 @@
 
 #include <portable_concurrency/future>
 
+#include "io/file.hpp"
+#include "io/shmem.hpp"
+
 #include "wayland/client.hpp"
 
-#include "io.h"
 #include "registry_searcher.hpp"
-#include "xdg.h"
 #include "xkb.hpp"
 
 using namespace std::literals;
@@ -20,38 +21,15 @@ xkb::keycode keycode_conv(wl::keycode val) noexcept {
   return xkb::keycode{wl::underlying_cast(val) + 8};
 }
 
-class shared_memory {
-public:
-  shared_memory(io::file_descriptor fd, size_t size): fd_(std::move(fd)) {
-    io::truncate(fd_, size);
-    mem_ = io::mmap(size, io::prot::read | io::prot::write, io::map::shared, fd_);
-  }
-
-  explicit shared_memory(size_t size):
-    shared_memory(io::open(xdg::runtime_dir(), io::mode::read_write | io::mode::tmpfile | io::mode::close_exec), size)
-  {}
-
-  std::byte* data() noexcept {return mem_.data();}
-  const std::byte* data() const noexcept {return mem_.data();}
-  size_t size() const noexcept {return mem_.size();}
-
-  const io::file_descriptor& fd() const noexcept {return fd_;}
-
-private:
-  io::file_descriptor fd_;
-  io::mem_mapping mem_;
-};
-
-struct kb_logger {
-  kb_logger(pc::promise<void> p): promise{std::move(p)} {}
+struct kb_handler {
+  kb_handler(pc::promise<void> p): promise{std::move(p)} {}
 
   void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
-    shared_memory shmem{io::file_descriptor{fd}, size};
     std::cout << "Received keymap. Format: " << wl::underlying_cast(fmt) << "; of size: " << size << '\n';
-    if (fmt != wl::keyboard::keymap_format::xkb_v1) {
-      promise.set_exception(std::make_exception_ptr(std::runtime_error{"Unsupported keymap format"}));
-      return;
-    }
+    if (fmt != wl::keyboard::keymap_format::xkb_v1)
+      throw std::runtime_error{"Unsupported keymap format"};
+
+    io::shared_memory shmem{io::file_descriptor{fd}, size};
     xkb::context ctx;
     kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
     const xkb::keycode esc_xkb = kmap.key_by_name("ESC");
@@ -99,7 +77,7 @@ struct kb_logger {
 pc::future<void> wait_quit(wl::seat& seat) {
   std::cout << "==== Press Esc to quit ====\n";
   struct seat_logger {
-    void capabilities(wl::seat::ref, wl::bitmask<wl::seat::capability> caps) {
+    void capabilities(wl::seat::ref, ut::bitmask<wl::seat::capability> caps) {
       std::cout << "\tSeat capabilities: " << caps.value() << '\n';
     }
     void name(wl::seat::ref, const char* seat_name) {std::cout << "\tSeat name: " << seat_name << '\n';}
@@ -109,7 +87,7 @@ pc::future<void> wait_quit(wl::seat& seat) {
 
   pc::promise<void> p;
   pc::future esc_future = p.get_future();
-  wl::keyboard::listener<kb_logger> kb_listener{std::move(p)};
+  wl::keyboard::listener<kb_handler> kb_listener{std::move(p)};
   wl::keyboard kb = seat.get_keyboard();
   kb.add_listener(kb_listener);
 
@@ -148,7 +126,7 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
   shsurf.add_listener(sh_srf_listener);
 
-  shared_memory shmem{4*240*480};
+  io::shared_memory shmem{4*240*480};
   wl::shm::pool pool = shm.create_pool(shmem.fd().native_handle(), shmem.size());
   std::cout << "wl_shm_pool version: " << pool.get_version() << '\n';
   wl::buffer buf = pool.create_buffer(0, wl::size{240, 480}, 4*240, wl::shm::format::ARGB8888);
