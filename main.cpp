@@ -58,7 +58,7 @@ pc::future<void> wait_quit(wl::seat& seat) {
         return;
       }
       xkb::context ctx;
-      xkb::keymap kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
+      kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
       const xkb_keycode_t esc_xkb = kmap.key_by_name("ESC");
       if (esc_xkb == XKB_KEYCODE_INVALID)
         throw std::runtime_error{"failed to find Escape key code"};
@@ -69,36 +69,25 @@ pc::future<void> wait_quit(wl::seat& seat) {
     }
 
     void enter(wl::keyboard::ref, wl::serial eid, wl::surface::ref, wl_array*) {
-      esc_pressed = false;
       std::cout << "Surface get focus[" << eid << "]\n";
     }
     void leave(wl::keyboard::ref, wl::serial eid, wl::surface::ref) {
-      esc_pressed = false;
       std::cout << "Surface lost focus[" << eid << "]\n";
     }
     void key(wl::keyboard::ref, wl::serial eid, wl::clock::time_point time, uint32_t key, wl::keyboard::key_state state) {
       std::cout
         << "Key event[" << eid << "] timestamp: " << time.time_since_epoch().count() << "; key code: " << key
-        << "; key state: " << wl::underlying_cast(state) << '\n';
+        << " [" << kmap.key_get_name(key + 8) << "] " << "; key state: " << wl::underlying_cast(state) << '\n';
 
-      constexpr uint32_t esc_keycde = 1;
-      if (key != esc_keycde) {
-        esc_pressed = false;
-        return;
-      }
-
-      if (esc_pressed && state == wl::keyboard::key_state::released) {
+      if (key == esc_keycode && state == wl::keyboard::key_state::pressed) {
         promise.set_value();
         return;
       }
-
-      esc_pressed = state == wl::keyboard::key_state::pressed;
     }
     void modifiers(
       wl::keyboard::ref, wl::serial eid, uint32_t mods_depressed, uint32_t mods_latched,
       uint32_t mods_locked, uint32_t group
     ) {
-      esc_pressed = false;
       std::cout
         << "Modifiers event[" << eid << "] mds_depresed: " << mods_depressed << "; mods latched: " << mods_latched
         << "; mods locked: " << mods_locked << "; group: " << group << '\n';
@@ -108,8 +97,8 @@ pc::future<void> wait_quit(wl::seat& seat) {
     }
 
     pc::promise<void> promise;
+    xkb::keymap kmap;
     uint32_t esc_keycode = 0;
-    bool esc_pressed = false;
   };
   wl::keyboard::listener<kb_logger> kb_listener{std::move(p)};
   wl::keyboard kb = seat.get_keyboard();
