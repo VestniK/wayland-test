@@ -14,16 +14,6 @@ enum class keycode: uint32_t {};
 
 namespace detail {
 
-enum class keymap_format: uint32_t {
-  no_keymap = WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP,
-  xkb_v1 = WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1
-};
-
-enum class key_state: uint32_t {
-  released = WL_KEYBOARD_KEY_STATE_RELEASED,
-  pressed = WL_KEYBOARD_KEY_STATE_PRESSED
-};
-
 template<typename KB>
 struct keyboard {
   using keymap_format = keymap_format;

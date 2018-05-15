@@ -2,6 +2,8 @@
 
 #include <wayland-client.h>
 
+#include <util/util.hpp>
+
 #include "basic_listener.hpp"
 #include "basic_resource.hpp"
 #include "util.hpp"
@@ -20,7 +22,7 @@ struct shell_surface {
     wl_shell_surface_set_toplevel(native_handle<ShellSurface>(*this));
   }
 
-  void pong(serial eid) {wl_shell_surface_pong(native_handle<ShellSurface>(*this), underlying_cast(eid));}
+  void pong(serial eid) {wl_shell_surface_pong(native_handle<ShellSurface>(*this), ut::underlying_cast(eid));}
 
   template<typename F>
   class listener: public basic_listener<wl_shell_surface_listener, F> {

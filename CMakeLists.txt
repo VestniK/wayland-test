@@ -21,6 +21,7 @@ set_target_properties(xkb::common PROPERTIES INTERFACE_LINK_LIBRARIES xkbcommon)
 
 add_headeronly_lib(util
   util/bitmask.hpp
+  util/util.hpp
 )
 target_include_directories(util INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
@@ -45,6 +46,7 @@ add_headeronly_lib(wlpp
   wayland/wl/buffer.hpp
   wayland/wl/callback.hpp
   wayland/wl/error.hpp
+  wayland/wl/io.hpp
   wayland/wl/keyboard.hpp
   wayland/wl/registry.hpp
   wayland/wl/seat.hpp

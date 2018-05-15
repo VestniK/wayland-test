@@ -18,19 +18,19 @@ struct clock {
   static constexpr bool is_steady = true;
 };
 
-template<typename E>
-auto underlying_cast(E e) noexcept {return static_cast<std::underlying_type_t<E>>(e);}
-
 enum class id: uint32_t {};
 enum class version: uint32_t {};
 enum class serial: uint32_t {};
-inline std::ostream& operator<< (std::ostream& out, version ver) {return out << underlying_cast(ver);}
-inline std::ostream& operator<< (std::ostream& out, serial val) {
-  const auto flags = out.flags();
-  out << std::hex << underlying_cast(val);
-  out.setf(flags);
-  return out;
-}
+
+enum class keymap_format: uint32_t {
+  no_keymap = WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP,
+  xkb_v1 = WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1
+};
+
+enum class key_state: uint32_t {
+  released = WL_KEYBOARD_KEY_STATE_RELEASED,
+  pressed = WL_KEYBOARD_KEY_STATE_PRESSED
+};
 
 struct deleter {
   void operator() (wl_buffer* ptr) {wl_buffer_destroy(ptr);}

@@ -10,6 +10,7 @@
 #include "wl/buffer.hpp"
 #include "wl/callback.hpp"
 #include "wl/error.hpp"
+#include "wl/io.hpp"
 #include "wl/registry.hpp"
 #include "wl/seat.hpp"
 #include "wl/shell_surface.hpp"

@@ -14,18 +14,18 @@
 using namespace std::literals;
 
 wl::keycode keycode_conv(xkb::keycode val) noexcept {
-  return wl::keycode{wl::underlying_cast(val) - 8};
+  return wl::keycode{ut::underlying_cast(val) - 8};
 }
 
 xkb::keycode keycode_conv(wl::keycode val) noexcept {
-  return xkb::keycode{wl::underlying_cast(val) + 8};
+  return xkb::keycode{ut::underlying_cast(val) + 8};
 }
 
 struct kb_handler {
   kb_handler(pc::promise<void> p): promise{std::move(p)} {}
 
   void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
-    std::cout << "Received keymap. Format: " << wl::underlying_cast(fmt) << "; of size: " << size << '\n';
+    std::cout << "Received keymap. Format: " << fmt << "; of size: " << size << '\n';
     if (fmt != wl::keyboard::keymap_format::xkb_v1)
       throw std::runtime_error{"Unsupported keymap format"};
 
@@ -36,7 +36,7 @@ struct kb_handler {
     if (esc_xkb == xkb::keycode::invalid)
       throw std::runtime_error{"failed to find Escape key code"};
     esc_keycode = keycode_conv(esc_xkb);
-    std::cout << "Escape keycode: " << wl::underlying_cast(esc_keycode) << '\n';
+    std::cout << "Escape keycode: " << ut::underlying_cast(esc_keycode) << '\n';
   } catch(...) {
     promise.set_exception(std::current_exception());
   }
@@ -49,8 +49,8 @@ struct kb_handler {
   }
   void key(wl::keyboard::ref, wl::serial eid, wl::clock::time_point time, wl::keycode key, wl::keyboard::key_state state) {
     std::cout
-      << "Key event[" << eid << "] timestamp: " << time.time_since_epoch().count() << "; key code: " << wl::underlying_cast(key)
-      << " [" << kmap.key_get_name(keycode_conv(key)) << "] " << "; key state: " << wl::underlying_cast(state) << '\n';
+      << "Key event[" << eid << "] timestamp: " << time.time_since_epoch().count() << "; key code: " << ut::underlying_cast(key)
+      << " [" << kmap.key_get_name(keycode_conv(key)) << "] " << "; key state: " << state << '\n';
 
     if (key == esc_keycode && state == wl::keyboard::key_state::pressed) {
       promise.set_value();
@@ -119,9 +119,11 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
       surf.pong(serial);
     }
     void configure(wl::shell_surface::ref, uint32_t edges, wl::size sz) {
-      std::cout << "\tshell_surface cofiguration: edges = " << edges << "size = " << sz.width << 'x' << sz.height << '\n';
+      std::cout << "\tshell_surface cofiguration: edges = " << edges << "; size = " << sz.width << 'x' << sz.height << '\n';
     }
-    void popup_done(wl::shell_surface::ref) {}
+    void popup_done(wl::shell_surface::ref) {
+      std::cout << "popup done\n";
+    }
   };
   wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
   shsurf.add_listener(sh_srf_listener);

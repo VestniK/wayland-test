@@ -1,14 +1,15 @@
 #include <iostream>
 
-#include "wayland/client.hpp"
+#include <util/util.hpp>
+#include <wayland/client.hpp>
 
 struct registry_logger {
   void operator() (wl::registry::ref, wl::id name, std::string_view iface, wl::version ver) {
-    std::cout << "wl::registry item added: " << iface << " ver: " << ver << "; id: " << wl::underlying_cast(name) << "\n";
+    std::cout << "wl::registry item added: " << iface << " ver: " << ver << "; id: " << ut::underlying_cast(name) << "\n";
   }
 
   void operator() (wl::registry::ref, wl::id name) {
-    std::cout << "wl::registry item removed: id: " << wl::underlying_cast(name) << "\n";
+    std::cout << "wl::registry item removed: id: " << ut::underlying_cast(name) << "\n";
   }
 };
 

@@ -2,6 +2,8 @@
 
 #include <wayland-client.h>
 
+#include <util/util.hpp>
+
 #include "basic_resource.hpp"
 
 namespace wl {
@@ -19,9 +21,9 @@ struct registry {
       unique_ptr<typename Iface::resource_type>{static_cast<typename Iface::resource_type*>(
         ::wl_registry_bind(
           native_handle<Registry>(*this),
-          underlying_cast(name),
+          ut::underlying_cast(name),
           &Iface::resource_interface,
-          underlying_cast(ver)
+          ut::underlying_cast(ver)
         )
       )}
     };
