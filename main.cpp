@@ -153,9 +153,8 @@ int main(int argc, char** argv) try {
 
   registry_searcher<wl::compositor, wl::shell, wl::shm, wl::seat> searcher;
 
-  wl::registry::listener iface_listener = std::ref(searcher);
   wl::registry registry = display.get_registry();
-  registry.add_listener(iface_listener);
+  registry.add_listener(searcher);
 
   wl::callback::listener sync_listener = std::ref(searcher);
   wl::callback sync_cb = display.sync();

@@ -8,7 +8,7 @@
 
 #include <portable_concurrency/future>
 
-#include "wayland/client.hpp"
+#include <wayland/client.hpp>
 
 class string_joiner {
 public:
@@ -33,14 +33,14 @@ private:
 template<typename... T>
 class registry_searcher {
 public:
-  void operator() (wl::registry::ref registry, wl::id id, std::string_view iface, wl::version ver) {
+  void global(wl::registry::ref registry, wl::id id, std::string_view iface, wl::version ver) {
     const bool iface_matched = match_bind(registry, id, iface, ver, std::make_index_sequence<sizeof...(T)>{});
 
     if (iface_matched && std::count(ids_.begin(), ids_.end(), std::nullopt) == 0)
       promise_.set_value(std::move(ifaces_));
   }
 
-  void operator() (wl::registry::ref, wl::id id) {
+  void global_remove(wl::registry::ref, wl::id id) {
     using std::literals::string_view_literals::operator""sv;
     size_t idx = 0;
     std::string_view gone_service;

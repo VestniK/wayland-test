@@ -4,11 +4,11 @@
 #include <wayland/client.hpp>
 
 struct registry_logger {
-  void operator() (wl::registry::ref, wl::id name, std::string_view iface, wl::version ver) {
+  void global(wl::registry::ref, wl::id name, std::string_view iface, wl::version ver) {
     std::cout << "wl::registry item added: " << iface << " ver: " << ver << "; id: " << ut::underlying_cast(name) << "\n";
   }
 
-  void operator() (wl::registry::ref, wl::id name) {
+  void global_remove(wl::registry::ref, wl::id name) {
     std::cout << "wl::registry item removed: id: " << ut::underlying_cast(name) << "\n";
   }
 };
@@ -16,7 +16,7 @@ struct registry_logger {
 int main(int argc, char** argv) try {
   wl::display display{argc > 1 ? argv[1] : nullptr};
 
-  wl::registry::listener<registry_logger> reg_log;
+  registry_logger reg_log;
   wl::registry registry = display.get_registry();
   registry.add_listener(reg_log);
   std::cout << "wl::registry::version: " << registry.get_version() << "\n";

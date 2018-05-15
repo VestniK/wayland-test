@@ -30,53 +30,21 @@ struct registry {
   }
 
   template<typename F>
-  class listener;
-  template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
+  void add_listener(F& l) {
+    static const wl_registry_listener listener = {
+      [](void* data, wl_registry* handle, uint32_t id, const char* iface, uint32_t ver) {
+        F* self = static_cast<F*>(data);
+        self->global(resource_ref_t<Registry>{*handle}, ::wl::id{id}, std::string_view{iface}, version{ver});
+      },
+      [](void* data, wl_registry* handle, uint32_t id) {
+        F* self = static_cast<F*>(data);
+        self->global_remove(resource_ref_t<Registry>{*handle}, ::wl::id{id});
+      }
+    };
 
-  template<typename F>
-  void add_listener(listener<F>& l);
-};
-
-template<typename Registry>
-template<typename F>
-class registry<Registry>::listener: public F {
-public:
-  listener(): F() {}
-  template<typename... A>
-  listener(A&&... a): F(std::forward<A>(a)...) {}
-
-  listener(const listener&) = delete;
-  listener& operator= (const listener&) = delete;
-  listener(listener&&) = delete;
-  listener& operator= (listener&&) = delete;
-
-  operator const wl_registry_listener& () const noexcept {return listener_;}
-
-private:
-  F& get_function() {return static_cast<F&>(*this);}
-
-  static void on_added(void* data, wl_registry* handle, uint32_t id, const char* iface, uint32_t ver) {
-    listener* self = static_cast<listener*>(data);
-    std::invoke(
-      self->get_function(), resource_ref_t<Registry>{*handle}, ::wl::id{id}, std::string_view{iface}, version{ver}
-    );
+    wl_registry_add_listener(native_handle<Registry>(*this), &listener, &l);
   }
-
-  static void on_removed(void* data, struct wl_registry* handle, uint32_t id) {
-    listener* self = static_cast<listener*>(data);
-    std::invoke(self->get_function(), resource_ref_t<Registry>{*handle}, ::wl::id{id});
-  }
-
-  wl_registry_listener listener_ = {&on_added, &on_removed};
 };
-
-template<typename Registry>
-template<typename F>
-void registry<Registry>::add_listener(listener<F>& l) {
-  const wl_registry_listener& native_listener = l;
-  if (::wl_registry_add_listener(native_handle<Registry>(*this), &native_listener, &l) != 0)
-    throw std::system_error{errc::add_registry_listener_failed};
-}
 
 }
 
