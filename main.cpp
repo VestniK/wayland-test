@@ -175,7 +175,7 @@ int main(int argc, char** argv) try {
   sync_cb.add_listener(searcher);
 
   using namespace std::placeholders;
-  auto f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3, _4));
+  pc::future<int> f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3, _4));
   while (!f.is_ready())
     display.dispatch();
   return f.get();
