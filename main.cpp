@@ -162,8 +162,10 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
 
 int main(int argc, char** argv) try {
   log4cplus::Initializer log_init;
-  log4cplus::BasicConfigurator log_conf;
-  log_conf.configure();
+  if (const auto log_cfg = xdg::find_config("wayland-test/log.cfg"); !log_cfg.empty())
+    log4cplus::PropertyConfigurator{log_cfg}.configure();
+  else
+    log4cplus::BasicConfigurator{}.configure();
 
   wl::display display{argc > 1 ? argv[1] : nullptr};
 

@@ -7,4 +7,9 @@ target_include_directories(io INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(io INTERFACE util)
+target_link_libraries(io INTERFACE
+  util
+  $<$<CXX_COMPILER_ID:Clang>:c++experimental>
+  $<$<CXX_COMPILER_ID:GNU>:stdc++fs>
+)
+target_link_libraries(io INTERFACE c++experimental)
