@@ -22,7 +22,7 @@ int main(int argc, char** argv) try {
   std::cout << "wl::registry::version: " << registry.get_version() << "\n";
 
   bool sync_done = false;
-  wl::callback::listener sync_done_listener = [&] (wl::callback::ref, uint32_t) {sync_done = true;};
+  auto sync_done_listener = [&] (wl::callback::ref, uint32_t) {sync_done = true;};
   wl::callback sync_cb = display.sync();
   sync_cb.add_listener(sync_done_listener);
 

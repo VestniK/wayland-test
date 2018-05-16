@@ -3,7 +3,6 @@
 #include <chrono>
 
 #include "basic_resource.hpp"
-#include "basic_listener.hpp"
 #include "error.hpp"
 #include "surface.hpp"
 #include "util.hpp"
@@ -24,51 +23,42 @@ struct keyboard {
   }
 
   template<typename F>
-  class listener: public basic_listener<wl_keyboard_listener, F> {
-  public:
-    template<typename... A>
-    listener(A&&... a):
-      basic_listener<wl_keyboard_listener, F>{
-        {&keymap, &enter, &leave, &key, &modifiers, &repeat_info}, std::forward<A>(a)...
+  void add_listener(F& listener) {
+    static const wl_keyboard_listener static_listener= {
+      [](void* data, wl_keyboard* handle, uint32_t fmt, int32_t fd, uint32_t size) {
+        auto self = static_cast<F*>(data);
+        self->keymap(resource_ref_t<KB>{*handle}, keymap_format{fmt}, fd, size);
+      },
+      [](void* data, wl_keyboard* handle, uint32_t eid, wl_surface* surf, wl_array* pressed_keys) {
+        auto self = static_cast<F*>(data);
+        self->enter(resource_ref_t<KB>{*handle}, serial{eid}, wl::surface::ref(*surf), pressed_keys);
+      },
+      [](void* data, wl_keyboard* handle, uint32_t eid, wl_surface* surf) {
+        auto self = static_cast<F*>(data);
+        self->leave(resource_ref_t<KB>{*handle}, serial{eid}, wl::surface::ref(*surf));
+      },
+      [](void* data, wl_keyboard* handle, uint32_t eid, uint32_t time, uint32_t key, uint32_t state) {
+        auto self = static_cast<F*>(data);
+        self->key(
+          resource_ref_t<KB>{*handle}, serial{eid}, clock::time_point{clock::duration{time}},
+          keycode{key}, key_state{state}
+        );
+      },
+      [](
+        void* data, wl_keyboard* handle, uint32_t eid, uint32_t mods_depressed, uint32_t mods_latched,
+        uint32_t mods_locked, uint32_t group
+      ) {
+        auto self = static_cast<F*>(data);
+        self->modifiers(
+          resource_ref_t<KB>{*handle}, serial{eid}, mods_depressed, mods_latched, mods_locked, group
+        );
+      },
+      [](void* data, wl_keyboard* handle, int32_t rate, int32_t delay) {
+        auto self = static_cast<F*>(data);
+        self->repeat_info(resource_ref_t<KB>{*handle}, rate, std::chrono::milliseconds(delay));
       }
-    {}
-  private:
-    static void keymap(void* data, wl_keyboard* handle, uint32_t fmt, int32_t fd, uint32_t size) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().keymap(resource_ref_t<KB>{*handle}, keymap_format{fmt}, fd, size);
-    }
-    static void enter(void* data, wl_keyboard* handle, uint32_t eid, wl_surface* surf, wl_array* pressed_keys) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().enter(resource_ref_t<KB>{*handle}, serial{eid}, wl::surface::ref(*surf), pressed_keys);
-    }
-    static void leave(void* data, wl_keyboard* handle, uint32_t eid, wl_surface* surf) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().leave(resource_ref_t<KB>{*handle}, serial{eid}, wl::surface::ref(*surf));
-    }
-    static void key(void* data, wl_keyboard* handle, uint32_t eid, uint32_t time, uint32_t key, uint32_t state) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().key(
-        resource_ref_t<KB>{*handle}, serial{eid}, clock::time_point{clock::duration{time}}, keycode{key}, key_state{state});
-    }
-    static void modifiers(
-      void* data, wl_keyboard* handle, uint32_t eid, uint32_t mods_depressed, uint32_t mods_latched,
-      uint32_t mods_locked, uint32_t group
-    ) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().modifiers(
-        resource_ref_t<KB>{*handle}, serial{eid}, mods_depressed, mods_latched, mods_locked, group
-      );
-    }
-    static void repeat_info(void* data, wl_keyboard* handle, int32_t rate, int32_t delay) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().repeat_info(resource_ref_t<KB>{*handle}, rate, std::chrono::milliseconds(delay));
-    }
-  };
-  template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
-
-  template<typename F>
-  void add_listener(listener<F>& listener) {
-    if (wl_keyboard_add_listener(native_handle<KB>(*this), &listener.native_listener(), &listener) != 0)
+    };
+    if (wl_keyboard_add_listener(native_handle<KB>(*this), &static_listener, &listener) != 0)
       throw std::system_error{errc::add_keyboard_listener_failed};
   }
 };

@@ -4,7 +4,6 @@
 
 #include <util/util.hpp>
 
-#include "basic_listener.hpp"
 #include "basic_resource.hpp"
 #include "util.hpp"
 
@@ -25,36 +24,22 @@ struct shell_surface {
   void pong(serial eid) {wl_shell_surface_pong(native_handle<ShellSurface>(*this), ut::underlying_cast(eid));}
 
   template<typename F>
-  class listener: public basic_listener<wl_shell_surface_listener, F> {
-  public:
-    template<typename... A>
-    listener(A&&... a):
-      basic_listener<wl_shell_surface_listener, F>{
-        wl_shell_surface_listener{&ping, &configure, &popup_done}, std::forward<A>(a)...
+  void add_listener(F& listener) {
+    static const wl_shell_surface_listener static_listener = {
+      [](void *data, wl_shell_surface *shell_surface, uint32_t eid) {
+        auto* self = static_cast<F*>(data);
+        self->ping(resource_ref_t<ShellSurface>{*shell_surface}, serial{eid});
+      },
+      [](void *data, wl_shell_surface *shell_surface, uint32_t edges, int32_t width, int32_t height) {
+        auto* self = static_cast<F*>(data);
+        self->configure(resource_ref_t<ShellSurface>{*shell_surface}, edges, size{width, height});
+      },
+      [](void *data, wl_shell_surface *shell_surface) {
+        auto* self = static_cast<F*>(data);
+        self->popup_done(resource_ref_t<ShellSurface>{*shell_surface});
       }
-    {}
-
-  private:
-    static void ping(void *data, wl_shell_surface *shell_surface, uint32_t eid) {
-      auto* self = static_cast<listener*>(data);
-      self->get_function().ping(resource_ref_t<ShellSurface>{*shell_surface}, serial{eid});
-    }
-
-    static void configure(void *data, wl_shell_surface *shell_surface, uint32_t edges, int32_t width, int32_t height) {
-      auto* self = static_cast<listener*>(data);
-      self->get_function().configure(resource_ref_t<ShellSurface>{*shell_surface}, edges, size{width, height});
-    }
-
-    static void popup_done(void *data, wl_shell_surface *shell_surface) {
-      auto* self = static_cast<listener*>(data);
-      self->get_function().popup_done(resource_ref_t<ShellSurface>{*shell_surface});
-    }
-  };
-  template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
-
-  template<typename F>
-  void add_listener(listener<F>& listener) {
-    if (::wl_shell_surface_add_listener(native_handle<ShellSurface>(*this), &listener.native_listener(), &listener) != 0)
+    };
+    if (wl_shell_surface_add_listener(native_handle<ShellSurface>(*this), &static_listener, &listener) != 0)
       throw std::system_error{errc::add_shm_listener_failed};
   }
 };

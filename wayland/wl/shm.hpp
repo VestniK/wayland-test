@@ -2,7 +2,6 @@
 
 #include <string_view>
 
-#include "basic_listener.hpp"
 #include "basic_resource.hpp"
 #include "error.hpp"
 #include "shm_pool.hpp"
@@ -29,22 +28,14 @@ struct shm {
   }
 
   template<typename F>
-  class listener: public basic_listener<wl_shm_listener, F> {
-  public:
-    template<typename... A>
-    listener(A&&... a): basic_listener<wl_shm_listener, F>{{&format}, std::forward<A>(a)...} {}
-
-  private:
-    static void format(void* data, wl_shm* handle, uint32_t fmt) {
-      listener* self = static_cast<listener*>(data);
-      std::invoke(self->get_function(), resource_ref_t<SHM>{*handle}, wl::format{fmt});
-    }
-  };
-  template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
-
-  template<typename F>
-  void add_listener(listener<F>& listener) {
-    if (::wl_shm_add_listener(native_handle<SHM>(*this), &listener.native_listener(), &listener) != 0)
+  void add_listener(F& listener) {
+    static const wl_shm_listener static_listener = {
+      [](void* data, wl_shm* handle, uint32_t fmt) {
+        auto self = static_cast<F*>(data);
+        std::invoke(*self, resource_ref_t<SHM>{*handle}, wl::format{fmt});
+      }
+    };
+    if (wl_shm_add_listener(native_handle<SHM>(*this), &static_listener, &listener) != 0)
       throw std::system_error{errc::add_shm_listener_failed};
   }
 };

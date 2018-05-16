@@ -22,8 +22,6 @@ xkb::keycode keycode_conv(wl::keycode val) noexcept {
 }
 
 struct kb_handler {
-  kb_handler(pc::promise<void> p): promise{std::move(p)} {}
-
   void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
     std::cout << "Received keymap. Format: " << fmt << "; of size: " << size << '\n';
     if (fmt != wl::keyboard::keymap_format::xkb_v1)
@@ -76,22 +74,19 @@ struct kb_handler {
 
 pc::future<void> wait_quit(wl::seat& seat) {
   std::cout << "==== Press Esc to quit ====\n";
-  struct seat_logger {
+  struct {
     void capabilities(wl::seat::ref, ut::bitmask<wl::seat::capability> caps) {
       std::cout << "\tSeat capabilities: " << caps.value() << '\n';
     }
     void name(wl::seat::ref, const char* seat_name) {std::cout << "\tSeat name: " << seat_name << '\n';}
-  };
-  wl::seat::listener<seat_logger> listner;
-  seat.add_listener(listner);
+  } seat_logger;
+  seat.add_listener(seat_logger);
 
-  pc::promise<void> p;
-  pc::future esc_future = p.get_future();
-  wl::keyboard::listener<kb_handler> kb_listener{std::move(p)};
+  kb_handler kb_listener;
   wl::keyboard kb = seat.get_keyboard();
   kb.add_listener(kb_listener);
 
-  co_await esc_future;
+  co_await kb_listener.promise.get_future();
 }
 
 pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
@@ -106,14 +101,14 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   std::cout << "Created a shell surface of version: " << shsurf.get_version() << '\n';
   shsurf.set_toplevel();
 
-  wl::shm::listener shm_listener = [](wl::shm::ref, wl::shm::format fmt) {
+  auto shm_listener = [](wl::shm::ref, wl::shm::format fmt) {
     const auto flags = std::cout.flags();
     std::cout << "\tsupported pixel format code: " << std::hex << static_cast<uint32_t>(fmt) << '\n';
     std::cout.setf(flags);
   };
   shm.add_listener(shm_listener);
 
-  struct shell_surface_logger {
+  struct {
     void ping(wl::shell_surface::ref surf, wl::serial serial) {
       std::cout << "ping: " << serial << '\n';
       surf.pong(serial);
@@ -124,9 +119,8 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
     void popup_done(wl::shell_surface::ref) {
       std::cout << "popup done\n";
     }
-  };
-  wl::shell_surface::listener<shell_surface_logger> sh_srf_listener;
-  shsurf.add_listener(sh_srf_listener);
+  } shell_surface_logger;
+  shsurf.add_listener(shell_surface_logger);
 
   io::shared_memory shmem{4*240*480};
   wl::shm::pool pool = shm.create_pool(shmem.fd().native_handle(), shmem.size());
@@ -138,7 +132,7 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   surface.commit();
 
   pc::promise<void> p;
-  wl::callback::listener sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
+  auto sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
   wl::callback sync_cb = display.sync();
   sync_cb.add_listener(sync_listener);
   auto [sync_res, quit_res] = co_await pc::when_all(p.get_future(), wait_quit(seat));
@@ -155,10 +149,8 @@ int main(int argc, char** argv) try {
 
   wl::registry registry = display.get_registry();
   registry.add_listener(searcher);
-
-  wl::callback::listener sync_listener = std::ref(searcher);
   wl::callback sync_cb = display.sync();
-  sync_cb.add_listener(sync_listener);
+  sync_cb.add_listener(searcher);
 
   using namespace std::placeholders;
   auto f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3, _4));

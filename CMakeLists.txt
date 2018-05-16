@@ -41,7 +41,6 @@ target_link_libraries(io INTERFACE util)
 
 add_headeronly_lib(wlpp
   wayland/client.hpp
-  wayland/wl/basic_listener.hpp
   wayland/wl/basic_resource.hpp
   wayland/wl/buffer.hpp
   wayland/wl/callback.hpp

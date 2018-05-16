@@ -4,7 +4,6 @@
 
 #include <util/bitmask.hpp>
 
-#include "basic_listener.hpp"
 #include "basic_resource.hpp"
 #include "error.hpp"
 #include "keyboard.hpp"
@@ -35,26 +34,18 @@ struct seat {
   }
 
   template<typename F>
-  class listener: public basic_listener<wl_seat_listener, F> {
-  public:
-    template<typename... A>
-    listener(A&&... a): basic_listener<wl_seat_listener, F>{{&capabilities, &name}, std::forward<A>(a)...} {}
-
-  private:
-    static void capabilities(void* data, wl_seat* handle, uint32_t caps) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().capabilities(resource_ref_t<Seat>{*handle}, ut::bitmask<capability>{caps});
-    }
-    static void name(void* data, wl_seat* handle, const char* name) {
-      listener* self = static_cast<listener*>(data);
-      self->get_function().name(resource_ref_t<Seat>{*handle}, name);
-    }
-  };
-  template<typename F> listener(F&&) -> listener<std::decay_t<F>>;
-
-  template<typename F>
-  void add_listener(listener<F>& listener) {
-    if (wl_seat_add_listener(native_handle<Seat>(*this), &listener.native_listener(), &listener) != 0)
+  void add_listener(F& listener) {
+    static const wl_seat_listener static_listener = {
+      [](void* data, wl_seat* handle, uint32_t caps) {
+        auto self = static_cast<F*>(data);
+        self->capabilities(resource_ref_t<Seat>{*handle}, ut::bitmask<capability>{caps});
+      },
+      [](void* data, wl_seat* handle, const char* name) {
+        auto self = static_cast<F*>(data);
+        self->name(resource_ref_t<Seat>{*handle}, name);
+      }
+    };
+    if (wl_seat_add_listener(native_handle<Seat>(*this), &static_listener, &listener) != 0)
       throw std::system_error{errc::add_seat_listener_failed};
   }
 

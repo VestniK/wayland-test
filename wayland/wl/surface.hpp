@@ -2,7 +2,6 @@
 
 #include <wayland-client.h>
 
-#include "basic_listener.hpp"
 #include "basic_resource.hpp"
 #include "util.hpp"
 
