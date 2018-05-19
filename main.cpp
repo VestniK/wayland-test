@@ -30,7 +30,15 @@ xkb::keycode keycode_conv(wl::keycode val) noexcept {
   return xkb::keycode{ut::underlying_cast(val) + 8};
 }
 
-struct kb_handler {
+class quit_waiter {
+public:
+  quit_waiter(wl::seat seat): seat_{std::move(seat)} {
+    LOG4CPLUS_DEBUG(log, "Seat version: {}"_format(seat_.get_version()));
+    seat_.add_listener(*this);
+  }
+
+  pc::future<void> get_quit_future() {return promise.get_future();}
+
   void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
     LOG4CPLUS_DEBUG(log, "Received keymap. Format: {}; of size: {}"_format(fmt, size));
     if (fmt != wl::keyboard::keymap_format::xkb_v1)
@@ -76,37 +84,33 @@ struct kb_handler {
     LOG4CPLUS_DEBUG(log, "Repeat info: rate: {}; delay: {}ms"_format(rate, delay.count()));
   }
 
-  log4cplus::Logger log;
+  void capabilities(wl::seat::ref seat, ut::bitmask<wl::seat::capability> caps) {
+    LOG4CPLUS_DEBUG(log, "Seat capabilities: {}"_format(caps.value()));
+    if (!keyboard_ && (caps & wl::seat::capability::keyboard)) {
+      keyboard_ = seat.get_keyboard();
+      LOG4CPLUS_DEBUG(log, "Found keyboard of version: {}"_format(keyboard_.get_version()));
+      keyboard_.add_listener(*this);
+    }
+    if (keyboard_ && !(caps & wl::seat::capability::keyboard)) {
+      LOG4CPLUS_DEBUG(log, "Keyboard disappeared");
+      keyboard_ = {};
+    }
+  }
+
+  void name(wl::seat::ref, const char* seat_name) {
+    LOG4CPLUS_DEBUG(log, "Seat name: {}"_format(seat_name));
+  }
+
+private:
+  log4cplus::Logger log = log4cplus::Logger::getInstance("INPUT");
+  wl::seat seat_;
+  wl::keyboard keyboard_;
   pc::promise<void> promise;
   xkb::keymap kmap;
   wl::keycode esc_keycode = {};
 };
 
-pc::future<void> wait_quit(wl::seat& seat) {
-  std::cout << "==== Press Esc to quit ====\n";
-  log4cplus::Logger log = log4cplus::Logger::getInstance("INPUT");
-
-  LOG4CPLUS_DEBUG(log, "Seat version: {}"_format(seat.get_version()));
-  struct {
-    void capabilities(wl::seat::ref, ut::bitmask<wl::seat::capability> caps) {
-      LOG4CPLUS_DEBUG(log, "Seat capabilities: {}"_format(caps.value()));
-    }
-    void name(wl::seat::ref, const char* seat_name) {
-      LOG4CPLUS_DEBUG(log, "Seat name: {}"_format(seat_name));
-    }
-
-    log4cplus::Logger log;
-  } seat_logger{log};
-  seat.add_listener(seat_logger);
-
-  kb_handler kb_listener{seat_logger.log};
-  wl::keyboard kb = seat.get_keyboard();
-  kb.add_listener(kb_listener);
-
-  co_await kb_listener.promise.get_future();
-}
-
-pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
+pc::future<int> start(wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
   auto log = log4cplus::Logger::getInstance("UI");
 
   LOG4CPLUS_DEBUG(log, "Compositor version: {}"_format(compositor.get_version()));
@@ -149,13 +153,9 @@ pc::future<int> start(wl::display& display, wl::compositor compositor, wl::shell
   surface.attach(buf);
   surface.commit();
 
-  pc::promise<void> p;
-  auto sync_listener = [&](wl::callback::ref, uint32_t) {p.set_value();};
-  wl::callback sync_cb = display.sync();
-  sync_cb.add_listener(sync_listener);
-  auto [sync_res, quit_res] = co_await pc::when_all(p.get_future(), wait_quit(seat));
-  sync_res.get();
-  quit_res.get();
+  std::cout << "==== Press Esc to quit ====\n";
+  quit_waiter quit_waiter{std::move(seat)};
+  co_await quit_waiter.get_quit_future();
 
   co_return EXIT_SUCCESS;
 }
@@ -177,7 +177,7 @@ int main(int argc, char** argv) try {
   sync_cb.add_listener(searcher);
 
   using namespace std::placeholders;
-  pc::future<int> f = searcher.on_found(std::bind(start, std::ref(display), _1, _2, _3, _4));
+  pc::future<int> f = searcher.on_found(start);
   while (!f.is_ready())
     display.dispatch();
   return f.get();
