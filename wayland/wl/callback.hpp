@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <wayland-client.h>
 
 #include "error.hpp"

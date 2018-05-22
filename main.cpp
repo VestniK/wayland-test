@@ -32,7 +32,8 @@ xkb::keycode keycode_conv(wl::keycode val) noexcept {
 
 class quit_waiter {
 public:
-  quit_waiter(wl::seat seat): seat_{std::move(seat)} {
+  void set_seat(wl::seat seat) {
+    seat_ = std::move(seat);
     LOG4CPLUS_DEBUG(log, "Seat version: {}"_format(seat_.get_version()));
     seat_.add_listener(*this);
   }
@@ -154,27 +155,38 @@ private:
   wl::buffer buffer_;
 };
 
-pc::future<int> start(wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
-  auto log = log4cplus::Logger::getInstance("UI");
+class ui_application {
+public:
+  pc::future<int> start(wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
+    compositor_ = std::move(compositor);
+    shell_ = std::move(shell);
+    shm_ = std::move(shm);
+    quit_waiter_.set_seat(std::move(seat));
 
-  LOG4CPLUS_DEBUG(log, "Compositor version: {}"_format(compositor.get_version()));
-  LOG4CPLUS_DEBUG(log, "Shell version: {}"_format(shell.get_version()));
-  LOG4CPLUS_DEBUG(log, "SHM version: {}"_format(shm.get_version()));
+    LOG4CPLUS_DEBUG(log_, "Compositor version: {}"_format(compositor_.get_version()));
+    LOG4CPLUS_DEBUG(log_, "Shell version: {}"_format(shell_.get_version()));
+    LOG4CPLUS_DEBUG(log_, "SHM version: {}"_format(shm_.get_version()));
 
-  auto shm_listener = [log](wl::shm::ref, wl::shm::format fmt) {
-    LOG4CPLUS_DEBUG(log, "supported pixel format code: {:x}"_format(ut::underlying_cast(fmt)));
-  };
-  shm.add_listener(shm_listener);
+    shm_.add_listener(*this);
 
-  window wnd{wl::size{240, 480}};
-  wnd.show(compositor, shell, shm);
+    wnd_.show(compositor_, shell_, shm_);
 
-  std::cout << "==== Press Esc to quit ====\n";
-  quit_waiter quit_waiter{std::move(seat)};
-  co_await quit_waiter.get_quit_future();
+    std::cout << "==== Press Esc to quit ====\n";
+    return quit_waiter_.get_quit_future().next([] {return EXIT_SUCCESS;});
+  }
 
-  co_return EXIT_SUCCESS;
-}
+  void format(wl::shm::ref, wl::shm::format fmt) {
+    LOG4CPLUS_DEBUG(log_, "supported pixel format code: {:x}"_format(ut::underlying_cast(fmt)));
+  }
+
+private:
+  log4cplus::Logger log_ = log4cplus::Logger::getInstance("UI");
+  wl::compositor compositor_;
+  wl::shell shell_;
+  wl::shm shm_;
+  window wnd_{wl::size{240, 480}};
+  quit_waiter quit_waiter_;
+};
 
 int main(int argc, char** argv) try {
   log4cplus::Initializer log_init;
@@ -192,8 +204,8 @@ int main(int argc, char** argv) try {
   wl::callback sync_cb = display.sync();
   sync_cb.add_listener(searcher);
 
-  using namespace std::placeholders;
-  pc::future<int> f = searcher.on_found(start);
+  ui_application app;
+  pc::future<int> f = searcher.on_found([&app](auto... a) {return app.start(std::move(a)...);});
   while (!f.is_ready())
     display.dispatch();
   return f.get();

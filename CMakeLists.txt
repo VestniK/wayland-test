@@ -45,6 +45,3 @@ target_link_libraries(wayland_test
   wlpp
 )
 target_compile_definitions(wayland_test PRIVATE $<$<NOT:$<CONFIG:Debug>>:LOG4CPLUS_DISABLE_DEBUG>)
-target_compile_options(wayland_test PRIVATE
-  -fcoroutines-ts
-)

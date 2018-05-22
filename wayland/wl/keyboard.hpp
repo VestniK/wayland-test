@@ -15,8 +15,8 @@ namespace detail {
 
 template<typename KB>
 struct keyboard {
-  using keymap_format = keymap_format;
-  using key_state = key_state;
+  using keymap_format = ::wl::keymap_format;
+  using key_state = ::wl::key_state;
 
   version get_version() const noexcept {
     return version{wl_keyboard_get_version(native_handle<KB>(*this))};

@@ -32,7 +32,7 @@ struct shm {
     static const wl_shm_listener static_listener = {
       [](void* data, wl_shm* handle, uint32_t fmt) {
         auto self = static_cast<F*>(data);
-        std::invoke(*self, resource_ref_t<SHM>{*handle}, wl::format{fmt});
+        self->format(resource_ref_t<SHM>{*handle}, wl::format{fmt});
       }
     };
     if (wl_shm_add_listener(native_handle<SHM>(*this), &static_listener, &listener) != 0)
