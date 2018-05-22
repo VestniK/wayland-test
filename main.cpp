@@ -110,6 +110,50 @@ private:
   wl::keycode esc_keycode = {};
 };
 
+class window {
+public:
+  window(wl::size size):
+    size_{size},
+    buffers_memory_{static_cast<size_t>(4*size.width*size.height)}
+  {}
+
+  void show(wl::compositor& compositor, wl::shell& shell, wl::shm& shm) {
+    surface_ = compositor.create_surface();
+    LOG4CPLUS_DEBUG(log_, "Created a surface of version: {}"_format(surface_.get_version()));
+    sh_surf_ = shell.get_shell_surface(surface_);
+    LOG4CPLUS_DEBUG(log_, "Created a shell surface of version: {}"_format(sh_surf_.get_version()));
+    sh_surf_.add_listener(*this);
+    sh_surf_.set_toplevel();
+
+    wl::shm::pool pool = shm.create_pool(buffers_memory_.fd().native_handle(), buffers_memory_.size());
+    LOG4CPLUS_DEBUG(log_, "Created a wl::shm::pool of version: {}"_format(pool.get_version()));
+    buffer_ = pool.create_buffer(0, size_, 4*size_.width, wl::shm::format::ARGB8888);
+    LOG4CPLUS_DEBUG(log_, "Created a wl::buffer of version: {}"_format(buffer_.get_version()));
+    std::fill(buffers_memory_.data(), buffers_memory_.data() + buffers_memory_.size(), std::byte{0x88});
+    surface_.attach(buffer_);
+    surface_.commit();
+  }
+
+  void ping(wl::shell_surface::ref surf, wl::serial serial) {
+    LOG4CPLUS_DEBUG(log_, "ping: {}"_format(serial));
+    surf.pong(serial);
+  }
+  void configure(wl::shell_surface::ref, uint32_t edges, wl::size sz) {
+    LOG4CPLUS_DEBUG(log_, "shell_surface cofiguration: edges: {}; size: {}x{}"_format(edges, sz.width, sz.height));
+  }
+  void popup_done(wl::shell_surface::ref) {
+    LOG4CPLUS_DEBUG(log_, "popup done");
+  }
+
+private:
+  log4cplus::Logger log_ = log4cplus::Logger::getInstance("UI");
+  wl::size size_;
+  wl::surface surface_;
+  wl::shell_surface sh_surf_;
+  io::shared_memory buffers_memory_;
+  wl::buffer buffer_;
+};
+
 pc::future<int> start(wl::compositor compositor, wl::shell shell, wl::shm shm, wl::seat seat) {
   auto log = log4cplus::Logger::getInstance("UI");
 
@@ -117,41 +161,13 @@ pc::future<int> start(wl::compositor compositor, wl::shell shell, wl::shm shm, w
   LOG4CPLUS_DEBUG(log, "Shell version: {}"_format(shell.get_version()));
   LOG4CPLUS_DEBUG(log, "SHM version: {}"_format(shm.get_version()));
 
-  wl::surface surface = compositor.create_surface();
-  LOG4CPLUS_DEBUG(log, "Created a surface of version: {}"_format(surface.get_version()));
-  wl::shell_surface shsurf = shell.get_shell_surface(surface);
-  LOG4CPLUS_DEBUG(log, "Created a shell surface of version: {}"_format(shsurf.get_version()));
-  shsurf.set_toplevel();
-
   auto shm_listener = [log](wl::shm::ref, wl::shm::format fmt) {
     LOG4CPLUS_DEBUG(log, "supported pixel format code: {:x}"_format(ut::underlying_cast(fmt)));
   };
   shm.add_listener(shm_listener);
 
-  struct {
-    void ping(wl::shell_surface::ref surf, wl::serial serial) {
-      LOG4CPLUS_DEBUG(log, "ping: {}"_format(serial));
-      surf.pong(serial);
-    }
-    void configure(wl::shell_surface::ref, uint32_t edges, wl::size sz) {
-      LOG4CPLUS_DEBUG(log, "shell_surface cofiguration: edges: {}; size: {}x{}"_format(edges, sz.width, sz.height));
-    }
-    void popup_done(wl::shell_surface::ref) {
-      LOG4CPLUS_DEBUG(log, "popup done");
-    }
-
-    log4cplus::Logger log;
-  } shell_surface_logger{log};
-  shsurf.add_listener(shell_surface_logger);
-
-  io::shared_memory shmem{4*240*480};
-  wl::shm::pool pool = shm.create_pool(shmem.fd().native_handle(), shmem.size());
-  LOG4CPLUS_DEBUG(log, "Created a wl::shm::pool of version: {}"_format(pool.get_version()));
-  wl::buffer buf = pool.create_buffer(0, wl::size{240, 480}, 4*240, wl::shm::format::ARGB8888);
-  LOG4CPLUS_DEBUG(log, "Created a wl::buffer of version: {}"_format(buf.get_version()));
-  std::fill(shmem.data(), shmem.data() + shmem.size(), std::byte{0x88});
-  surface.attach(buf);
-  surface.commit();
+  window wnd{wl::size{240, 480}};
+  wnd.show(compositor, shell, shm);
 
   std::cout << "==== Press Esc to quit ====\n";
   quit_waiter quit_waiter{std::move(seat)};
