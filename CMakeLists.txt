@@ -14,6 +14,11 @@ find_package(log4cplus REQUIRED)
 find_package(fmt REQUIRED)
 find_package(portable_concurrency REQUIRED)
 
+find_package(PkgConfig)
+pkg_check_modules(cairomm REQUIRED IMPORTED_TARGET cairomm-1.0)
+pkg_check_modules(cairomm-ft REQUIRED IMPORTED_TARGET cairomm-ft-1.0)
+pkg_check_modules(xkbcommon REQUIRED IMPORTED_TARGET xkbcommon)
+
 function(add_headeronly_lib tgt)
   add_library(${tgt} INTERFACE)
   add_library(${tgt}-ide OBJECT ${ARGN})
@@ -31,16 +36,19 @@ add_executable(lswl lswl.cpp)
 target_link_libraries(lswl PRIVATE wlpp)
 
 add_executable(wayland_test
-  xkb.hpp
-  registry_searcher.hpp
-  main.cpp
   conanfile.txt
+  main.cpp
+  quit_waiter.hpp
+  registry_searcher.hpp
+  xkb.hpp
 )
 target_link_libraries(wayland_test
   portable_concurrency::portable_concurrency
   log4cplus::log4cplus
   fmt::fmt
-  xkb::common
+  PkgConfig::xkbcommon
+  PkgConfig::cairomm
+  PkgConfig::cairomm-ft
   io
   wlpp
 )

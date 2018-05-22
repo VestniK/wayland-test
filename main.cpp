@@ -11,111 +11,34 @@
 
 #include <portable_concurrency/future>
 
+#include <cairomm/context.h>
+#include <cairomm/fontface.h>
+#include <cairomm/surface.h>
+
 #include "io/file.hpp"
 #include "io/shmem.hpp"
 
 #include "wayland/client.hpp"
 
 #include "registry_searcher.hpp"
-#include "xkb.hpp"
+#include "quit_waiter.hpp"
 
 using namespace std::literals;
 using namespace fmt::literals;
 
-wl::keycode keycode_conv(xkb::keycode val) noexcept {
-  return wl::keycode{ut::underlying_cast(val) - 8};
+namespace {
+
+size_t buffer_size(Cairo::Format fmt, wl::size sz) {
+  return static_cast<size_t>(Cairo::ImageSurface::format_stride_for_width(fmt, sz.width)*sz.width*sz.height);
 }
 
-xkb::keycode keycode_conv(wl::keycode val) noexcept {
-  return xkb::keycode{ut::underlying_cast(val) + 8};
 }
-
-class quit_waiter {
-public:
-  void set_seat(wl::seat seat) {
-    seat_ = std::move(seat);
-    LOG4CPLUS_DEBUG(log, "Seat version: {}"_format(seat_.get_version()));
-    seat_.add_listener(*this);
-  }
-
-  pc::future<void> get_quit_future() {return promise.get_future();}
-
-  void keymap(wl::keyboard::ref, wl::keyboard::keymap_format fmt, int fd, size_t size) try {
-    LOG4CPLUS_DEBUG(log, "Received keymap. Format: {}; of size: {}"_format(fmt, size));
-    if (fmt != wl::keyboard::keymap_format::xkb_v1)
-      throw std::runtime_error{"Unsupported keymap format"};
-
-    io::shared_memory shmem{io::file_descriptor{fd}, size};
-    xkb::context ctx;
-    kmap = ctx.load_keyap(shmem.data(), shmem.size() - 1);
-    const xkb::keycode esc_xkb = kmap.key_by_name("ESC");
-    if (esc_xkb == xkb::keycode::invalid)
-      throw std::runtime_error{"failed to find Escape key code"};
-    esc_keycode = keycode_conv(esc_xkb);
-    LOG4CPLUS_DEBUG(log, "Escape keycode: {}"_format(ut::underlying_cast(esc_keycode)));
-  } catch(...) {
-    promise.set_exception(std::current_exception());
-  }
-
-  void enter(wl::keyboard::ref, wl::serial eid, wl::surface::ref, wl_array*) {
-    LOG4CPLUS_DEBUG(log, "Surface get focus[{}]"_format(eid));
-  }
-  void leave(wl::keyboard::ref, wl::serial eid, wl::surface::ref) {
-    LOG4CPLUS_DEBUG(log, "Surface lost focus[{}]"_format(eid));
-  }
-  void key(wl::keyboard::ref, wl::serial eid, wl::clock::time_point time, wl::keycode key, wl::keyboard::key_state state) {
-    LOG4CPLUS_DEBUG(log, "Key event[{}] timestamp: {}; key code: {} [{}]; key state: {}"_format(
-      eid, time.time_since_epoch().count(), ut::underlying_cast(key), kmap.key_get_name(keycode_conv(key)), state
-    ));
-
-    if (key == esc_keycode && state == wl::keyboard::key_state::pressed) {
-      promise.set_value();
-      return;
-    }
-  }
-  void modifiers(
-    wl::keyboard::ref, wl::serial eid, uint32_t mods_depressed, uint32_t mods_latched,
-    uint32_t mods_locked, uint32_t group
-  ) {
-    LOG4CPLUS_DEBUG(log, "Modifiers event[{}] mds_depresed: {}; mods latched: {}; mods locked: {}; group: {}"_format(
-      eid, mods_depressed, mods_latched, mods_locked, group
-    ));
-  }
-  void repeat_info(wl::keyboard::ref, int32_t rate, std::chrono::milliseconds delay) {
-    LOG4CPLUS_DEBUG(log, "Repeat info: rate: {}; delay: {}ms"_format(rate, delay.count()));
-  }
-
-  void capabilities(wl::seat::ref seat, ut::bitmask<wl::seat::capability> caps) {
-    LOG4CPLUS_DEBUG(log, "Seat capabilities: {}"_format(caps.value()));
-    if (!keyboard_ && (caps & wl::seat::capability::keyboard)) {
-      keyboard_ = seat.get_keyboard();
-      LOG4CPLUS_DEBUG(log, "Found keyboard of version: {}"_format(keyboard_.get_version()));
-      keyboard_.add_listener(*this);
-    }
-    if (keyboard_ && !(caps & wl::seat::capability::keyboard)) {
-      LOG4CPLUS_DEBUG(log, "Keyboard disappeared");
-      keyboard_ = {};
-    }
-  }
-
-  void name(wl::seat::ref, const char* seat_name) {
-    LOG4CPLUS_DEBUG(log, "Seat name: {}"_format(seat_name));
-  }
-
-private:
-  log4cplus::Logger log = log4cplus::Logger::getInstance("INPUT");
-  wl::seat seat_;
-  wl::keyboard keyboard_;
-  pc::promise<void> promise;
-  xkb::keymap kmap;
-  wl::keycode esc_keycode = {};
-};
 
 class window {
 public:
   window(wl::size size):
     size_{size},
-    buffers_memory_{static_cast<size_t>(4*size.width*size.height)}
+    buffers_memory_{buffer_size(Cairo::FORMAT_ARGB32, size)}
   {}
 
   void show(wl::compositor& compositor, wl::shell& shell, wl::shm& shm) {
@@ -128,11 +51,33 @@ public:
 
     wl::shm::pool pool = shm.create_pool(buffers_memory_.fd().native_handle(), buffers_memory_.size());
     LOG4CPLUS_DEBUG(log_, "Created a wl::shm::pool of version: {}"_format(pool.get_version()));
-    buffer_ = pool.create_buffer(0, size_, 4*size_.width, wl::shm::format::ARGB8888);
+    buffer_ = pool.create_buffer(
+      0, size_, Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, size_.width),
+      wl::shm::format::ARGB8888
+    );
     LOG4CPLUS_DEBUG(log_, "Created a wl::buffer of version: {}"_format(buffer_.get_version()));
-    std::fill(buffers_memory_.data(), buffers_memory_.data() + buffers_memory_.size(), std::byte{0x88});
+    draw_content();
     surface_.attach(buffer_);
     surface_.commit();
+  }
+
+  void draw_content() {
+    const int stride = Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, size_.width);
+    auto img_surf = Cairo::ImageSurface::create(
+      reinterpret_cast<unsigned char*>(buffers_memory_.data()), Cairo::FORMAT_ARGB32, size_.width, size_.height, stride
+    );
+    auto ctx = Cairo::Context::create(img_surf);
+    ctx->set_source_rgb(0.8, 0.8, 0.8);
+    ctx->rectangle(0, 0, size_.width, size_.height);
+    ctx->fill();
+
+    ctx->move_to(10, 30);
+    auto default_font = Cairo::ToyFontFace::create("", Cairo::FONT_SLANT_NORMAL, Cairo::FONT_WEIGHT_NORMAL);
+    LOG4CPLUS_DEBUG(log_, "Default font family: {}"_format(default_font->get_family()));
+    ctx->set_font_face(default_font);
+    ctx->set_font_size(14);
+    ctx->set_source_rgb(0.0, 0.0, 0.0);
+    ctx->show_text("Press ESC to quit");
   }
 
   void ping(wl::shell_surface::ref surf, wl::serial serial) {
@@ -171,7 +116,6 @@ public:
 
     wnd_.show(compositor_, shell_, shm_);
 
-    std::cout << "==== Press Esc to quit ====\n";
     return quit_waiter_.get_quit_future().next([] {return EXIT_SUCCESS;});
   }
 
