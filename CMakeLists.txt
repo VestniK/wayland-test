@@ -16,7 +16,6 @@ find_package(portable_concurrency REQUIRED)
 
 find_package(PkgConfig)
 pkg_check_modules(cairomm REQUIRED IMPORTED_TARGET cairomm-1.0)
-pkg_check_modules(cairomm-ft REQUIRED IMPORTED_TARGET cairomm-ft-1.0)
 pkg_check_modules(xkbcommon REQUIRED IMPORTED_TARGET xkbcommon)
 
 function(add_headeronly_lib tgt)
@@ -25,9 +24,6 @@ function(add_headeronly_lib tgt)
   set_target_properties(${tgt}-ide PROPERTIES LINKER_LANGUAGE CXX)
 endfunction()
 
-add_library(xkb::common INTERFACE IMPORTED)
-set_target_properties(xkb::common PROPERTIES INTERFACE_LINK_LIBRARIES xkbcommon)
-
 add_subdirectory(util)
 add_subdirectory(io)
 add_subdirectory(wayland)
@@ -35,21 +31,20 @@ add_subdirectory(wayland)
 add_executable(lswl lswl.cpp)
 target_link_libraries(lswl PRIVATE wlpp)
 
-add_executable(wayland_test
+add_executable(simple_window
   conanfile.txt
   main.cpp
   quit_waiter.hpp
   registry_searcher.hpp
   xkb.hpp
 )
-target_link_libraries(wayland_test
+target_link_libraries(simple_window
   portable_concurrency::portable_concurrency
   log4cplus::log4cplus
   fmt::fmt
   PkgConfig::xkbcommon
   PkgConfig::cairomm
-  PkgConfig::cairomm-ft
   io
   wlpp
 )
-target_compile_definitions(wayland_test PRIVATE $<$<NOT:$<CONFIG:Debug>>:LOG4CPLUS_DISABLE_DEBUG>)
+target_compile_definitions(simple_window PRIVATE $<$<NOT:$<CONFIG:Debug>>:LOG4CPLUS_DISABLE_DEBUG>)
