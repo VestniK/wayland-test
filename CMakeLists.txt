@@ -22,3 +22,4 @@ add_subdirectory(wayland)
 
 add_subdirectory(list_registry)
 add_subdirectory(simple_window)
+add_subdirectory(animation)

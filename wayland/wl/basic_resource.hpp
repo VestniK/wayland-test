@@ -30,6 +30,12 @@ public:
 
   explicit operator bool () const noexcept {return static_cast<bool>(ptr_);}
 
+  operator ref () {
+    if (!ptr_)
+      throw std::runtime_error{"Attempt to get refference to empty resource"};
+    return ref{*ptr_.get()};
+  }
+
 private:
   unique_ptr<Resource> ptr_;
 };

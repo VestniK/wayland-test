@@ -15,7 +15,7 @@ struct surface {
     return version{wl_surface_get_version(native_handle<Surface>(*this))};
   }
 
-  void attach(const wl::buffer& buf, int32_t x = 0, int32_t y = 0) {
+  void attach(wl::buffer::ref buf, int32_t x = 0, int32_t y = 0) {
     wl_surface_attach(native_handle<Surface>(*this), buf.native_handle(), x, y);
   }
 
