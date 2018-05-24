@@ -61,7 +61,7 @@ public:
   }
 
   wl::buffer::ref swap() {
-    const wl::buffer::ref res = buffers_[active_];
+    wl::buffer::ref res = buffers_[active_];
     active_ = (active_ + 1)%buffers_.size();
     return res;
   }
@@ -94,9 +94,12 @@ public:
     sh_surf_.set_toplevel();
   }
 
-  void draw(wl::buffer::ref buf) {
+  wl::callback draw(wl::buffer::ref buf) {
+    auto res = surf_.frame();
     surf_.attach(buf);
+    surf_.damage(0, 0, {640, 480});
     surf_.commit();
+    return res;
   }
 
   void ping(wl::shell_surface::ref surf, wl::serial serial) {
@@ -130,14 +133,21 @@ int main(int argc, char** argv) try {
 
   window wnd(services.compositor.service, services.shell.service);
   double_buffer buffrs{services.shm.service, {640, 480}};
-  {
-    gsl::span<std::byte> buf = buffrs.active_buffer();
-    std::fill(buf.begin(), buf.end(), std::byte{0xc0});
-  }
-  wnd.draw(buffrs.swap());
 
-  while (true)
-    display.dispatch(), services.check();
+  bool can_redraw = true;
+  auto on_can_redraw = [&can_redraw](wl::callback::ref, uint32_t) {can_redraw = true;};
+  uint8_t intense = 0;
+  wl::callback frame_cb;
+  while (true) {
+    display.dispatch();
+    services.check();
+    if (std::exchange(can_redraw, false)) {
+      gsl::span<std::byte> buf = buffrs.active_buffer();
+      std::fill(buf.begin(), buf.end(), static_cast<std::byte>(intense++));
+      frame_cb = wnd.draw(buffrs.swap());
+      frame_cb.add_listener(on_can_redraw);
+    }
+  }
 
   return EXIT_SUCCESS;
 } catch (const std::exception& error) {
