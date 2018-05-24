@@ -1,5 +1,5 @@
-add_library(wayland::client INTERFACE IMPORTED)
-set_target_properties(wayland::client PROPERTIES INTERFACE_LINK_LIBRARIES wayland-client)
+find_package(PkgConfig)
+pkg_check_modules(wayland-client REQUIRED IMPORTED_TARGET wayland-client)
 
 add_headeronly_lib(wlpp
   client.hpp
@@ -21,4 +21,4 @@ target_include_directories(wlpp INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(wlpp INTERFACE util io wayland::client)
+target_link_libraries(wlpp INTERFACE util io PkgConfig::wayland-client)
