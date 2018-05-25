@@ -3,6 +3,9 @@
 
 #include <gsl/span>
 
+#include <cairomm/context.h>
+#include <cairomm/surface.h>
+
 #include <wayland/client.hpp>
 #include <io/shmem.hpp>
 
@@ -109,6 +112,75 @@ private:
   wl::shell_surface sh_surf_;
 };
 
+struct ball_in_box {
+  using clock = std::chrono::steady_clock;
+
+  wl::size box_size = {640, 480};
+  wl::point start_pos = {box_size.width/4, box_size.height/2};
+  int radius = 12;
+  int velocity_x = 153;
+  int velocity_y = 138;
+  clock::time_point start_time = clock::time_point::max();
+
+  wl::point calculate_movement(clock::time_point time) {
+    if (start_time > time) {
+      start_time = time;
+      return start_pos;
+    }
+    const auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(time - start_time);
+
+    wl::point pos = {
+      start_pos.x + static_cast<int>(velocity_x*interval.count()/1000),
+      start_pos.y + static_cast<int>(velocity_y*interval.count()/1000)
+    };
+
+    const wl::point min = {radius, radius};
+    const wl::point max = {box_size.width - radius, box_size.height - radius};
+
+    const bool has_reflections = pos.x < min.x || pos.x > max.x || pos.y < min.y || pos.y > max.y;
+
+    while (pos.x < min.x || pos.x > max.x) {
+      if (pos.x > max.x)
+        pos.x = 2*max.x - pos.x;
+      if (pos.x < min.x)
+        pos.x = 2*min.x - pos.x;
+      velocity_x = -velocity_x;
+    }
+
+    while (pos.y < min.y || pos.y > max.y) {
+      if (pos.y > max.y)
+        pos.y = 2*max.y - pos.y;
+      if (pos.y < min.y)
+        pos.y = 2*min.y - pos.y;
+      velocity_y = -velocity_y;
+    }
+
+    if (has_reflections)
+    {
+      start_pos = pos;
+      start_time = time;
+    }
+    return pos;
+  }
+
+  void draw(gsl::span<std::byte> frame_buf, clock::time_point now = clock::now()) {
+    const wl::point frame_pos = calculate_movement(now);
+
+    const int stride = Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, box_size.width);
+    auto img_surf = Cairo::ImageSurface::create(
+      reinterpret_cast<unsigned char*>(frame_buf.data()), Cairo::FORMAT_ARGB32, box_size.width, box_size.height, stride
+    );
+    auto ctx = Cairo::Context::create(img_surf);
+    ctx->set_source_rgb(0.8, 0.8, 0.8);
+    ctx->rectangle(0, 0, box_size.width, box_size.height);
+    ctx->fill();
+
+    ctx->set_source_rgb(0.2, 0.8, 0.2);
+    ctx->arc(frame_pos.x, frame_pos.y, radius, 0, 2*M_PI);
+    ctx->fill();
+  }
+};
+
 int main(int argc, char** argv) try {
   wl::display display{argc > 1 ? argv[1] : nullptr};
 
@@ -127,22 +199,20 @@ int main(int argc, char** argv) try {
     display.dispatch();
   services.check();
 
-  const wl::size wnd_sz = {640, 480};
+  ball_in_box scene;
   window wnd(services.compositor.service, services.shell.service);
-  buffer buf{services.shm.service, wnd_sz};
+  buffer buf{services.shm.service, scene.box_size};
   wnd.set_buffer(buf.get_buffer());
 
   bool can_redraw = true;
   auto on_can_redraw = [&can_redraw](wl::callback::ref, uint32_t) {can_redraw = true;};
-  uint8_t intense = 0;
   wl::callback frame_cb;
   while (true) {
     display.dispatch();
     services.check();
     if (std::exchange(can_redraw, false)) {
-      gsl::span<std::byte> mem = buf.get_memory();
-      std::fill(mem.begin(), mem.end(), static_cast<std::byte>(intense++));
-      frame_cb = wnd.redraw({{}, wnd_sz});
+      scene.draw(buf.get_memory());
+      frame_cb = wnd.redraw({{}, scene.box_size});
       frame_cb.add_listener(on_can_redraw);
     }
   }
