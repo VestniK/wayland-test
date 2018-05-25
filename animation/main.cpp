@@ -1,5 +1,6 @@
 #include <exception>
 #include <iostream>
+#include <optional>
 
 #include <gsl/span>
 
@@ -113,7 +114,7 @@ private:
 };
 
 struct ball_in_box {
-  using clock = std::chrono::steady_clock;
+  using clock = wl::clock;
 
   wl::size box_size = {640, 480};
   wl::point start_pos = {box_size.width/4, box_size.height/2};
@@ -163,7 +164,7 @@ struct ball_in_box {
     return pos;
   }
 
-  void draw(gsl::span<std::byte> frame_buf, clock::time_point now = clock::now()) {
+  void draw(gsl::span<std::byte> frame_buf, clock::time_point now) {
     const wl::point frame_pos = calculate_movement(now);
 
     const int stride = Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, box_size.width);
@@ -204,14 +205,16 @@ int main(int argc, char** argv) try {
   buffer buf{services.shm.service, scene.box_size};
   wnd.set_buffer(buf.get_buffer());
 
-  bool can_redraw = true;
-  auto on_can_redraw = [&can_redraw](wl::callback::ref, uint32_t) {can_redraw = true;};
+  std::optional<wl::clock::time_point> next_frame_ts = wl::clock::time_point::max();
+  auto on_can_redraw = [&next_frame_ts](wl::callback::ref, uint32_t ts) {
+    next_frame_ts = wl::clock::time_point{wl::clock::duration{ts}};
+  };
   wl::callback frame_cb;
   while (true) {
     display.dispatch();
     services.check();
-    if (std::exchange(can_redraw, false)) {
-      scene.draw(buf.get_memory());
+    if (next_frame_ts) {
+      scene.draw(buf.get_memory(), *std::exchange(next_frame_ts, {}));
       frame_cb = wnd.redraw({{}, scene.box_size});
       frame_cb.add_listener(on_can_redraw);
     }
