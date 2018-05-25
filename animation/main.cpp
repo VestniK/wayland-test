@@ -49,39 +49,31 @@ struct watched_services {
   }
 };
 
-class double_buffer {
+class buffer {
+  friend class window;
 public:
-  double_buffer(wl::shm::ref shm, wl::size size):
-    size_{size},
-    storage_{2*buffer_mem_size()}
+  buffer(wl::shm::ref shm, wl::size size):
+    storage_{buffer_mem_size(size)}
   {
     wl::shm::pool pool = shm.create_pool(storage_.fd().native_handle(), storage_.size());
-    buffers_[0] = pool.create_buffer(0, size_, buffer_stride(), wl::shm::format::XRGB8888);
-    buffers_[1] = pool.create_buffer(buffer_mem_size(), size_, buffer_stride(), wl::shm::format::XRGB8888);
+    buffer_ = pool.create_buffer(0, size, buffer_stride(size), wl::shm::format::XRGB8888);
   }
 
-  wl::buffer::ref swap() {
-    wl::buffer::ref res = buffers_[active_];
-    active_ = (active_ + 1)%buffers_.size();
-    return res;
+  wl::buffer::ref get_buffer() {
+    return buffer_;
   }
 
-  gsl::span<std::byte> active_buffer() {
-    return {
-      storage_.data() + active_*buffer_mem_size(),
-      static_cast<gsl::span<std::byte>::size_type>(buffer_mem_size())
-    };
+  gsl::span<std::byte> get_memory() {
+    return {storage_.data(), static_cast<gsl::span<std::byte>::size_type>(storage_.size())};
   }
 
 private:
-  size_t buffer_mem_size() {return static_cast<size_t>(buffer_stride()*size_.height);}
-  size_t buffer_stride() {return static_cast<size_t>(4*size_.width);}
+  static size_t buffer_mem_size(wl::size size) {return static_cast<size_t>(buffer_stride(size)*size.height);}
+  static size_t buffer_stride(wl::size size) {return static_cast<size_t>(4*size.width);}
 
 private:
-  wl::size size_;
   io::shared_memory storage_;
-  std::array<wl::buffer, 2> buffers_;
-  size_t active_ = 0;
+  wl::buffer buffer_;
 };
 
 class window {
@@ -95,10 +87,13 @@ public:
     sh_surf_.set_title("Animation wayland example");
   }
 
-  wl::callback draw(wl::buffer::ref buf) {
-    auto res = surf_.frame();
+  void set_buffer(wl::buffer::ref buf) {
     surf_.attach(buf);
-    surf_.damage(0, 0, {640, 480});
+  }
+
+  wl::callback redraw(int left, int top, wl::size sz) {
+    auto res = surf_.frame();
+    surf_.damage(left, top, sz);
     surf_.commit();
     return res;
   }
@@ -132,8 +127,10 @@ int main(int argc, char** argv) try {
     display.dispatch();
   services.check();
 
+  const wl::size wnd_sz = {640, 480};
   window wnd(services.compositor.service, services.shell.service);
-  double_buffer buffrs{services.shm.service, {640, 480}};
+  buffer buf{services.shm.service, wnd_sz};
+  wnd.set_buffer(buf.get_buffer());
 
   bool can_redraw = true;
   auto on_can_redraw = [&can_redraw](wl::callback::ref, uint32_t) {can_redraw = true;};
@@ -143,9 +140,9 @@ int main(int argc, char** argv) try {
     display.dispatch();
     services.check();
     if (std::exchange(can_redraw, false)) {
-      gsl::span<std::byte> buf = buffrs.active_buffer();
-      std::fill(buf.begin(), buf.end(), static_cast<std::byte>(intense++));
-      frame_cb = wnd.draw(buffrs.swap());
+      gsl::span<std::byte> mem = buf.get_memory();
+      std::fill(mem.begin(), mem.end(), static_cast<std::byte>(intense++));
+      frame_cb = wnd.redraw(0, 0, wnd_sz);
       frame_cb.add_listener(on_can_redraw);
     }
   }

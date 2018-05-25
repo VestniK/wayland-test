@@ -48,6 +48,7 @@ public:
     LOG4CPLUS_DEBUG(log_, "Created a shell surface of version: {}"_format(sh_surf_.get_version()));
     sh_surf_.add_listener(*this);
     sh_surf_.set_toplevel();
+    sh_surf_.set_title("Simple window example");
 
     wl::shm::pool pool = shm.create_pool(buffers_memory_.fd().native_handle(), buffers_memory_.size());
     LOG4CPLUS_DEBUG(log_, "Created a wl::shm::pool of version: {}"_format(pool.get_version()));
