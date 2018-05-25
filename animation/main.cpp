@@ -92,6 +92,7 @@ public:
   {
     sh_surf_.add_listener(*this);
     sh_surf_.set_toplevel();
+    sh_surf_.set_title("Animation wayland example");
   }
 
   wl::callback draw(wl::buffer::ref buf) {

@@ -21,4 +21,4 @@ target_include_directories(wlpp INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(wlpp INTERFACE util io PkgConfig::wayland-client)
+target_link_libraries(wlpp INTERFACE util io PkgConfig::wayland-client CONAN_PKG::gsl_microsoft)

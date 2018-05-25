@@ -2,6 +2,10 @@
 
 #include <wayland-client.h>
 
+#include <string>
+
+#include <gsl/string_span>
+
 #include <util/util.hpp>
 
 #include "basic_resource.hpp"
@@ -22,6 +26,14 @@ struct shell_surface {
   }
 
   void pong(serial eid) {wl_shell_surface_pong(native_handle<ShellSurface>(*this), ut::underlying_cast(eid));}
+
+  void set_title(const std::string& title) {
+    wl_shell_surface_set_title(native_handle<ShellSurface>(*this), title.c_str());
+  }
+
+  void set_title(gsl::czstring<> title) {
+    wl_shell_surface_set_title(native_handle<ShellSurface>(*this), title);
+  }
 
   template<typename F>
   void add_listener(F& listener) {
