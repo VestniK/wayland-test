@@ -91,9 +91,9 @@ public:
     surf_.attach(buf);
   }
 
-  wl::callback redraw(int left, int top, wl::size sz) {
+  wl::callback redraw(wl::rect rect) {
     auto res = surf_.frame();
-    surf_.damage(left, top, sz);
+    surf_.damage(rect);
     surf_.commit();
     return res;
   }
@@ -142,7 +142,7 @@ int main(int argc, char** argv) try {
     if (std::exchange(can_redraw, false)) {
       gsl::span<std::byte> mem = buf.get_memory();
       std::fill(mem.begin(), mem.end(), static_cast<std::byte>(intense++));
-      frame_cb = wnd.redraw(0, 0, wnd_sz);
+      frame_cb = wnd.redraw({{}, wnd_sz});
       frame_cb.add_listener(on_can_redraw);
     }
   }

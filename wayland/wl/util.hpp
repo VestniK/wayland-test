@@ -115,9 +115,19 @@ enum class format: uint32_t {
   YVU444 = WL_SHM_FORMAT_YVU444
 };
 
+struct point {
+  int32_t x = 0;
+  int32_t y = 0;
+};
+
 struct size {
   int32_t width = 0;
   int32_t height = 0;
+};
+
+struct rect {
+  point top_left;
+  ::wl::size size;
 };
 
 }
