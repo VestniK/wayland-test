@@ -12,4 +12,3 @@ target_link_libraries(io INTERFACE
   $<$<CXX_COMPILER_ID:Clang>:c++experimental>
   $<$<CXX_COMPILER_ID:GNU>:stdc++fs>
 )
-target_link_libraries(io INTERFACE c++experimental)
