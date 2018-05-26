@@ -203,18 +203,19 @@ int main(int argc, char** argv) try {
   ball_in_box scene;
   window wnd(services.compositor.service, services.shell.service);
   buffer buf{services.shm.service, scene.box_size};
+  scene.draw(buf.get_memory(), wl::clock::time_point::max());
   wnd.set_buffer(buf.get_buffer());
 
-  std::optional<wl::clock::time_point> next_frame_ts = wl::clock::time_point::max();
-  auto on_can_redraw = [&next_frame_ts](wl::callback::ref, uint32_t ts) {
-    next_frame_ts = wl::clock::time_point{wl::clock::duration{ts}};
+  bool need_redraw = true;
+  auto on_can_redraw = [&](wl::callback::ref, uint32_t ts) {
+    scene.draw(buf.get_memory(), wl::clock::time_point{wl::clock::duration{ts}});
+    need_redraw = true;
   };
   wl::callback frame_cb;
   while (true) {
     display.dispatch();
     services.check();
-    if (next_frame_ts) {
-      scene.draw(buf.get_memory(), *std::exchange(next_frame_ts, {}));
+    if (need_redraw) {
       frame_cb = wnd.redraw({{}, scene.box_size});
       frame_cb.add_listener(on_can_redraw);
     }
