@@ -18,10 +18,6 @@ struct shm {
 
   using format = wl::format;
 
-  version get_version() const noexcept {
-    return version{wl_shm_get_version(native_handle<SHM>(*this))};
-  }
-
   using pool = basic_resource<wl_shm_pool, shm_pool>;
   pool create_pool(int32_t fd, int32_t size) {
     return unique_ptr<wl_shm_pool>{wl_shm_create_pool(native_handle<SHM>(*this), fd, size)};

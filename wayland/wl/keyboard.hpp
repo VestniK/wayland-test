@@ -18,10 +18,6 @@ struct keyboard {
   using keymap_format = ::wl::keymap_format;
   using key_state = ::wl::key_state;
 
-  version get_version() const noexcept {
-    return version{wl_keyboard_get_version(native_handle<KB>(*this))};
-  }
-
   template<typename F>
   void add_listener(F& listener) {
     static const wl_keyboard_listener static_listener= {

@@ -12,10 +12,6 @@ namespace detail {
 
 template<typename Surface>
 struct surface {
-  version get_version() const noexcept {
-    return version{wl_surface_get_version(native_handle<Surface>(*this))};
-  }
-
   void attach(wl::buffer::ref buf, point pt = {}) {
     wl_surface_attach(native_handle<Surface>(*this), buf.native_handle(), pt.x, pt.y);
   }

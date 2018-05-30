@@ -17,10 +17,6 @@ namespace detail {
 
 template<typename ShellSurface>
 struct shell_surface {
-  version get_version() const noexcept {
-    return version{wl_shell_surface_get_version(native_handle<ShellSurface>(*this))};
-  }
-
   void set_toplevel() const {
     wl_shell_surface_set_toplevel(native_handle<ShellSurface>(*this));
   }

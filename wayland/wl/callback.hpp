@@ -13,10 +13,6 @@ namespace detail {
 
 template<typename Callback>
 struct callback {
-  version get_version() const {
-    return version{wl_callback_get_version(native_handle<Callback>(*this))};
-  }
-
   template<typename F>
   void add_listener(F& l) {
     static const wl_callback_listener listener {

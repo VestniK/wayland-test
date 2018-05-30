@@ -28,10 +28,6 @@ struct compositor {
   static const wl_interface& resource_interface;
   static constexpr std::string_view interface_name = "wl_compositor"sv;
 
-  version get_version() const noexcept {
-    return version{wl_compositor_get_version(native_handle<Compositor>(*this))};
-  }
-
   basic_resource<wl_surface, surface> create_surface() {
     return unique_ptr<wl_surface>{wl_compositor_create_surface(native_handle<Compositor>(*this))};
   }
@@ -46,10 +42,6 @@ struct shell {
   static constexpr std::string_view interface_name = "wl_shell"sv;
 
   explicit operator bool () const noexcept {return static_cast<bool>(ptr_);}
-
-  version get_version() const noexcept {
-    return version{wl_shell_get_version(native_handle<Shell>(*this))};
-  }
 
   basic_resource<wl_shell_surface, shell_surface> get_shell_surface(const basic_resource<wl_surface, surface>& surf) {
     return {unique_ptr<wl_shell_surface>{wl_shell_get_shell_surface(native_handle<Shell>(*this), surf.native_handle())}};

@@ -11,10 +11,6 @@ namespace detail {
 
 template<typename Registry>
 struct registry {
-  version get_version() const {
-    return version{wl_registry_get_version(native_handle<Registry>(*this))};
-  }
-
   template<typename Iface>
   Iface bind(id name, version ver) {
     return Iface{

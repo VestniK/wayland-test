@@ -119,10 +119,6 @@ struct pointer {
   using axis = wl::detail::axis;
   using axis_source = wl::detail::axis_source;
 
-  version get_version() const noexcept {
-    return version{wl_pointer_get_version(native_handle<PT>(*this))};
-  }
-
   template<typename F>
   void add_listener(F& listener) {
     static const wl_pointer_listener static_listener= {

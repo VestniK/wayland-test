@@ -30,10 +30,6 @@ struct seat {
 
   using capability = seat_capability;
 
-  version get_version() const noexcept {
-    return version{wl_seat_get_version(native_handle<Seat>(*this))};
-  }
-
   template<typename F>
   void add_listener(F& listener) {
     static const wl_seat_listener static_listener = {

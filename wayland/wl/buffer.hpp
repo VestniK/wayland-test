@@ -9,9 +9,7 @@ namespace detail {
 
 template<typename Buffer>
 struct buffer {
-  version get_version() const noexcept {
-    return version{wl_buffer_get_version(native_handle<Buffer>(*this))};
-  }
+
 };
 
 }

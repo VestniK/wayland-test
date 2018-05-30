@@ -13,6 +13,10 @@ public:
 
   basic_ref(Resource& resource) noexcept: ref_(resource) {}
 
+  version get_version() const {
+    return version{wl_proxy_get_version(reinterpret_cast<wl_proxy*>(native_handle()))};
+  }
+
 private:
   std::reference_wrapper<Resource> ref_;
 };
@@ -34,6 +38,10 @@ public:
     if (!ptr_)
       throw std::runtime_error{"Attempt to get refference to empty resource"};
     return ref{*ptr_.get()};
+  }
+
+  version get_version() const {
+    return version{wl_proxy_get_version(reinterpret_cast<wl_proxy*>(native_handle()))};
   }
 
 private:
