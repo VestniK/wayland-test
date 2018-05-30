@@ -215,7 +215,36 @@ int main(int argc, char** argv) try {
     display.dispatch();
   services.check();
 
+  const int decor_height = 35;
+  wl::surface wnd_surface = services.compositor.service.create_surface();
+  wl::surface content_surface = services.compositor.service.create_surface();
+  wl::surface decor_surface = services.compositor.service.create_surface();
+  wl::subsurface content = services.subcompositor.service.get_subsurface(content_surface, wnd_surface);
+  wl::subsurface decor = services.subcompositor.service.get_subsurface(decor_surface, wnd_surface);
+  content.set_desync();
+  content.set_position(wl::point{0, decor_height});
+  decor.set_desync();
+
+  wl::shell_surface shell_surf = services.shell.service.get_shell_surface(wnd_surface);
+  shell_surf.set_toplevel();
+
   ball_in_box scene;
+  buffer decor_buf(services.shm.service, wl::size{scene.box_size.width, decor_height});
+  buffer content_buf(services.shm.service,scene.box_size);
+
+  buffer dummy{services.shm.service, wl::size{scene.box_size.width, scene.box_size.height + decor_height}};
+  wnd_surface.attach(dummy.get_buffer());
+  wnd_surface.commit();
+
+  scene.draw(content_buf.get_memory(), wl::clock::time_point::max());
+  content_surface.attach(content_buf.get_buffer());
+  content_surface.commit();
+
+  gsl::span<std::byte> mem = decor_buf.get_memory();
+  std::fill(mem.begin(), mem.end(), std::byte{0x70});
+  decor_surface.attach(decor_buf.get_buffer());
+  decor_surface.commit();
+
   window wnd(services.compositor.service, services.shell.service);
   buffer buf{services.shm.service, scene.box_size};
   scene.draw(buf.get_memory(), wl::clock::time_point::max());
