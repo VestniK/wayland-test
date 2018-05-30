@@ -7,6 +7,7 @@
 #include "basic_resource.hpp"
 #include "error.hpp"
 #include "keyboard.hpp"
+#include "pointer.hpp"
 #include "util.hpp"
 
 namespace wl {
@@ -51,6 +52,10 @@ struct seat {
 
   wl::keyboard get_keyboard() {
     return unique_ptr<wl_keyboard>{wl_seat_get_keyboard(native_handle<Seat>(*this))};
+  }
+
+  wl::pointer get_pointer() {
+    return unique_ptr<wl_pointer>{wl_seat_get_pointer(native_handle<Seat>(*this))};
   }
 };
 template<typename Seat>

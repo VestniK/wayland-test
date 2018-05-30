@@ -38,6 +38,7 @@ struct deleter {
   void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
   void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
   void operator() (wl_keyboard* ptr) {wl_keyboard_destroy(ptr);}
+  void operator() (wl_pointer* ptr) {wl_pointer_destroy(ptr);}
   void operator() (wl_registry* ptr) {wl_registry_destroy(ptr);}
   void operator() (wl_seat* ptr) {wl_seat_destroy(ptr);}
   void operator() (wl_shell* ptr) {wl_shell_destroy(ptr);}
@@ -115,10 +116,14 @@ enum class format: uint32_t {
   YVU444 = WL_SHM_FORMAT_YVU444
 };
 
-struct point {
-  int32_t x = 0;
-  int32_t y = 0;
+template<typename T>
+struct basic_point {
+  T x = 0;
+  T y = 0;
 };
+
+using point = basic_point<int32_t>;
+using fixed_point = basic_point<wl_fixed_t>;
 
 struct size {
   int32_t width = 0;
