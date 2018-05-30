@@ -15,6 +15,7 @@
 #include "wl/seat.hpp"
 #include "wl/shell_surface.hpp"
 #include "wl/shm.hpp"
+#include "wl/subcompositor.hpp"
 #include "wl/surface.hpp"
 #include "wl/util.hpp"
 

@@ -15,6 +15,7 @@ add_headeronly_lib(wlpp
   wl/shell_surface.hpp
   wl/shm.hpp
   wl/shm_pool.hpp
+  wl/subcompositor.hpp
   wl/surface.hpp
   wl/util.hpp
 )

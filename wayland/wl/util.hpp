@@ -45,6 +45,7 @@ struct deleter {
   void operator() (wl_shell_surface* ptr) {wl_shell_surface_destroy(ptr);}
   void operator() (wl_shm* ptr) {wl_shm_destroy(ptr);}
   void operator() (wl_shm_pool* ptr) {wl_shm_pool_destroy(ptr);}
+  void operator() (wl_subcompositor* ptr) {wl_subcompositor_destroy(ptr);}
   void operator() (wl_surface* ptr) {wl_surface_destroy(ptr);}
 };
 template<typename T>

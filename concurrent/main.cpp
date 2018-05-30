@@ -21,6 +21,7 @@ struct watched_services {
   idetified<wl::shell> shell;
   idetified<wl::shm> shm;
   idetified<wl::seat> seat;
+  idetified<wl::subcompositor> subcompositor;
   bool initial_sync_done = false;
 
   void check() {
@@ -32,6 +33,8 @@ struct watched_services {
       throw std::runtime_error{"SHM is not available"};
     if (!seat.service)
       throw std::runtime_error{"Seat is not available"};
+    if (!subcompositor.service)
+      throw std::runtime_error{"Subcompositor is not available"};
   }
 
   void global(wl::registry::ref reg, wl::id id, std::string_view name, wl::version ver) {
@@ -41,6 +44,8 @@ struct watched_services {
       shell = {reg.bind<wl::shell>(id, ver), id};
     if (name == wl::shm::interface_name)
       shm = {reg.bind<wl::shm>(id, ver), id};
+    if (name == wl::subcompositor::interface_name)
+      subcompositor = {reg.bind<wl::subcompositor>(id, ver), id};
     if (!seat.service && name == wl::seat::interface_name)
       seat = {reg.bind<wl::seat>(id, ver), id};
   }
@@ -51,6 +56,8 @@ struct watched_services {
       shell = {{}, {}};
     if (id == shm.id)
       shm = {{}, {}};
+    if (id == subcompositor.id)
+      subcompositor = {{}, {}};
     if (id == seat.id)
       seat = {{}, {}};
   }
@@ -202,7 +209,8 @@ int main(int argc, char** argv) try {
     !services.compositor.service ||
     !services.shell.service ||
     !services.shm.service ||
-    !services.seat.service
+    !services.seat.service ||
+    !services.subcompositor.service
   )
     display.dispatch();
   services.check();
