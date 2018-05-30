@@ -54,7 +54,6 @@ struct watched_services {
 };
 
 class buffer {
-  friend class window;
 public:
   buffer(wl::shm::ref shm, wl::size size):
     storage_{buffer_mem_size(size)}
