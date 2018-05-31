@@ -95,17 +95,17 @@ enum class button: uint32_t {
   gear_up =  BTN_GEAR_UP
 };
 
-enum class button_state {
+enum class button_state: uint32_t {
   released = WL_POINTER_BUTTON_STATE_RELEASED,
   pressed = WL_POINTER_BUTTON_STATE_PRESSED
 };
 
-enum class axis {
+enum class axis: uint32_t {
   vertical_scroll = WL_POINTER_AXIS_VERTICAL_SCROLL,
   horizontal_scroll = WL_POINTER_AXIS_HORIZONTAL_SCROLL
 };
 
-enum class axis_source {
+enum class axis_source: uint32_t {
   wheel = WL_POINTER_AXIS_SOURCE_WHEEL,
   finger = WL_POINTER_AXIS_SOURCE_FINGER ,
   continous = WL_POINTER_AXIS_SOURCE_CONTINUOUS,

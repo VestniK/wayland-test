@@ -193,6 +193,16 @@ struct decoration {
     );
     ctx->fill();
   }
+
+  void enter(wl::pointer::ref, wl::serial, wl::surface::ref, wl::fixed_point) {}
+  void leave(wl::pointer::ref, wl::serial, wl::surface::ref) {}
+  void motion(wl::pointer::ref, wl::clock::time_point, wl::fixed_point) {}
+  void button(wl::pointer::ref, wl::serial, wl::clock::time_point, wl::pointer::button, wl::pointer::button_state) {}
+  void axis(wl::pointer::ref, wl::clock::time_point, wl::pointer::axis, wl_fixed_t) {}
+  void frame(wl::pointer::ref) {}
+  void axis_source(wl::pointer::ref, wl::pointer::axis_source) {}
+  void axis_stop(wl::pointer::ref, wl::clock::time_point, wl::pointer::axis) {}
+  void axis_discrete(wl::pointer::ref, wl::pointer::axis, int32_t) {}
 };
 
 int main(int argc, char** argv) try {
@@ -239,6 +249,9 @@ int main(int argc, char** argv) try {
   decor.draw(wnd_buf.get_memory());
   wnd_surface.attach(wnd_buf.get_buffer());
   wnd_surface.commit();
+
+  wl::pointer mouse = services.seat.service.get_pointer();
+  mouse.add_listener(decor);
 
   bool need_redraw = true;
   auto on_can_redraw = [&](wl::callback::ref, uint32_t ts) {
