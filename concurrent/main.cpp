@@ -93,37 +93,12 @@ private:
   wl::buffer buffer_;
 };
 
-class window {
-public:
-  window(wl::compositor::ref compositor, wl::shell::ref shell):
-    surf_(compositor.create_surface()),
-    sh_surf_(shell.get_shell_surface(surf_))
-  {
-    sh_surf_.add_listener(*this);
-    sh_surf_.set_toplevel();
-    sh_surf_.set_title("Animation wayland example");
-  }
-
-  void set_buffer(wl::buffer::ref buf) {
-    surf_.attach(buf);
-  }
-
-  wl::callback redraw(wl::rect rect) {
-    auto res = surf_.frame();
-    surf_.damage(rect);
-    surf_.commit();
-    return res;
-  }
-
+struct window_listener {
   void ping(wl::shell_surface::ref surf, wl::serial serial) {
     surf.pong(serial);
   }
   void configure(wl::shell_surface::ref, uint32_t, wl::size) {}
   void popup_done(wl::shell_surface::ref) {}
-
-private:
-  wl::surface surf_;
-  wl::shell_surface sh_surf_;
 };
 
 struct ball_in_box {
@@ -218,41 +193,31 @@ int main(int argc, char** argv) try {
   const int decor_height = 35;
   wl::surface wnd_surface = services.compositor.service.create_surface();
   wl::surface content_surface = services.compositor.service.create_surface();
-  wl::surface decor_surface = services.compositor.service.create_surface();
   wl::subsurface content = services.subcompositor.service.get_subsurface(content_surface, wnd_surface);
-  wl::subsurface decor = services.subcompositor.service.get_subsurface(decor_surface, wnd_surface);
   content.set_desync();
   content.set_position(wl::point{0, decor_height});
-  decor.set_desync();
 
+  window_listener pong_responder;
   wl::shell_surface shell_surf = services.shell.service.get_shell_surface(wnd_surface);
+  shell_surf.add_listener(pong_responder);
   shell_surf.set_toplevel();
 
   ball_in_box scene;
-  buffer decor_buf(services.shm.service, wl::size{scene.box_size.width, decor_height});
+  buffer wnd_buf(services.shm.service, wl::size{scene.box_size.width, decor_height});
   buffer content_buf(services.shm.service,scene.box_size);
-
-  buffer dummy{services.shm.service, wl::size{scene.box_size.width, scene.box_size.height + decor_height}};
-  wnd_surface.attach(dummy.get_buffer());
-  wnd_surface.commit();
 
   scene.draw(content_buf.get_memory(), wl::clock::time_point::max());
   content_surface.attach(content_buf.get_buffer());
   content_surface.commit();
 
-  gsl::span<std::byte> mem = decor_buf.get_memory();
+  gsl::span<std::byte> mem = wnd_buf.get_memory();
   std::fill(mem.begin(), mem.end(), std::byte{0x70});
-  decor_surface.attach(decor_buf.get_buffer());
-  decor_surface.commit();
-
-  window wnd(services.compositor.service, services.shell.service);
-  buffer buf{services.shm.service, scene.box_size};
-  scene.draw(buf.get_memory(), wl::clock::time_point::max());
-  wnd.set_buffer(buf.get_buffer());
+  wnd_surface.attach(wnd_buf.get_buffer());
+  wnd_surface.commit();
 
   bool need_redraw = true;
   auto on_can_redraw = [&](wl::callback::ref, uint32_t ts) {
-    scene.draw(buf.get_memory(), wl::clock::time_point{wl::clock::duration{ts}});
+    scene.draw(content_buf.get_memory(), wl::clock::time_point{wl::clock::duration{ts}});
     need_redraw = true;
   };
   wl::callback frame_cb;
@@ -260,7 +225,9 @@ int main(int argc, char** argv) try {
     display.dispatch();
     services.check();
     if (need_redraw) {
-      frame_cb = wnd.redraw({{}, scene.box_size});
+      frame_cb = content_surface.frame();
+      content_surface.damage({{}, scene.box_size});
+      content_surface.commit();
       frame_cb.add_listener(on_can_redraw);
     }
   }
