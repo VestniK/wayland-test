@@ -170,6 +170,31 @@ struct ball_in_box {
   }
 };
 
+struct decoration {
+  wl::rect area;
+
+  void draw(gsl::span<std::byte> mem) {
+    const int stride = Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, area.size.width);
+    auto img_surf = Cairo::ImageSurface::create(
+      reinterpret_cast<unsigned char*>(mem.data()), Cairo::FORMAT_ARGB32, area.size.width, area.size.height, stride
+    );
+    auto ctx = Cairo::Context::create(img_surf);
+
+    ctx->set_source_rgb(.9, .2, .2);
+    ctx->rectangle(area.top_left.x, area.top_left.y, area.size.width, area.size.height);
+    ctx->fill();
+
+    ctx->set_source_rgb(.2, .2, .9);
+    const double btn_diam = 0.7*area.size.height;
+    const double btn_margin = 0.15*area.size.height;
+    ctx->arc(
+      area.top_left.x + area.size.width - btn_margin - btn_diam*0.5, area.top_left.y + area.size.height*0.5,
+      btn_diam*0.5, 0, 2*M_PI
+    );
+    ctx->fill();
+  }
+};
+
 int main(int argc, char** argv) try {
   wl::display display{argc > 1 ? argv[1] : nullptr};
 
@@ -204,14 +229,14 @@ int main(int argc, char** argv) try {
 
   ball_in_box scene;
   buffer wnd_buf(services.shm.service, wl::size{scene.box_size.width, decor_height});
-  buffer content_buf(services.shm.service,scene.box_size);
+  buffer content_buf(services.shm.service, scene.box_size);
 
   scene.draw(content_buf.get_memory(), wl::clock::time_point::max());
   content_surface.attach(content_buf.get_buffer());
   content_surface.commit();
 
-  gsl::span<std::byte> mem = wnd_buf.get_memory();
-  std::fill(mem.begin(), mem.end(), std::byte{0x70});
+  decoration decor{wl::rect{{0, 0}, {scene.box_size.width, decor_height}}};
+  decor.draw(wnd_buf.get_memory());
   wnd_surface.attach(wnd_buf.get_buffer());
   wnd_surface.commit();
 
