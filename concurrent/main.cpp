@@ -170,39 +170,83 @@ struct ball_in_box {
   }
 };
 
-struct decoration {
-  wl::rect area;
-
-  void draw(gsl::span<std::byte> mem) {
-    const int stride = Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, area.size.width);
-    auto img_surf = Cairo::ImageSurface::create(
-      reinterpret_cast<unsigned char*>(mem.data()), Cairo::FORMAT_ARGB32, area.size.width, area.size.height, stride
-    );
-    auto ctx = Cairo::Context::create(img_surf);
-
-    ctx->set_source_rgb(.9, .2, .2);
-    ctx->rectangle(area.top_left.x, area.top_left.y, area.size.width, area.size.height);
-    ctx->fill();
-
-    ctx->set_source_rgb(.2, .2, .9);
-    const double btn_diam = 0.7*area.size.height;
-    const double btn_margin = 0.15*area.size.height;
-    ctx->arc(
-      area.top_left.x + area.size.width - btn_margin - btn_diam*0.5, area.top_left.y + area.size.height*0.5,
-      btn_diam*0.5, 0, 2*M_PI
-    );
-    ctx->fill();
+class decoration {
+public:
+  decoration(wl::surface surface, wl::size size, wl::shm::ref shm):
+    surface_(std::move(surface)),
+    size_(size),
+    buf_(shm, size)
+  {
+    surface_.attach(buf_.get_buffer());
   }
 
-  void enter(wl::pointer::ref, wl::serial, wl::surface::ref, wl::fixed_point) {}
-  void leave(wl::pointer::ref, wl::serial, wl::surface::ref) {}
-  void motion(wl::pointer::ref, wl::clock::time_point, wl::fixed_point) {}
-  void button(wl::pointer::ref, wl::serial, wl::clock::time_point, wl::pointer::button, wl::pointer::button_state) {}
+  void draw() {
+    draw(buf_.get_memory());
+    surface_.damage({{0, 0}, size_});
+    surface_.commit();
+  }
+
+  wl::surface::ref surface() noexcept {return surface_;}
+  bool close_pressed() const noexcept {return close_pressed_;}
+
+  void enter(wl::pointer::ref, wl::serial, wl::surface::ref surf, wl::fixed_point pt) {
+    if (surf.native_handle() == surface_.native_handle())
+      mouse_pos_ = pt;
+  }
+  void leave(wl::pointer::ref, wl::serial, wl::surface::ref) {mouse_pos_ = std::nullopt;}
+  void motion(wl::pointer::ref, wl::clock::time_point, wl::fixed_point pt) {
+    if (mouse_pos_)
+      mouse_pos_ = pt;
+  }
+  void button(
+    wl::pointer::ref, wl::serial, wl::clock::time_point, wl::pointer::button btn, wl::pointer::button_state st
+  ) {
+    if (!mouse_pos_ || btn != wl::pointer::button::left || st != wl::pointer::button_state::pressed)
+      return;
+    const wl::basic_point<double> click_pt = {wl_fixed_to_double(mouse_pos_->x), wl_fixed_to_double(mouse_pos_->y)};
+    const wl::basic_point<double> close_pt = close_center();
+    const wl::basic_point<double> vec = {click_pt.x - close_pt.x, click_pt.y - close_pt.y};
+    if (vec.x*vec.x + vec.y*vec.y < close_radius()*close_radius())
+      close_pressed_ = true;
+  }
   void axis(wl::pointer::ref, wl::clock::time_point, wl::pointer::axis, wl_fixed_t) {}
   void frame(wl::pointer::ref) {}
   void axis_source(wl::pointer::ref, wl::pointer::axis_source) {}
   void axis_stop(wl::pointer::ref, wl::clock::time_point, wl::pointer::axis) {}
   void axis_discrete(wl::pointer::ref, wl::pointer::axis, int32_t) {}
+
+private:
+  double close_radius() const noexcept {return 0.35*size_.height;}
+
+  wl::basic_point<double> close_center() const noexcept {
+    const double btn_margin = 0.15*size_.height;
+    return {size_.width - btn_margin - close_radius(), size_.height*0.5};
+  }
+
+
+  void draw(gsl::span<std::byte> mem) {
+    const int stride = Cairo::ImageSurface::format_stride_for_width(Cairo::FORMAT_ARGB32, size_.width);
+    auto img_surf = Cairo::ImageSurface::create(
+      reinterpret_cast<unsigned char*>(mem.data()), Cairo::FORMAT_ARGB32, size_.width, size_.height, stride
+    );
+    auto ctx = Cairo::Context::create(img_surf);
+
+    ctx->set_source_rgb(.2, .2, .9);
+    ctx->rectangle(0, 0, size_.width, size_.height);
+    ctx->fill();
+
+    ctx->set_source_rgb(.9, .2, .2);
+    const auto center = close_center();
+    ctx->arc(center.x, center.y, close_radius(), 0, 2*M_PI);
+    ctx->fill();
+  }
+
+private:
+  wl::surface surface_;
+  wl::size size_;
+  buffer buf_;
+  std::optional<wl::fixed_point> mouse_pos_;
+  bool close_pressed_ = false;
 };
 
 int main(int argc, char** argv) try {
@@ -226,40 +270,40 @@ int main(int argc, char** argv) try {
   services.check();
 
   const int decor_height = 35;
-  wl::surface wnd_surface = services.compositor.service.create_surface();
+  ball_in_box scene;
+
+  decoration decor{
+    services.compositor.service.create_surface(),
+    {scene.box_size.width, decor_height},
+    services.shm.service
+  };
   wl::surface content_surface = services.compositor.service.create_surface();
-  wl::subsurface content = services.subcompositor.service.get_subsurface(content_surface, wnd_surface);
+  wl::subsurface content = services.subcompositor.service.get_subsurface(content_surface, decor.surface());
   content.set_desync();
   content.set_position(wl::point{0, decor_height});
 
   window_listener pong_responder;
-  wl::shell_surface shell_surf = services.shell.service.get_shell_surface(wnd_surface);
+  wl::shell_surface shell_surf = services.shell.service.get_shell_surface(decor.surface());
   shell_surf.add_listener(pong_responder);
   shell_surf.set_toplevel();
 
-  ball_in_box scene;
-  buffer wnd_buf(services.shm.service, wl::size{scene.box_size.width, decor_height});
   buffer content_buf(services.shm.service, scene.box_size);
 
   scene.draw(content_buf.get_memory(), wl::clock::time_point::max());
   content_surface.attach(content_buf.get_buffer());
   content_surface.commit();
 
-  decoration decor{wl::rect{{0, 0}, {scene.box_size.width, decor_height}}};
-  decor.draw(wnd_buf.get_memory());
-  wnd_surface.attach(wnd_buf.get_buffer());
-  wnd_surface.commit();
-
   wl::pointer mouse = services.seat.service.get_pointer();
   mouse.add_listener(decor);
 
+  decor.draw();
   bool need_redraw = true;
   auto on_can_redraw = [&](wl::callback::ref, uint32_t ts) {
     scene.draw(content_buf.get_memory(), wl::clock::time_point{wl::clock::duration{ts}});
     need_redraw = true;
   };
   wl::callback frame_cb;
-  while (true) {
+  while (!decor.close_pressed()) {
     display.dispatch();
     services.check();
     if (need_redraw) {

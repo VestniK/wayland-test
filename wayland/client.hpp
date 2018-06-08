@@ -45,7 +45,7 @@ struct shell {
 
   explicit operator bool () const noexcept {return static_cast<bool>(ptr_);}
 
-  basic_resource<wl_shell_surface, shell_surface> get_shell_surface(const basic_resource<wl_surface, surface>& surf) {
+  basic_resource<wl_shell_surface, shell_surface> get_shell_surface(wl::surface::ref surf) {
     return {unique_ptr<wl_shell_surface>{wl_shell_get_shell_surface(native_handle<Shell>(*this), surf.native_handle())}};
   }
 
