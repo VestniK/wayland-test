@@ -124,8 +124,14 @@ struct basic_point {
   T y = 0;
 };
 
+enum class fixed_t: wl_fixed_t {};
+inline int to_int(fixed_t val) noexcept {return wl_fixed_to_int(static_cast<wl_fixed_t>(val));}
+inline double to_double(fixed_t val) noexcept {return wl_fixed_to_double(static_cast<wl_fixed_t>(val));}
+inline fixed_t to_fixed(int val) noexcept {return fixed_t{wl_fixed_from_int(val)};}
+inline fixed_t to_fixed(double val) noexcept {return fixed_t{wl_fixed_from_double(val)};}
+
 using point = basic_point<int32_t>;
-using fixed_point = basic_point<wl_fixed_t>;
+using fixed_point = basic_point<fixed_t>;
 
 struct size {
   int32_t width = 0;

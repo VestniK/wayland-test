@@ -203,7 +203,7 @@ public:
   ) {
     if (!mouse_pos_ || btn != wl::pointer::button::left || st != wl::pointer::button_state::pressed)
       return;
-    const wl::basic_point<double> click_pt = {wl_fixed_to_double(mouse_pos_->x), wl_fixed_to_double(mouse_pos_->y)};
+    const wl::basic_point<double> click_pt = {wl::to_double(mouse_pos_->x), wl::to_double(mouse_pos_->y)};
     const wl::basic_point<double> close_pt = close_center();
     const wl::basic_point<double> vec = {click_pt.x - close_pt.x, click_pt.y - close_pt.y};
     if (vec.x*vec.x + vec.y*vec.y < close_radius()*close_radius())

@@ -124,7 +124,9 @@ struct pointer {
     static const wl_pointer_listener static_listener= {
       [](void* data, wl_pointer* handle, uint32_t serial, wl_surface* surf, wl_fixed_t x, wl_fixed_t y) {
         auto self = static_cast<F*>(data);
-        self->enter(resource_ref_t<PT>{*handle}, wl::serial{serial}, wl::surface::ref{*surf}, fixed_point{x, y});
+        self->enter(
+          resource_ref_t<PT>{*handle}, wl::serial{serial}, wl::surface::ref{*surf}, fixed_point{fixed_t{x}, fixed_t{y}}
+        );
       },
       [](void* data, wl_pointer* handle, uint32_t serial, wl_surface* surf) {
         auto self = static_cast<F*>(data);
@@ -132,7 +134,11 @@ struct pointer {
       },
       [](void* data, wl_pointer* handle, uint32_t time, wl_fixed_t x, wl_fixed_t y) {
         auto self = static_cast<F*>(data);
-        self->motion(resource_ref_t<PT>{*handle}, wl::clock::time_point{wl::clock::duration{time}}, fixed_point{x, y});
+        self->motion(
+          resource_ref_t<PT>{*handle},
+          wl::clock::time_point{wl::clock::duration{time}},
+          fixed_point{fixed_t{x}, fixed_t{y}}
+        );
       },
       [](void* data,   struct wl_pointer* handle, uint32_t eid, uint32_t time, uint32_t btn, uint32_t state) {
         auto self = static_cast<F*>(data);
