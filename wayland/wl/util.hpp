@@ -37,6 +37,7 @@ struct deleter {
   void operator() (wl_callback* ptr) {wl_callback_destroy(ptr);}
   void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
   void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
+  void operator() (wl_event_queue* ptr) {wl_event_queue_destroy(ptr);}
   void operator() (wl_keyboard* ptr) {wl_keyboard_destroy(ptr);}
   void operator() (wl_pointer* ptr) {wl_pointer_destroy(ptr);}
   void operator() (wl_registry* ptr) {wl_registry_destroy(ptr);}

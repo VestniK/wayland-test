@@ -10,6 +10,7 @@
 #include "wl/buffer.hpp"
 #include "wl/callback.hpp"
 #include "wl/error.hpp"
+#include "wl/event_queue.hpp"
 #include "wl/io.hpp"
 #include "wl/registry.hpp"
 #include "wl/seat.hpp"
@@ -74,9 +75,16 @@ public:
 
   callback sync() {return unique_ptr<wl_callback>{wl_display_sync(ptr_.get())};}
 
+  event_queue create_queue() {return unique_ptr<wl_event_queue>{wl_display_create_queue(ptr_.get())};}
+
   void dispatch() const {
     if (wl_display_dispatch(ptr_.get()) < 0)
       throw std::runtime_error("wl::display::dispatch failed");
+  }
+
+  void dispatch_queue(event_queue& queue) const {
+    if (wl_display_dispatch_queue(ptr_.get(), queue.native_handle()) < 0)
+      throw std::runtime_error("wl::display::dispatch_queue failed");
   }
 
 private:

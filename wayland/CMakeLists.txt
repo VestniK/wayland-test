@@ -7,6 +7,7 @@ add_headeronly_lib(wlpp
   wl/buffer.hpp
   wl/callback.hpp
   wl/error.hpp
+  wl/event_queue.hpp
   wl/io.hpp
   wl/pointer.hpp
   wl/keyboard.hpp
