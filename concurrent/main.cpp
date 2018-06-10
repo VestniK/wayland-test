@@ -190,13 +190,22 @@ public:
   bool close_pressed() const noexcept {return close_pressed_;}
 
   void enter(wl::pointer::ref, wl::serial, wl::surface::ref surf, wl::fixed_point pt) {
-    if (surf.native_handle() == surface_.native_handle())
-      mouse_pos_ = pt;
+    if (surf.native_handle() != surface_.native_handle())
+      return;
+    mouse_pos_ = pt;
+    draw();
   }
-  void leave(wl::pointer::ref, wl::serial, wl::surface::ref) {mouse_pos_ = std::nullopt;}
+  void leave(wl::pointer::ref, wl::serial, wl::surface::ref surf) {
+    if (surf.native_handle() != surface_.native_handle())
+      return;
+    mouse_pos_ = std::nullopt;
+    draw();
+  }
   void motion(wl::pointer::ref, wl::clock::time_point, wl::fixed_point pt) {
-    if (mouse_pos_)
-      mouse_pos_ = pt;
+    if (!mouse_pos_)
+      return;
+    mouse_pos_ = pt;
+    draw();
   }
   void button(
     wl::pointer::ref, wl::serial, wl::clock::time_point, wl::pointer::button btn, wl::pointer::button_state st
@@ -238,6 +247,12 @@ private:
     ctx->set_source_rgb(.9, .2, .2);
     const auto center = close_center();
     ctx->arc(center.x, center.y, close_radius(), 0, 2*M_PI);
+    ctx->fill();
+
+    if (!mouse_pos_)
+      return;
+    ctx->set_source_rgba(.75, .75, .75, .5);
+    ctx->arc(wl::to_int(mouse_pos_->x), wl::to_int(mouse_pos_->y), close_radius()/2., 0, 2*M_PI);
     ctx->fill();
   }
 
