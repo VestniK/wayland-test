@@ -1,7 +1,10 @@
+#include <atomic>
 #include <exception>
 #include <iostream>
 #include <optional>
+#include <thread>
 
+#include <gsl/gsl_util>
 #include <gsl/span>
 
 #include <cairomm/context.h>
@@ -304,29 +307,42 @@ int main(int argc, char** argv) try {
 
   buffer content_buf(services.shm.service, scene.box_size);
 
-  scene.draw(content_buf.get_memory(), wl::clock::time_point::max());
-  content_surface.attach(content_buf.get_buffer());
-  content_surface.commit();
-
   wl::pointer mouse = services.seat.service.get_pointer();
   mouse.add_listener(decor);
-
   decor.draw();
-  bool need_redraw = true;
-  auto on_can_redraw = [&](wl::callback::ref, uint32_t ts) {
-    scene.draw(content_buf.get_memory(), wl::clock::time_point{wl::clock::duration{ts}});
-    need_redraw = true;
-  };
-  wl::callback frame_cb;
+
+  wl::event_queue queue = display.create_queue();
+  content_surface.set_queue(queue);
+  std::atomic<bool> close_flag{false};
+  std::thread animation_thread{[&] {
+    scene.draw(content_buf.get_memory(), wl::clock::time_point::max());
+    content_surface.attach(content_buf.get_buffer());
+    content_surface.commit();
+
+    bool need_redraw = true;
+    auto on_can_redraw = [&](wl::callback::ref, uint32_t ts) {
+      scene.draw(content_buf.get_memory(), wl::clock::time_point{wl::clock::duration{ts}});
+      need_redraw = true;
+    };
+    wl::callback frame_cb;
+    while(!close_flag.load()) {
+      display.dispatch_queue(queue);
+      if (need_redraw) {
+        frame_cb = content_surface.frame();
+        content_surface.damage({{}, scene.box_size});
+        content_surface.commit();
+        frame_cb.add_listener(on_can_redraw);
+      }
+    }
+  }};
+  const auto animation_stopper = gsl::finally([&]{
+    close_flag = true;
+    animation_thread.join();
+  });
+
   while (!decor.close_pressed()) {
     display.dispatch();
     services.check();
-    if (need_redraw) {
-      frame_cb = content_surface.frame();
-      content_surface.damage({{}, scene.box_size});
-      content_surface.commit();
-      frame_cb.add_listener(on_can_redraw);
-    }
   }
 
   return EXIT_SUCCESS;
