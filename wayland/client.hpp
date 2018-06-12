@@ -63,6 +63,8 @@ using shell = detail::basic_resource<wl_shell, detail::shell>;
 
 class display {
 public:
+  using native_handle_type = wl_display*;
+
   explicit display(const char* name = nullptr): ptr_(wl_display_connect(name)) {
     using std::literals::operator""s;
     if (!ptr_)
@@ -86,6 +88,9 @@ public:
     if (wl_display_dispatch_queue(ptr_.get(), queue.native_handle()) < 0)
       throw std::runtime_error("wl::display::dispatch_queue failed");
   }
+
+  native_handle_type native_handle() const noexcept {return ptr_.get();}
+  explicit operator bool () const noexcept {return ptr_ != nullptr;}
 
 private:
   unique_ptr<wl_display> ptr_;
