@@ -84,6 +84,11 @@ public:
       throw std::runtime_error("wl::display::dispatch failed");
   }
 
+  void dispatch_pending() const {
+    if (wl_display_dispatch_pending(ptr_.get()) < 0)
+      throw std::runtime_error("wl::display::dispatch failed");
+  }
+
   void dispatch_queue(event_queue& queue) const {
     if (wl_display_dispatch_queue(ptr_.get(), queue.native_handle()) < 0)
       throw std::runtime_error("wl::display::dispatch_queue failed");

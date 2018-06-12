@@ -6,7 +6,8 @@
 
 #include <EGL/egl.h>
 
-#include <GLES2/gl2.h>
+#include <GL/gl.h>
+//#include <GLES2/gl2.h>
 
 #if defined(minor)
 #undef minor
@@ -195,6 +196,11 @@ public:
   EGLint major() const noexcept {return major_;}
   EGLint minor() const noexcept {return minor_;}
 
+  void bind_api(EGLenum api) {
+    if (eglBindAPI(api) != EGL_TRUE)
+      throw std::system_error{eglGetError(), category(), "eglBindAPI"};
+  }
+
   context create_context(EGLConfig cfg) {
     return context{disp_, cfg};
   }
@@ -211,7 +217,8 @@ public:
       EGL_RED_SIZE, 8,
       EGL_GREEN_SIZE, 8,
       EGL_BLUE_SIZE, 8,
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+      EGL_ALPHA_SIZE, 8,
+      EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
       EGL_NONE
     };
     if (eglChooseConfig(disp_, attr, &res, 1, &count) == EGL_FALSE)
@@ -260,28 +267,37 @@ int main(int argc, char** argv) try {
 
   egl::display edisp{display};
   egl::context ctx = edisp.create_context(edisp.choose_config());
+  edisp.bind_api(EGL_OPENGL_API);
 
   wl::egl::window wnd(surface, {640, 480});
   egl::surface esurf = edisp.create_surface(ctx.get_config(), wnd);
+  ctx.make_current(esurf);
 
-  auto draw_func = [&, ts = std::chrono::steady_clock::now()](wl::callback::ref, uint32_t) mutable {
-    std::chrono::steady_clock::time_point last = std::exchange(ts, std::chrono::steady_clock::now());
+  glClearColor(0.0, 0.0, 0.0, 0.9);
+  glShadeModel(GL_FLAT);
+
+  glViewport(0, 0, 640, 480);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  auto ts = std::chrono::steady_clock::now();
+  while (true) {
+    const std::chrono::steady_clock::time_point last = std::exchange(ts, std::chrono::steady_clock::now());
     const GLfloat color = std::chrono::duration_cast<std::chrono::milliseconds>((ts - last)%5s).count()/5000.;
-    ctx.make_current(esurf);
-    glClearColor(color, color, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
+    glColor4f(color, color, 1.0, 1.0);
+    glBegin(GL_POLYGON);
+      glVertex3f(0.25, 0.25, 0.0);
+      glVertex3f(0.75, 0.25, 0.0);
+      glVertex3f(0.75, 0.75, 0.0);
+      glVertex3f(0.25, 0.75, 0.0);
+    glEnd();
     glFlush();
     esurf.swap_buffers();
-  };
-  wl::callback frame_cb = surface.frame();
-  frame_cb.add_listener(draw_func);
-  draw_func(frame_cb, 0);
-  surface.commit();
-  while (true) {
-    display.dispatch();
-    frame_cb = surface.frame();
-    frame_cb.add_listener(draw_func);
-    surface.commit();
+    display.dispatch_pending();
   }
 
   return EXIT_SUCCESS;
