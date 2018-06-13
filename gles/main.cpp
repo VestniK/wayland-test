@@ -136,7 +136,7 @@ public:
   explicit context(EGLDisplay disp, EGLConfig cfg): disp_(disp), cfg_(cfg) {
     const EGLint attr[] = {
       EGL_CONTEXT_MAJOR_VERSION, 2,
-      EGL_CONTEXT_MINOR_VERSION, 0,
+      EGL_CONTEXT_MINOR_VERSION, 1,
       EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT,
       EGL_NONE
     };
@@ -284,18 +284,32 @@ int main(int argc, char** argv) try {
   glLoadIdentity();
   glViewport(0, 0, 640, 480);
 
+  struct vertex {
+    GLfloat x = 0.;
+    GLfloat y = 0.;
+    GLfloat z = 0.;
+  };
+  vertex vertexes[] = {{0.25, 0.25}, {0.75, 0.25}, {0.75, 0.75}, {0.25, 0.75}};
+
+  auto glGenBuffers = reinterpret_cast<void(*)(GLsizei, GLuint*)>(eglGetProcAddress("glGenBuffers"));
+  auto glBindBuffer = reinterpret_cast<void(*)(GLenum, GLuint)>(eglGetProcAddress("glBindBuffer"));
+  auto glBufferData = reinterpret_cast<void(*)(GLenum, GLsizeiptr, const GLvoid*, GLenum)>(eglGetProcAddress("glBufferData"));
+
+  GLuint vbo;
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertexes), vertexes, GL_STATIC_DRAW);
+
   constexpr auto period = 3s;
   while (true) {
     const auto dur = std::chrono::steady_clock::now().time_since_epoch()%period;
     const GLfloat color = std::abs(2.*dur.count()/GLfloat(std::chrono::steady_clock::duration(period).count()) - 1.);
     glClear(GL_COLOR_BUFFER_BIT);
-    glBegin(GL_POLYGON);
-      glColor4f(color, 1.0, color, 1.0);
-      glVertex3f(0.25, 0.25, 0.0);
-      glVertex3f(0.75, 0.25, 0.0);
-      glVertex3f(0.75, 0.75, 0.0);
-      glVertex3f(0.25, 0.75, 0.0);
-    glEnd();
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glVertexPointer(3, GL_FLOAT, 0, nullptr);
+    glColor4f(color, 1.0, color, 1.0);
+    glDrawArrays(GL_QUADS, 0, std::size(vertexes));
     glFlush();
     esurf.swap_buffers();
     display.dispatch_pending();
