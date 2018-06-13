@@ -135,7 +135,9 @@ class context {
 public:
   explicit context(EGLDisplay disp, EGLConfig cfg): disp_(disp), cfg_(cfg) {
     const EGLint attr[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 2,
+      EGL_CONTEXT_MAJOR_VERSION, 2,
+      EGL_CONTEXT_MINOR_VERSION, 0,
+      EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT,
       EGL_NONE
     };
     ctx_ = eglCreateContext(disp_, cfg_, EGL_NO_CONTEXT, attr);
@@ -265,29 +267,30 @@ int main(int argc, char** argv) try {
 
   egl::display edisp{display};
   edisp.bind_api(EGL_OPENGL_API);
-  egl::context ctx = edisp.create_context(edisp.choose_config());
+  EGLConfig cfg = edisp.choose_config();
+  egl::context ctx = edisp.create_context(cfg);
 
   wl::egl::window wnd(surface, {640, 480});
-  egl::surface esurf = edisp.create_surface(ctx.get_config(), wnd);
+  egl::surface esurf = edisp.create_surface(cfg, wnd);
   ctx.make_current(esurf);
 
   glClearColor(0.0, 0.0, 0.0, 0.9);
   glShadeModel(GL_FLAT);
 
-  glViewport(0, 0, 640, 480);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+  glViewport(0, 0, 640, 480);
 
-  auto ts = std::chrono::steady_clock::now();
+  constexpr auto period = 3s;
   while (true) {
-    const std::chrono::steady_clock::time_point last = std::exchange(ts, std::chrono::steady_clock::now());
-    const GLfloat color = std::chrono::duration_cast<std::chrono::milliseconds>((ts - last)%5s).count()/5000.;
+    const auto dur = std::chrono::steady_clock::now().time_since_epoch()%period;
+    const GLfloat color = std::abs(2.*dur.count()/GLfloat(std::chrono::steady_clock::duration(period).count()) - 1.);
     glClear(GL_COLOR_BUFFER_BIT);
     glBegin(GL_POLYGON);
-      glColor4f(color, color, 1.0, 1.0);
+      glColor4f(color, 1.0, color, 1.0);
       glVertex3f(0.25, 0.25, 0.0);
       glVertex3f(0.75, 0.25, 0.0);
       glVertex3f(0.75, 0.75, 0.0);
