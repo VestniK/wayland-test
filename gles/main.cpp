@@ -169,8 +169,6 @@ private:
 
 class display {
 public:
-  display() noexcept = default;
-
   explicit display(const wl::display& native_display): disp_(eglGetDisplay(native_display.native_handle())) {
     if (disp_ == EGL_NO_DISPLAY)
       throw std::runtime_error{"Failed to get EGL display"};
@@ -266,8 +264,8 @@ int main(int argc, char** argv) try {
   shell_surface.add_listener(pong_responder);
 
   egl::display edisp{display};
-  egl::context ctx = edisp.create_context(edisp.choose_config());
   edisp.bind_api(EGL_OPENGL_API);
+  egl::context ctx = edisp.create_context(edisp.choose_config());
 
   wl::egl::window wnd(surface, {640, 480});
   egl::surface esurf = edisp.create_surface(ctx.get_config(), wnd);
@@ -288,8 +286,8 @@ int main(int argc, char** argv) try {
     const std::chrono::steady_clock::time_point last = std::exchange(ts, std::chrono::steady_clock::now());
     const GLfloat color = std::chrono::duration_cast<std::chrono::milliseconds>((ts - last)%5s).count()/5000.;
     glClear(GL_COLOR_BUFFER_BIT);
-    glColor4f(color, color, 1.0, 1.0);
     glBegin(GL_POLYGON);
+      glColor4f(color, color, 1.0, 1.0);
       glVertex3f(0.25, 0.25, 0.0);
       glVertex3f(0.75, 0.25, 0.0);
       glVertex3f(0.75, 0.75, 0.0);
