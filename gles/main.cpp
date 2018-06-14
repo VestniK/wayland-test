@@ -6,8 +6,10 @@
 
 #include <EGL/egl.h>
 
-#include <GL/gl.h>
-//#include <GLES2/gl2.h>
+#include <GLES2/gl2.h>
+
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 #if defined(minor)
 #undef minor
@@ -136,8 +138,7 @@ public:
   explicit context(EGLDisplay disp, EGLConfig cfg): disp_(disp), cfg_(cfg) {
     const EGLint attr[] = {
       EGL_CONTEXT_MAJOR_VERSION, 2,
-      EGL_CONTEXT_MINOR_VERSION, 1,
-      EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT,
+      EGL_CONTEXT_MINOR_VERSION, 0,
       EGL_NONE
     };
     ctx_ = eglCreateContext(disp_, cfg_, EGL_NO_CONTEXT, attr);
@@ -218,7 +219,7 @@ public:
       EGL_GREEN_SIZE, 8,
       EGL_BLUE_SIZE, 8,
       EGL_ALPHA_SIZE, 8,
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
       EGL_NONE
     };
     if (eglChooseConfig(disp_, attr, &res, 1, &count) == EGL_FALSE)
@@ -233,6 +234,143 @@ private:
 };
 
 }
+
+
+class shader {
+public:
+  using native_handle_type = GLuint;
+  enum class type: GLenum {
+    vertex = GL_VERTEX_SHADER,
+    fragment = GL_FRAGMENT_SHADER
+  };
+
+  shader() noexcept = default;
+
+  shader(type type, gsl::czstring<> src) {
+    shader_ = glCreateShader(static_cast<GLenum>(type));
+    if(shader_ == 0)
+      throw std::runtime_error{"Failed to create shader"};
+    glShaderSource(shader_, 1, &src, nullptr);
+    glCompileShader(shader_);
+    GLint compiled;
+    glGetShaderiv(shader_, GL_COMPILE_STATUS, &compiled);
+    if(!compiled) {
+      GLint msg_size;
+      glGetShaderiv(shader_, GL_INFO_LOG_LENGTH, &msg_size);
+      std::string msg;
+      if(msg_size > 1) {
+        msg.resize(msg_size);
+        glGetShaderInfoLog(shader_, msg_size, nullptr, msg.data());
+      } else
+        msg = "unknown compiation error";
+      glDeleteShader(shader_);
+      throw std::runtime_error{"Failed to compile shader: " + msg};
+    }
+  }
+
+  ~shader() {
+    if (shader_ != 0)
+      glDeleteShader(shader_);
+  }
+
+  shader(const shader&) = delete;
+  shader& operator= (const shader&) = delete;
+
+  shader(shader&& rhs) noexcept: shader_(std::exchange(rhs.shader_, 0)) {}
+  shader& operator= (shader&& rhs) noexcept {
+    if (shader_ != 0)
+      glDeleteShader(shader_);
+    shader_ = std::exchange(rhs.shader_, 0);
+    return *this;
+  }
+
+  native_handle_type native_handle() const noexcept {return shader_;}
+
+  explicit operator bool () const noexcept {return shader_ != 0;}
+
+private:
+  GLuint shader_ = 0;
+};
+
+class triangle_drawer {
+public:
+  triangle_drawer():
+    vertex_shader_(shader::type::vertex, R"(
+      uniform mat4 rotation;
+      attribute vec4 vPosition;
+      void main() {
+        gl_Position = rotation * vPosition;
+      }
+    )"),
+    fragment_shader_(shader::type::fragment, R"(
+      precision mediump float;
+      void main() {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      }
+    )")
+  {
+    program_ = glCreateProgram();
+    if (program_ == 0)
+      throw std::runtime_error{"Failed to create GLSL program"};
+    glAttachShader(program_, vertex_shader_.native_handle());
+    glAttachShader(program_, fragment_shader_.native_handle());
+    glBindAttribLocation(program_, 0, "vPosition");
+    glLinkProgram(program_);
+
+    GLint linked;
+    glGetProgramiv(program_, GL_LINK_STATUS, &linked);
+    if(!linked) {
+       GLint msg_size = 0;
+       glGetProgramiv(program_, GL_INFO_LOG_LENGTH, &msg_size);
+       std::string msg;
+       if(msg_size > 1) {
+         msg.resize(msg_size);
+         glGetProgramInfoLog(program_, msg_size, nullptr, msg.data());
+       } else
+         msg = "unknown link error";
+       glDeleteProgram(program_);
+       throw std::runtime_error{"Faild to link GLSL program: " + msg};
+    }
+  }
+  ~triangle_drawer() {
+    glDeleteProgram(program_);
+  }
+
+  void resize(wl::size sz) {
+    glClearColor(0., .3, 0., 0.85);
+    glViewport(0, 0, sz.width, sz.height);
+  }
+
+  void draw(wl::clock::time_point ts) {
+    struct vertex {
+      GLfloat x = 0;
+      GLfloat y = 0;
+      GLfloat z = 0;
+    };
+    static const vertex vertices[] = {
+      {0., .5, 0.},
+      {-.5, -.5, .0},
+      {.5, -.5,  .0}
+    };
+    constexpr auto period = 3s;
+
+    const GLfloat angle = 2*M_PI*(ts.time_since_epoch()%period).count()/wl::clock::duration{period}.count();
+    glClear(GL_COLOR_BUFFER_BIT);
+    auto rotation_uniform = glGetUniformLocation(program_, "rotation");
+    glm::mat4 rotation = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
+    glUniformMatrix4fv(rotation_uniform, 1, GL_FALSE, glm::value_ptr(rotation));
+    glUseProgram(program_);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertices);
+    glEnableVertexAttribArray(0);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glFlush();
+  }
+
+private:
+  shader vertex_shader_;
+  shader fragment_shader_;
+  GLuint program_ = 0;
+};
 
 struct window_listener {
   void ping(wl::shell_surface::ref surf, wl::serial serial) {
@@ -266,7 +404,7 @@ int main(int argc, char** argv) try {
   shell_surface.add_listener(pong_responder);
 
   egl::display edisp{display};
-  edisp.bind_api(EGL_OPENGL_API);
+  edisp.bind_api(EGL_OPENGL_ES_API);
   EGLConfig cfg = edisp.choose_config();
   egl::context ctx = edisp.create_context(cfg);
 
@@ -274,43 +412,13 @@ int main(int argc, char** argv) try {
   egl::surface esurf = edisp.create_surface(cfg, wnd);
   ctx.make_current(esurf);
 
-  glClearColor(0.0, 0.0, 0.0, 0.9);
-  glShadeModel(GL_FLAT);
+  triangle_drawer drawer;
+  drawer.resize({640, 480});
 
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-  glViewport(0, 0, 640, 480);
-
-  struct vertex {
-    GLfloat x = 0.;
-    GLfloat y = 0.;
-    GLfloat z = 0.;
-  };
-  vertex vertexes[] = {{0.25, 0.25}, {0.75, 0.25}, {0.75, 0.75}, {0.25, 0.75}};
-
-  auto glGenBuffers = reinterpret_cast<void(*)(GLsizei, GLuint*)>(eglGetProcAddress("glGenBuffers"));
-  auto glBindBuffer = reinterpret_cast<void(*)(GLenum, GLuint)>(eglGetProcAddress("glBindBuffer"));
-  auto glBufferData = reinterpret_cast<void(*)(GLenum, GLsizeiptr, const GLvoid*, GLenum)>(eglGetProcAddress("glBufferData"));
-
-  GLuint vbo;
-  glGenBuffers(1, &vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertexes), vertexes, GL_STATIC_DRAW);
-
-  constexpr auto period = 3s;
   while (true) {
-    const auto dur = std::chrono::steady_clock::now().time_since_epoch()%period;
-    const GLfloat color = std::abs(2.*dur.count()/GLfloat(std::chrono::steady_clock::duration(period).count()) - 1.);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glVertexPointer(3, GL_FLOAT, 0, nullptr);
-    glColor4f(color, 1.0, color, 1.0);
-    glDrawArrays(GL_QUADS, 0, std::size(vertexes));
-    glFlush();
+    drawer.draw(wl::clock::time_point{
+      std::chrono::duration_cast<wl::clock::duration>(std::chrono::steady_clock::now().time_since_epoch())
+    });
     esurf.swap_buffers();
     display.dispatch_pending();
   }
