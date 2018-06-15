@@ -297,15 +297,16 @@ public:
   triangle_drawer():
     vertex_shader_(shader::type::vertex, R"(
       uniform mat4 rotation;
-      attribute vec4 vPosition;
+      attribute vec4 position;
       void main() {
-        gl_Position = rotation * vPosition;
+        gl_Position = rotation * position;
       }
     )"),
     fragment_shader_(shader::type::fragment, R"(
       precision mediump float;
+      uniform vec4 color;
       void main() {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        gl_FragColor = color;
       }
     )")
   {
@@ -345,23 +346,32 @@ public:
     struct vertex {
       GLfloat x = 0;
       GLfloat y = 0;
-      GLfloat z = 0;
     };
     static const vertex vertices[] = {
-      {0., .5, 0.},
-      {-.5, -.5, .0},
-      {.5, -.5,  .0}
+      {0., .5},
+      {-.5, -.5},
+      {.5, -.5}
     };
     constexpr auto period = 3s;
 
-    const GLfloat angle = 2*M_PI*(ts.time_since_epoch()%period).count()/wl::clock::duration{period}.count();
-    glClear(GL_COLOR_BUFFER_BIT);
-    auto rotation_uniform = glGetUniformLocation(program_, "rotation");
+    const GLfloat phase = (ts.time_since_epoch()%period).count()/GLfloat(wl::clock::duration{period}.count());
+    const GLfloat angle = 2*M_PI*phase;
+    const GLfloat color_component = std::abs(2*phase - 1.);
+    glm::vec4 color = {color_component, color_component, 1., 1.};
     glm::mat4 rotation = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
+
+    GLint rotation_uniform = glGetUniformLocation(program_, "rotation");
+    GLint color_uniform = glGetUniformLocation(program_, "color");
+    GLint position_location = glGetAttribLocation(program_, "position");
+
+    glClear(GL_COLOR_BUFFER_BIT);
+
     glUniformMatrix4fv(rotation_uniform, 1, GL_FALSE, glm::value_ptr(rotation));
+    glUniform4fv(color_uniform, 1, glm::value_ptr(color));
+
     glUseProgram(program_);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertices);
-    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+    glEnableVertexAttribArray(position_location);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glFlush();
   }
@@ -408,12 +418,13 @@ int main(int argc, char** argv) try {
   EGLConfig cfg = edisp.choose_config();
   egl::context ctx = edisp.create_context(cfg);
 
-  wl::egl::window wnd(surface, {640, 480});
+  const wl::size wnd_sz = {480, 480};
+  wl::egl::window wnd(surface, wnd_sz);
   egl::surface esurf = edisp.create_surface(cfg, wnd);
   ctx.make_current(esurf);
 
   triangle_drawer drawer;
-  drawer.resize({640, 480});
+  drawer.resize(wnd_sz);
 
   while (true) {
     drawer.draw(wl::clock::time_point{
