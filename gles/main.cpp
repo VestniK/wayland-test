@@ -321,9 +321,12 @@ public:
     )"),
     fragment_shader_(shader::type::fragment, R"(
       precision mediump float;
-      uniform vec4 color;
+      uniform vec4 hotspot;
       void main() {
-        gl_FragColor = color;
+        float norm_dist = length(gl_FragCoord - hotspot)/90.0;
+        float factor = exp(-norm_dist*norm_dist);
+        vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
+        gl_FragColor = vec4(color.r*factor, color.g*factor, color.b*factor, 1);
       }
     )")
   {
@@ -359,7 +362,7 @@ public:
   }
 
   void resize(wl::size sz) {
-    glClearColor(0., .3, 0., 0.85);
+    glClearColor(0, 0, 0, .9);
     glViewport(0, 0, sz.width, sz.height);
   }
 
@@ -376,21 +379,24 @@ public:
     };
 
     constexpr auto period = 3s;
+    constexpr auto spot_period = 7s;
 
     const GLfloat phase = (ts.time_since_epoch()%period).count()/GLfloat(wl::clock::duration{period}.count());
+    const GLfloat spot_phase = (ts.time_since_epoch()%spot_period).count()/GLfloat(wl::clock::duration{spot_period}.count());
+
+    const GLfloat spot_angle = 2*M_PI*spot_phase;
     const GLfloat angle = 2*M_PI*phase;
-    const GLfloat color_component = std::abs(2*phase - 1.);
-    glm::vec4 color = {color_component, color_component, 1., 1.};
+    glm::vec4 hotspot = {240 + 140*std::cos(spot_angle), 200 + 20*std::cos(2*spot_angle), 0, 0};
     glm::mat4 rotation = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
 
     GLint rotation_uniform = glGetUniformLocation(program_, "rotation");
-    GLint color_uniform = glGetUniformLocation(program_, "color");
+    GLint hotspot_uniform = glGetUniformLocation(program_, "hotspot");
     GLint position_location = glGetAttribLocation(program_, "position");
 
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUniformMatrix4fv(rotation_uniform, 1, GL_FALSE, glm::value_ptr(rotation));
-    glUniform4fv(color_uniform, 1, glm::value_ptr(color));
+    glUniform4fv(hotspot_uniform, 1, glm::value_ptr(hotspot));
 
     glUseProgram(program_);
     glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, vertices);
