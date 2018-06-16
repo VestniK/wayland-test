@@ -1,6 +1,6 @@
 find_package(PkgConfig)
 pkg_check_modules(egl REQUIRED IMPORTED_TARGET egl)
-pkg_check_modules(gl REQUIRED IMPORTED_TARGET gl)
+pkg_check_modules(glesv2 REQUIRED IMPORTED_TARGET glesv2)
 find_package(GLM)
 
 add_library(GLM::glm IMPORTED INTERFACE)
@@ -11,4 +11,4 @@ set_target_properties(GLM::glm PROPERTIES
 add_executable(gles
   main.cpp
 )
-target_link_libraries(gles wlpp-egl PkgConfig::egl PkgConfig::gl GLM::glm)
+target_link_libraries(gles wlpp-egl PkgConfig::egl PkgConfig::glesv2 GLM::glm)

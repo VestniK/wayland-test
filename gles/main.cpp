@@ -292,9 +292,26 @@ private:
   GLuint shader_ = 0;
 };
 
-class triangle_drawer {
+class elements_array_buffer {
 public:
-  triangle_drawer():
+  using native_handle_type = GLuint;
+  native_handle_type native_handle() const {return handle_;}
+
+  elements_array_buffer() {
+    glGenBuffers(1, &handle_);
+  }
+
+  ~elements_array_buffer() {
+    glDeleteBuffers(1, &handle_);
+  }
+
+private:
+  GLuint handle_ = 0;
+};
+
+class drawer {
+public:
+  drawer():
     vertex_shader_(shader::type::vertex, R"(
       uniform mat4 rotation;
       attribute vec4 position;
@@ -332,8 +349,12 @@ public:
        glDeleteProgram(program_);
        throw std::runtime_error{"Faild to link GLSL program: " + msg};
     }
+
+    static const GLuint idxs[] = {0, 1, 2, 1, 3, 2};
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxs_.native_handle());
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxs), idxs, GL_STATIC_DRAW);
   }
-  ~triangle_drawer() {
+  ~drawer() {
     glDeleteProgram(program_);
   }
 
@@ -348,10 +369,12 @@ public:
       GLfloat y = 0;
     };
     static const vertex vertices[] = {
-      {0., .5},
+      {-.5, .5},
+      {.5, .5},
       {-.5, -.5},
       {.5, -.5}
     };
+
     constexpr auto period = 3s;
 
     const GLfloat phase = (ts.time_since_epoch()%period).count()/GLfloat(wl::clock::duration{period}.count());
@@ -372,7 +395,8 @@ public:
     glUseProgram(program_);
     glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, vertices);
     glEnableVertexAttribArray(position_location);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxs_.native_handle());
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
     glFlush();
   }
 
@@ -380,6 +404,7 @@ private:
   shader vertex_shader_;
   shader fragment_shader_;
   GLuint program_ = 0;
+  elements_array_buffer idxs_;
 };
 
 struct window_listener {
@@ -423,7 +448,7 @@ int main(int argc, char** argv) try {
   egl::surface esurf = edisp.create_surface(cfg, wnd);
   ctx.make_current(esurf);
 
-  triangle_drawer drawer;
+  drawer drawer;
   drawer.resize(wnd_sz);
 
   while (true) {
