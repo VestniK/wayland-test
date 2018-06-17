@@ -39,6 +39,7 @@ struct deleter {
   void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
   void operator() (wl_event_queue* ptr) {wl_event_queue_destroy(ptr);}
   void operator() (wl_keyboard* ptr) {wl_keyboard_destroy(ptr);}
+  void operator() (wl_output* ptr) {wl_output_destroy(ptr);}
   void operator() (wl_pointer* ptr) {wl_pointer_destroy(ptr);}
   void operator() (wl_registry* ptr) {wl_registry_destroy(ptr);}
   void operator() (wl_seat* ptr) {wl_seat_destroy(ptr);}
@@ -134,10 +135,16 @@ inline fixed_t to_fixed(double val) noexcept {return fixed_t{wl_fixed_from_doubl
 using point = basic_point<int32_t>;
 using fixed_point = basic_point<fixed_t>;
 
-struct size {
-  int32_t width = 0;
-  int32_t height = 0;
+template<typename T>
+struct basic_size {
+  T width = {};
+  T height = {};
 };
+
+using size = basic_size<int32_t>;
+
+enum class millimeters: int32_t {};
+using physical_size = basic_size<millimeters>;
 
 struct rect {
   point top_left;

@@ -10,6 +10,7 @@ add_headeronly_lib(wlpp
   wl/error.hpp
   wl/event_queue.hpp
   wl/io.hpp
+  wl/output.hpp
   wl/pointer.hpp
   wl/keyboard.hpp
   wl/registry.hpp

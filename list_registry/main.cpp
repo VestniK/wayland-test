@@ -1,16 +1,41 @@
 #include <iostream>
+#include <map>
+
+#include <gsl/string_span>
 
 #include <util/util.hpp>
 #include <wayland/client.hpp>
 
+struct ouptut_listener {
+  void geometry(
+    wl::output::ref, wl::point, wl::physical_size size, wl::output::subpixel, gsl::czstring<> make,
+    gsl::czstring<> name, wl::output::transform
+  ) {
+    std::cout
+      << "\tMonitor: " << make << "[" << name << "]" << " " << ut::underlying_cast(size.width)
+      << "x" << ut::underlying_cast(size.height) << "mm\n";
+  }
+  void mode(wl::output::ref, wl::output::mode_flags, wl::size sz, int refresh) {
+    std::cout << "\t\tmode: " << sz.width << 'x' << sz.height << '@' << refresh << "mHz\n";
+  }
+  void done(wl::output::ref) {}
+  void scale(wl::output::ref, int) {}
+};
+
 struct registry_logger {
-  void global(wl::registry::ref, wl::id name, std::string_view iface, wl::version ver) {
-    std::cout << "wl::registry item added: " << iface << " ver: " << ver << "; id: " << ut::underlying_cast(name) << "\n";
+  void global(wl::registry::ref reg, wl::id id, std::string_view iface, wl::version ver) {
+    std::cout << "wl::registry item added: " << iface << " ver: " << ver << "; id: " << ut::underlying_cast(id) << "\n";
+    if (iface == wl::output::interface_name)
+      outputs.emplace(id, reg.bind<wl::output>(id, ver));
   }
 
-  void global_remove(wl::registry::ref, wl::id name) {
-    std::cout << "wl::registry item removed: id: " << ut::underlying_cast(name) << "\n";
+  void global_remove(wl::registry::ref, wl::id id) {
+    std::cout << "wl::registry item removed: id: " << ut::underlying_cast(id) << "\n";
+    if (auto it = outputs.find(id); it != outputs.end())
+      outputs.erase(it);
   }
+
+  std::map<wl::id, wl::output> outputs;
 };
 
 int main(int argc, char** argv) try {
@@ -28,6 +53,17 @@ int main(int argc, char** argv) try {
 
   while (!sync_done)
     display.dispatch();
+
+  ouptut_listener out_log;
+  for (auto&[id, out]: reg_log.outputs) {
+    sync_done = false;
+    out.add_listener(out_log);
+    sync_cb = display.sync();
+    sync_cb.add_listener(sync_done_listener);
+    while (!sync_done)
+      display.dispatch();
+  }
+
   return EXIT_SUCCESS;
 } catch (const std::exception& err) {
   std::cerr << "Error: " << err.what() << '\n';
