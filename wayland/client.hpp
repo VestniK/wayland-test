@@ -7,5 +7,4 @@
 #include <wayland-client.h>
 
 #include "wl/error.hpp"
-#include "wl/io.hpp"
 #include "wl/util.hpp"

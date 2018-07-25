@@ -323,6 +323,7 @@ private:
 };
 
 class drawer {
+  using clock = std::chrono::steady_clock;
 public:
   drawer():
     vertex_shader_(shader::type::vertex, R"(
@@ -379,7 +380,7 @@ public:
     glViewport(0, 0, sz.width, sz.height);
   }
 
-  void draw(wl::clock::time_point ts) {
+  void draw(clock::time_point ts) {
     struct vertex {
       GLfloat x = 0;
       GLfloat y = 0;
@@ -394,8 +395,8 @@ public:
     constexpr auto period = 3s;
     constexpr auto spot_period = 7s;
 
-    const GLfloat phase = (ts.time_since_epoch()%period).count()/GLfloat(wl::clock::duration{period}.count());
-    const GLfloat spot_phase = (ts.time_since_epoch()%spot_period).count()/GLfloat(wl::clock::duration{spot_period}.count());
+    const GLfloat phase = (ts.time_since_epoch()%period).count()/GLfloat(clock::duration{period}.count());
+    const GLfloat spot_phase = (ts.time_since_epoch()%spot_period).count()/GLfloat(clock::duration{spot_period}.count());
 
     const GLfloat spot_angle = 2*M_PI*spot_phase;
     const GLfloat angle = 2*M_PI*phase;
@@ -434,22 +435,8 @@ int main(int argc, char** argv) try {
   watched_services services;
   wl::unique_ptr<wl_registry> reg{wl_display_get_registry(display.get())};
   wl_registry_add_listener(reg.get(), &services.listener, &services);
-  {
-    wl::unique_ptr<wl_callback> sync_cb{wl_display_sync(display.get())};
-    wl_callback_listener sync_listener = {.done = [](void* data, wl_callback*, uint32_t) {
-      auto services = reinterpret_cast<watched_services*>(data);
-      services->initial_sync_done = true;
-    }};
-    wl_callback_add_listener(sync_cb.get(), &sync_listener, &services);
-
-    while (
-      !services.initial_sync_done ||
-      !services.compositor.service ||
-      !services.shell.service
-    )
-      wl_display_dispatch(display.get());
-    services.check();
-  }
+  wl_display_roundtrip(display.get());
+  services.check();
 
   wl::unique_ptr<wl_surface> surface{wl_compositor_create_surface(services.compositor.service.get())};
   wl::unique_ptr<wl_shell_surface> shell_surface{
@@ -477,9 +464,7 @@ int main(int argc, char** argv) try {
   drawer.resize(wnd_sz);
 
   while (true) {
-    drawer.draw(wl::clock::time_point{
-      std::chrono::duration_cast<wl::clock::duration>(std::chrono::steady_clock::now().time_since_epoch())
-    });
+    drawer.draw(std::chrono::steady_clock::now());
     esurf.swap_buffers();
     wl_display_dispatch_pending(display.get());
   }
