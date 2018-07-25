@@ -23,14 +23,14 @@ using namespace std::literals;
 
 template<typename Service>
 struct idetified {
-  Service service;
+  wl::unique_ptr<Service> service;
   uint32_t id = {};
 };
 
 struct watched_services {
   wl_registry_listener listener = {&global, &global_remove};
-  idetified<wl::compositor> compositor;
-  idetified<wl::shell> shell;
+  idetified<wl_compositor> compositor;
+  idetified<wl_shell> shell;
   bool initial_sync_done = false;
 
   void check() {
@@ -455,8 +455,10 @@ int main(int argc, char** argv) try {
     wl_display_dispatch(display.get());
   services.check();
 
-  wl::surface surface = services.compositor.service.create_surface();
-  wl::shell_surface shell_surface = services.shell.service.get_shell_surface(surface);
+  wl::surface surface{wl::unique_ptr<wl_surface>{wl_compositor_create_surface(services.compositor.service.get())}};
+  wl::shell_surface shell_surface{
+    wl::unique_ptr<wl_shell_surface>{wl_shell_get_shell_surface(services.shell.service.get(), surface.native_handle())}
+  };
   shell_surface.set_toplevel();
   window_listener pong_responder;
   shell_surface.add_listener(pong_responder);
