@@ -13,7 +13,6 @@ add_headeronly_lib(wlpp
   wl/output.hpp
   wl/pointer.hpp
   wl/keyboard.hpp
-  wl/registry.hpp
   wl/seat.hpp
   wl/shell_surface.hpp
   wl/shm.hpp

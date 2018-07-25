@@ -13,7 +13,6 @@
 #include "wl/event_queue.hpp"
 #include "wl/io.hpp"
 #include "wl/output.hpp"
-#include "wl/registry.hpp"
 #include "wl/seat.hpp"
 #include "wl/shell_surface.hpp"
 #include "wl/shm.hpp"

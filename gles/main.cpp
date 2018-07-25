@@ -24,10 +24,11 @@ using namespace std::literals;
 template<typename Service>
 struct idetified {
   Service service;
-  wl::id id = {};
+  uint32_t id = {};
 };
 
 struct watched_services {
+  wl_registry_listener listener = {&global, &global_remove};
   idetified<wl::compositor> compositor;
   idetified<wl::shell> shell;
   bool initial_sync_done = false;
@@ -39,17 +40,31 @@ struct watched_services {
       throw std::runtime_error{"Shell is not available"};
   }
 
-  void global(wl::registry::ref reg, wl::id id, std::string_view name, wl::version ver) {
-    if (name == wl::compositor::interface_name)
-      compositor = {reg.bind<wl::compositor>(id, ver), id};
-    if (name == wl::shell::interface_name)
-      shell = {reg.bind<wl::shell>(id, ver), id};
+  static void global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver) {
+    watched_services* self = reinterpret_cast<watched_services*>(data);
+    if (name == "wl_compositor"sv) {
+      self->compositor = {
+        wl::unique_ptr<wl_compositor>{
+          reinterpret_cast<wl_compositor*>(wl_registry_bind(reg, id, &wl_compositor_interface, ver))
+        },
+        id
+      };
+    }
+    if (name == "wl_shell"sv) {
+      self->shell = {
+        wl::unique_ptr<wl_shell>{
+          reinterpret_cast<wl_shell*>(wl_registry_bind(reg, id, &wl_shell_interface, ver))
+        },
+        id
+      };
+    }
   }
-  void global_remove(wl::registry::ref, wl::id id) {
-    if (id == compositor.id)
-      compositor = {{}, {}};
-    if (id == shell.id)
-      shell = {{}, {}};
+  static void global_remove(void* data, wl_registry*, uint32_t id) {
+    watched_services* self = reinterpret_cast<watched_services*>(data);
+    if (id == self->compositor.id)
+      self->compositor = {{}, {}};
+    if (id == self->shell.id)
+      self->shell = {{}, {}};
   }
 
   void operator() (wl::callback::ref, uint32_t) {
@@ -427,8 +442,8 @@ int main(int argc, char** argv) try {
     throw std::system_error{errno, std::system_category(), "wl_display_connect"};
 
   watched_services services;
-  wl::registry reg{wl::unique_ptr<wl_registry>{wl_display_get_registry(display.get())}};
-  reg.add_listener(services);
+  wl::unique_ptr<wl_registry> reg{wl_display_get_registry(display.get())};
+  wl_registry_add_listener(reg.get(), &services.listener, &services);
   wl::callback sync_cb{wl::unique_ptr<wl_callback>{wl_display_sync(display.get())}};
   sync_cb.add_listener(services);
 
