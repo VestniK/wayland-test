@@ -6,10 +6,6 @@
 
 #include <wayland-client.h>
 
-#include "wl/buffer.hpp"
-#include "wl/callback.hpp"
 #include "wl/error.hpp"
 #include "wl/io.hpp"
-#include "wl/shm.hpp"
-#include "wl/surface.hpp"
 #include "wl/util.hpp"

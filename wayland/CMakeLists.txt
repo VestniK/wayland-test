@@ -4,14 +4,8 @@ pkg_check_modules(wayland-egl REQUIRED IMPORTED_TARGET wayland-egl)
 
 add_headeronly_lib(wlpp
   client.hpp
-  wl/basic_resource.hpp
-  wl/buffer.hpp
-  wl/callback.hpp
   wl/error.hpp
   wl/io.hpp
-  wl/shm.hpp
-  wl/shm_pool.hpp
-  wl/surface.hpp
   wl/util.hpp
 )
 target_include_directories(wlpp INTERFACE

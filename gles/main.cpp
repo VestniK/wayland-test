@@ -68,10 +68,6 @@ struct watched_services {
     if (id == self->shell.id)
       self->shell = {{}, {}};
   }
-
-  void operator() (wl::callback::ref, uint32_t) {
-    initial_sync_done = true;
-  }
 };
 
 namespace egl {
@@ -438,20 +434,26 @@ int main(int argc, char** argv) try {
   watched_services services;
   wl::unique_ptr<wl_registry> reg{wl_display_get_registry(display.get())};
   wl_registry_add_listener(reg.get(), &services.listener, &services);
-  wl::callback sync_cb{wl::unique_ptr<wl_callback>{wl_display_sync(display.get())}};
-  sync_cb.add_listener(services);
+  {
+    wl::unique_ptr<wl_callback> sync_cb{wl_display_sync(display.get())};
+    wl_callback_listener sync_listener = {.done = [](void* data, wl_callback*, uint32_t) {
+      auto services = reinterpret_cast<watched_services*>(data);
+      services->initial_sync_done = true;
+    }};
+    wl_callback_add_listener(sync_cb.get(), &sync_listener, &services);
 
-  while (
-    !services.initial_sync_done ||
-    !services.compositor.service ||
-    !services.shell.service
-  )
-    wl_display_dispatch(display.get());
-  services.check();
+    while (
+      !services.initial_sync_done ||
+      !services.compositor.service ||
+      !services.shell.service
+    )
+      wl_display_dispatch(display.get());
+    services.check();
+  }
 
-  wl::surface surface{wl::unique_ptr<wl_surface>{wl_compositor_create_surface(services.compositor.service.get())}};
+  wl::unique_ptr<wl_surface> surface{wl_compositor_create_surface(services.compositor.service.get())};
   wl::unique_ptr<wl_shell_surface> shell_surface{
-    {wl_shell_get_shell_surface(services.shell.service.get(), surface.native_handle())}
+    {wl_shell_get_shell_surface(services.shell.service.get(), surface.get())}
   };
   wl_shell_surface_set_toplevel(shell_surface.get());
   wl_shell_surface_listener pong_responder = {
@@ -467,7 +469,7 @@ int main(int argc, char** argv) try {
   egl::context ctx = edisp.create_context(cfg);
 
   const wl::size wnd_sz = {480, 480};
-  wl::unique_ptr<wl_egl_window> wnd{wl_egl_window_create(surface.native_handle(), wnd_sz.width, wnd_sz.height)};
+  wl::unique_ptr<wl_egl_window> wnd{wl_egl_window_create(surface.get(), wnd_sz.width, wnd_sz.height)};
   egl::surface esurf = edisp.create_surface(cfg, wnd.get());
   ctx.make_current(esurf);
 
