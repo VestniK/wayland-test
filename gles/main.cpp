@@ -8,6 +8,9 @@
 
 #include <GLES2/gl2.h>
 
+#include <gsl/string_span>
+#include <gsl/pointers>
+
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
@@ -187,7 +190,7 @@ private:
 
 class display {
 public:
-  explicit display(wl_display& native_display): disp_(eglGetDisplay(&native_display)) {
+  explicit display(gsl::not_null<wl_display*> native_display): disp_(eglGetDisplay(native_display)) {
     if (disp_ == EGL_NO_DISPLAY)
       throw std::runtime_error{"Failed to get EGL display"};
     if (eglInitialize(disp_, &major_, &minor_) == EGL_FALSE)
@@ -428,14 +431,6 @@ private:
   elements_array_buffer idxs_;
 };
 
-struct window_listener {
-  void ping(wl::shell_surface::ref surf, wl::serial serial) {
-    surf.pong(serial);
-  }
-  void configure(wl::shell_surface::ref, uint32_t, wl::size) {}
-  void popup_done(wl::shell_surface::ref) {}
-};
-
 int main(int argc, char** argv) try {
   wl::unique_ptr<wl_display> display{wl_display_connect(argc > 1 ? argv[1] : nullptr)};
   if (!display)
@@ -456,14 +451,18 @@ int main(int argc, char** argv) try {
   services.check();
 
   wl::surface surface{wl::unique_ptr<wl_surface>{wl_compositor_create_surface(services.compositor.service.get())}};
-  wl::shell_surface shell_surface{
-    wl::unique_ptr<wl_shell_surface>{wl_shell_get_shell_surface(services.shell.service.get(), surface.native_handle())}
+  wl::unique_ptr<wl_shell_surface> shell_surface{
+    {wl_shell_get_shell_surface(services.shell.service.get(), surface.native_handle())}
   };
-  shell_surface.set_toplevel();
-  window_listener pong_responder;
-  shell_surface.add_listener(pong_responder);
+  wl_shell_surface_set_toplevel(shell_surface.get());
+  wl_shell_surface_listener pong_responder = {
+      .ping = [](void*, wl_shell_surface* surf, uint32_t serial) {wl_shell_surface_pong(surf, serial);},
+      .configure = [](void*, wl_shell_surface*, uint32_t, int32_t, int32_t) {},
+      .popup_done = [](void*, wl_shell_surface*) {}
+  };
+  wl_shell_surface_add_listener(shell_surface.get(), &pong_responder, nullptr);
 
-  egl::display edisp{*display};
+  egl::display edisp{display.get()};
   edisp.bind_api(EGL_OPENGL_ES_API);
   EGLConfig cfg = edisp.choose_config();
   egl::context ctx = edisp.create_context(cfg);

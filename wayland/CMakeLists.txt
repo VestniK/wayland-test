@@ -9,11 +9,8 @@ add_headeronly_lib(wlpp
   wl/callback.hpp
   wl/error.hpp
   wl/io.hpp
-  wl/shell_surface.hpp
   wl/shm.hpp
   wl/shm_pool.hpp
-  wl/subcompositor.hpp
-  wl/subsurface.hpp
   wl/surface.hpp
   wl/util.hpp
 )
