@@ -20,8 +20,4 @@ add_subdirectory(util)
 add_subdirectory(io)
 add_subdirectory(wayland)
 
-add_subdirectory(list_registry)
-add_subdirectory(simple_window)
-add_subdirectory(animation)
-add_subdirectory(concurrent)
 add_subdirectory(gles)
