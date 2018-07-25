@@ -172,7 +172,7 @@ private:
 
 class display {
 public:
-  explicit display(const wl::display& native_display): disp_(eglGetDisplay(native_display.native_handle())) {
+  explicit display(wl_display& native_display): disp_(eglGetDisplay(&native_display)) {
     if (disp_ == EGL_NO_DISPLAY)
       throw std::runtime_error{"Failed to get EGL display"};
     if (eglInitialize(disp_, &major_, &minor_) == EGL_FALSE)
@@ -422,12 +422,14 @@ struct window_listener {
 };
 
 int main(int argc, char** argv) try {
-  wl::display display(argc > 1 ? argv[1] : nullptr);
+  wl::unique_ptr<wl_display> display{wl_display_connect(argc > 1 ? argv[1] : nullptr)};
+  if (!display)
+    throw std::system_error{errno, std::system_category(), "wl_display_connect"};
 
   watched_services services;
-  wl::registry reg = display.get_registry();
+  wl::registry reg{wl::unique_ptr<wl_registry>{wl_display_get_registry(display.get())}};
   reg.add_listener(services);
-  wl::callback sync_cb = display.sync();
+  wl::callback sync_cb{wl::unique_ptr<wl_callback>{wl_display_sync(display.get())}};
   sync_cb.add_listener(services);
 
   while (
@@ -435,7 +437,7 @@ int main(int argc, char** argv) try {
     !services.compositor.service ||
     !services.shell.service
   )
-    display.dispatch();
+    wl_display_dispatch(display.get());
   services.check();
 
   wl::surface surface = services.compositor.service.create_surface();
@@ -444,7 +446,7 @@ int main(int argc, char** argv) try {
   window_listener pong_responder;
   shell_surface.add_listener(pong_responder);
 
-  egl::display edisp{display};
+  egl::display edisp{*display};
   edisp.bind_api(EGL_OPENGL_ES_API);
   EGLConfig cfg = edisp.choose_config();
   egl::context ctx = edisp.create_context(cfg);
@@ -462,7 +464,7 @@ int main(int argc, char** argv) try {
       std::chrono::duration_cast<wl::clock::duration>(std::chrono::steady_clock::now().time_since_epoch())
     });
     esurf.swap_buffers();
-    display.dispatch_pending();
+    wl_display_dispatch_pending(display.get());
   }
 
   return EXIT_SUCCESS;

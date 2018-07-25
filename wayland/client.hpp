@@ -62,44 +62,4 @@ const wl_interface& shell<Shell>::resource_interface = wl_shell_interface;
 using compositor = detail::basic_resource<wl_compositor, detail::compositor>;
 using shell = detail::basic_resource<wl_shell, detail::shell>;
 
-class display {
-public:
-  using native_handle_type = wl_display*;
-
-  explicit display(const char* name = nullptr): ptr_(wl_display_connect(name)) {
-    using std::literals::operator""s;
-    if (!ptr_)
-      throw std::system_error{errno, std::system_category(), "wl::display::connect("s + (name ? name : "") + ")"};
-  }
-
-  registry get_registry() const {
-    return registry{unique_ptr<wl_registry>{wl_display_get_registry(ptr_.get())}};
-  }
-
-  callback sync() {return unique_ptr<wl_callback>{wl_display_sync(ptr_.get())};}
-
-  event_queue create_queue() {return unique_ptr<wl_event_queue>{wl_display_create_queue(ptr_.get())};}
-
-  void dispatch() const {
-    if (wl_display_dispatch(ptr_.get()) < 0)
-      throw std::runtime_error("wl::display::dispatch failed");
-  }
-
-  void dispatch_pending() const {
-    if (wl_display_dispatch_pending(ptr_.get()) < 0)
-      throw std::runtime_error("wl::display::dispatch failed");
-  }
-
-  void dispatch_queue(event_queue& queue) const {
-    if (wl_display_dispatch_queue(ptr_.get(), queue.native_handle()) < 0)
-      throw std::runtime_error("wl::display::dispatch_queue failed");
-  }
-
-  native_handle_type native_handle() const noexcept {return ptr_.get();}
-  explicit operator bool () const noexcept {return ptr_ != nullptr;}
-
-private:
-  unique_ptr<wl_display> ptr_;
-};
-
 } // namespace wl
