@@ -1,7 +1,6 @@
 #pragma once
 
 #include "error.hpp"
-#include "event_queue.hpp"
 #include "util.hpp"
 
 namespace wl::detail {
@@ -16,10 +15,6 @@ public:
 
   version get_version() const {
     return version{wl_proxy_get_version(reinterpret_cast<wl_proxy*>(native_handle()))};
-  }
-
-  void set_queue(event_queue& queue) {
-    wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(native_handle()), queue.native_handle());
   }
 
 private:
@@ -47,10 +42,6 @@ public:
 
   version get_version() const {
     return version{wl_proxy_get_version(reinterpret_cast<wl_proxy*>(native_handle()))};
-  }
-
-  void set_queue(event_queue& queue) {
-    wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(native_handle()), queue.native_handle());
   }
 
 private:

@@ -8,12 +8,7 @@ add_headeronly_lib(wlpp
   wl/buffer.hpp
   wl/callback.hpp
   wl/error.hpp
-  wl/event_queue.hpp
   wl/io.hpp
-  wl/output.hpp
-  wl/pointer.hpp
-  wl/keyboard.hpp
-  wl/seat.hpp
   wl/shell_surface.hpp
   wl/shm.hpp
   wl/shm_pool.hpp
