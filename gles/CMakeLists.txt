@@ -11,4 +11,4 @@ set_target_properties(GLM::glm PROPERTIES
 add_executable(gles
   main.cpp
 )
-target_link_libraries(gles wlpp-egl PkgConfig::egl PkgConfig::glesv2 GLM::glm)
+target_link_libraries(gles wlpp PkgConfig::egl PkgConfig::glesv2 GLM::glm)

@@ -21,16 +21,6 @@ target_include_directories(wlpp INTERFACE
 target_link_libraries(wlpp INTERFACE
   util io
   PkgConfig::wayland-client
+  PkgConfig::wayland-egl
   CONAN_PKG::gsl_microsoft
-)
-
-add_headeronly_lib(wlpp-egl
-  egl.hpp
-)
-target_include_directories(wlpp-egl INTERFACE
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(wlpp-egl INTERFACE
-  wlpp PkgConfig::wayland-egl
 )

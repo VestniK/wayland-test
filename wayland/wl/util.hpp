@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include <wayland-client.h>
+#include <wayland-egl.h>
 
 namespace wl {
 
@@ -37,6 +38,7 @@ struct deleter {
   void operator() (wl_callback* ptr) {wl_callback_destroy(ptr);}
   void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
   void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
+  void operator() (wl_egl_window* ptr) noexcept {wl_egl_window_destroy(ptr);}
   void operator() (wl_event_queue* ptr) {wl_event_queue_destroy(ptr);}
   void operator() (wl_keyboard* ptr) {wl_keyboard_destroy(ptr);}
   void operator() (wl_output* ptr) {wl_output_destroy(ptr);}

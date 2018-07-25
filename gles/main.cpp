@@ -2,7 +2,6 @@
 #include <iostream>
 
 #include <wayland/client.hpp>
-#include <wayland/egl.hpp>
 
 #include <EGL/egl.h>
 
@@ -124,8 +123,8 @@ const std::error_category& category() {
 
 class surface {
 public:
-  surface(EGLDisplay disp, EGLConfig cfg, const wl::egl::window& wnd): disp_(disp) {
-    surf_ = eglCreateWindowSurface(disp_, cfg, wnd.native_handle(), nullptr);
+  surface(EGLDisplay disp, EGLConfig cfg, gsl::not_null<wl_egl_window*> wnd): disp_(disp) {
+    surf_ = eglCreateWindowSurface(disp_, cfg, wnd, nullptr);
     if (surf_ == EGL_NO_SURFACE)
       throw std::system_error{eglGetError(), category(), "eglCreaeglCreateWindowSurfaceteContext"};
   }
@@ -224,7 +223,7 @@ public:
     return context{disp_, cfg};
   }
 
-  surface create_surface(EGLConfig cfg, const wl::egl::window& wnd) {
+  surface create_surface(EGLConfig cfg, gsl::not_null<wl_egl_window*> wnd) {
     return surface{disp_, cfg, wnd};
   }
 
@@ -468,8 +467,8 @@ int main(int argc, char** argv) try {
   egl::context ctx = edisp.create_context(cfg);
 
   const wl::size wnd_sz = {480, 480};
-  wl::egl::window wnd(surface, wnd_sz);
-  egl::surface esurf = edisp.create_surface(cfg, wnd);
+  wl::unique_ptr<wl_egl_window> wnd{wl_egl_window_create(surface.native_handle(), wnd_sz.width, wnd_sz.height)};
+  egl::surface esurf = edisp.create_surface(cfg, wnd.get());
   ctx.make_current(esurf);
 
   drawer drawer;
