@@ -1,12 +1,15 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 #include <type_traits>
 
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
 namespace wl {
+
+using std::literals::operator "" sv;
 
 struct deleter {
   void operator() (wl_buffer* ptr) {wl_buffer_destroy(ptr);}
@@ -31,6 +34,32 @@ struct deleter {
 template<typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;
 
+template<typename Service>
+struct service_trait;
+
+template<>
+struct service_trait<wl_compositor> {
+  static constexpr auto name = "wl_compositor"sv;
+  static constexpr const wl_interface* iface = &wl_compositor_interface;
+};
+
+template<>
+struct service_trait<wl_shell> {
+  static constexpr auto name = "wl_shell"sv;
+  static constexpr const wl_interface* iface = &wl_shell_interface;
+};
+
+template<>
+struct service_trait<wl_output> {
+  static constexpr auto name = "wl_output"sv;
+  static constexpr const wl_interface* iface = &wl_output_interface;
+};
+
+template<typename Service>
+auto bind(wl_registry* reg, uint32_t id, uint32_t ver) {
+  return unique_ptr<Service>{reinterpret_cast<Service*>(wl_registry_bind(reg, id, service_trait<Service>::iface, ver))};
+}
+
 template<typename T>
 struct basic_point {
   T x = 0;
@@ -51,6 +80,11 @@ struct basic_size {
   T width = {};
   T height = {};
 };
+
+template<typename T>
+constexpr bool operator== (basic_size<T> lhs, basic_size<T> rhs) {
+  return lhs.width == rhs.width && lhs.height == rhs.height;
+}
 
 using size = basic_size<int32_t>;
 

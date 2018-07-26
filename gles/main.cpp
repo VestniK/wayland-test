@@ -1,5 +1,7 @@
 #include <chrono>
 #include <iostream>
+#include <optional>
+#include <vector>
 
 #include <wayland/client.hpp>
 
@@ -24,15 +26,16 @@
 using namespace std::literals;
 
 template<typename Service>
-struct idetified {
+struct identified {
   wl::unique_ptr<Service> service;
   uint32_t id = {};
 };
 
 struct watched_services {
   wl_registry_listener listener = {&global, &global_remove};
-  idetified<wl_compositor> compositor;
-  idetified<wl_shell> shell;
+  identified<wl_compositor> compositor;
+  identified<wl_shell> shell;
+  std::vector<identified<wl_output>> outputs;
   bool initial_sync_done = false;
 
   void check() {
@@ -40,26 +43,18 @@ struct watched_services {
       throw std::runtime_error{"Compositor is not available"};
     if (!shell.service)
       throw std::runtime_error{"Shell is not available"};
+    if (outputs.empty())
+      throw std::runtime_error{"No outputs available"};
   }
 
   static void global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver) {
     watched_services* self = reinterpret_cast<watched_services*>(data);
-    if (name == "wl_compositor"sv) {
-      self->compositor = {
-        wl::unique_ptr<wl_compositor>{
-          reinterpret_cast<wl_compositor*>(wl_registry_bind(reg, id, &wl_compositor_interface, ver))
-        },
-        id
-      };
-    }
-    if (name == "wl_shell"sv) {
-      self->shell = {
-        wl::unique_ptr<wl_shell>{
-          reinterpret_cast<wl_shell*>(wl_registry_bind(reg, id, &wl_shell_interface, ver))
-        },
-        id
-      };
-    }
+    if (name == wl::service_trait<wl_compositor>::name)
+      self->compositor = {wl::bind<wl_compositor>(reg, id, ver), id};
+    if (name == wl::service_trait<wl_shell>::name)
+      self->shell = {wl::bind<wl_shell>(reg, id, ver), id};
+    if (name == wl::service_trait<wl_output>::name)
+      self->outputs.push_back({wl::bind<wl_output>(reg, id, ver), id});
   }
   static void global_remove(void* data, wl_registry*, uint32_t id) {
     watched_services* self = reinterpret_cast<watched_services*>(data);
@@ -67,6 +62,13 @@ struct watched_services {
       self->compositor = {{}, {}};
     if (id == self->shell.id)
       self->shell = {{}, {}};
+    if (
+      const auto it = std::find_if(
+        self->outputs.begin(), self->outputs.end(), [&](const auto& item) {return item.id == id;}
+      );
+      it != self->outputs.end()
+    )
+      self->outputs.erase(it);
   }
 };
 
@@ -119,13 +121,23 @@ const std::error_category& category() {
 
 class surface {
 public:
-  surface(EGLDisplay disp, EGLConfig cfg, gsl::not_null<wl_egl_window*> wnd): disp_(disp) {
-    surf_ = eglCreateWindowSurface(disp_, cfg, wnd, nullptr);
-    if (surf_ == EGL_NO_SURFACE)
-      throw std::system_error{eglGetError(), category(), "eglCreaeglCreateWindowSurfaceteContext"};
+  surface() = default;
+
+  surface(EGLDisplay disp, EGLConfig cfg, gsl::not_null<wl_egl_window*> wnd) {
+    reset(disp, cfg, wnd);
   }
   ~surface() {
-    eglDestroySurface(disp_, surf_);
+    if (surf_ != EGL_NO_SURFACE)
+      eglDestroySurface(disp_, surf_);
+  }
+
+  void reset(EGLDisplay disp, EGLConfig cfg, gsl::not_null<wl_egl_window*> wnd) {
+    if (surf_ != EGL_NO_SURFACE)
+      eglDestroySurface(disp_, surf_);
+    surf_ = eglCreateWindowSurface(disp, cfg, wnd, nullptr);
+    if (surf_ == EGL_NO_SURFACE)
+      throw std::system_error{eglGetError(), category(), "eglCreaeglCreateWindowSurfaceteContext"};
+    disp_ = disp;
   }
 
   surface(const surface&) = delete;
@@ -142,8 +154,8 @@ public:
   }
 
 private:
-  EGLDisplay disp_;
-  EGLSurface surf_;
+  EGLDisplay disp_ = EGL_NO_DISPLAY;
+  EGLSurface surf_ = EGL_NO_SURFACE;
 };
 
 class context {
@@ -223,7 +235,12 @@ public:
     return surface{disp_, cfg, wnd};
   }
 
+  void reset_surface(surface& surf, EGLConfig cfg, gsl::not_null<wl_egl_window*> wnd) {
+    surf.reset(disp_, cfg, wnd);
+  }
+
   EGLConfig choose_config() {
+    bind_api(EGL_OPENGL_ES_API);
     EGLConfig res;
     EGLint count;
     const EGLint attr[] = {
@@ -247,7 +264,6 @@ private:
 };
 
 }
-
 
 class shader {
 public:
@@ -322,10 +338,10 @@ private:
   GLuint handle_ = 0;
 };
 
-class drawer {
+class renderer {
   using clock = std::chrono::steady_clock;
 public:
-  drawer():
+  renderer():
     vertex_shader_(shader::type::vertex, R"(
       uniform mat4 rotation;
       attribute vec4 position;
@@ -371,13 +387,14 @@ public:
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxs_.native_handle());
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxs), idxs, GL_STATIC_DRAW);
   }
-  ~drawer() {
+  ~renderer() {
     glDeleteProgram(program_);
   }
 
   void resize(wl::size sz) {
     glClearColor(0, 0, 0, .9);
-    glViewport(0, 0, sz.width, sz.height);
+    len_ = std::min(sz.width, sz.height);
+    glViewport((sz.width - len_)/2, (sz.height - len_)/2, len_, len_);
   }
 
   void draw(clock::time_point ts) {
@@ -400,7 +417,7 @@ public:
 
     const GLfloat spot_angle = 2*M_PI*spot_phase;
     const GLfloat angle = 2*M_PI*phase;
-    glm::vec4 hotspot = {240 + 140*std::cos(spot_angle), 200 + 20*std::cos(2*spot_angle), 0, 0};
+    glm::vec4 hotspot = {len_/2 + 7*len_/24*std::cos(spot_angle), 5*len_/12 + len_/24*std::cos(2*spot_angle), 0, 0};
     glm::mat4 rotation = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
 
     GLint rotation_uniform = glGetUniformLocation(program_, "rotation");
@@ -425,6 +442,7 @@ private:
   shader fragment_shader_;
   GLuint program_ = 0;
   elements_array_buffer idxs_;
+  int32_t len_;
 };
 
 int main(int argc, char** argv) try {
@@ -438,35 +456,53 @@ int main(int argc, char** argv) try {
   wl_display_roundtrip(display.get());
   services.check();
 
-  wl::unique_ptr<wl_surface> surface{wl_compositor_create_surface(services.compositor.service.get())};
+  struct window_data {
+    egl::display egl_display;
+    wl::unique_ptr<wl_surface> surface;
+    EGLConfig cfg = egl_display.choose_config();
+    egl::context ctx = egl_display.create_context(cfg);
+    wl::unique_ptr<wl_egl_window> egl_wnd;
+    egl::surface egl_surface;
+    wl::size sz;
+    std::optional<renderer> drawer;
+  } data = {
+    egl::display{display.get()},
+    wl::unique_ptr<wl_surface>{wl_compositor_create_surface(services.compositor.service.get())}
+  };
+
   wl::unique_ptr<wl_shell_surface> shell_surface{
-    {wl_shell_get_shell_surface(services.shell.service.get(), surface.get())}
+    {wl_shell_get_shell_surface(services.shell.service.get(), data.surface.get())}
   };
   wl_shell_surface_set_toplevel(shell_surface.get());
+  wl_shell_surface_set_maximized(shell_surface.get(), services.outputs.front().service.get());
+
   wl_shell_surface_listener pong_responder = {
       .ping = [](void*, wl_shell_surface* surf, uint32_t serial) {wl_shell_surface_pong(surf, serial);},
-      .configure = [](void*, wl_shell_surface*, uint32_t, int32_t, int32_t) {},
+      .configure = [](void* data, wl_shell_surface*, uint32_t, int32_t w, int32_t h) {
+        const wl::size new_sz{w, h};
+        auto* wnd_data = reinterpret_cast<window_data*>(data);
+        if (wnd_data->sz == new_sz)
+          return;
+        wnd_data->sz = new_sz;
+        wnd_data->egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(wnd_data->surface.get(), w, h)};
+        wnd_data->egl_display.reset_surface(wnd_data->egl_surface, wnd_data->cfg, wnd_data->egl_wnd.get());
+        wnd_data->ctx.make_current(wnd_data->egl_surface);
+        if (!wnd_data->drawer)
+          wnd_data->drawer.emplace();
+        wnd_data->drawer->resize(wnd_data->sz);
+      },
       .popup_done = [](void*, wl_shell_surface*) {}
   };
-  wl_shell_surface_add_listener(shell_surface.get(), &pong_responder, nullptr);
-
-  egl::display edisp{display.get()};
-  edisp.bind_api(EGL_OPENGL_ES_API);
-  EGLConfig cfg = edisp.choose_config();
-  egl::context ctx = edisp.create_context(cfg);
-
-  const wl::size wnd_sz = {480, 480};
-  wl::unique_ptr<wl_egl_window> wnd{wl_egl_window_create(surface.get(), wnd_sz.width, wnd_sz.height)};
-  egl::surface esurf = edisp.create_surface(cfg, wnd.get());
-  ctx.make_current(esurf);
-
-  drawer drawer;
-  drawer.resize(wnd_sz);
+  wl_shell_surface_add_listener(shell_surface.get(), &pong_responder, &data);
+  pong_responder.configure(&data, shell_surface.get(), 0, 480, 480);
 
   while (true) {
-    drawer.draw(std::chrono::steady_clock::now());
-    esurf.swap_buffers();
-    wl_display_dispatch_pending(display.get());
+    if (data.drawer) {
+      data.drawer->draw(std::chrono::steady_clock::now());
+      data.egl_surface.swap_buffers();
+      wl_display_dispatch_pending(display.get());
+    } else
+      wl_display_dispatch(display.get());
   }
 
   return EXIT_SUCCESS;
