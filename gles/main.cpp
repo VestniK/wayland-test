@@ -72,6 +72,85 @@ struct watched_services {
   }
 };
 
+class window {
+public:
+  struct delegate {
+    /// @pre wnd.valid()
+    virtual void resize(window& wnd, uint32_t edges, wl::size sz) = 0;
+  };
+
+public:
+  window() noexcept = default;
+
+  window(const window&) = delete;
+  window& operator= (const window&) = delete;
+
+  window(window&& rhs) noexcept:
+    surface_{std::move(rhs.surface_)},
+    shell_surface_{std::move(rhs.shell_surface_)}
+  {
+    if (shell_surface_)
+      wl_shell_surface_set_user_data(shell_surface_.get(), this);
+  }
+
+  window& operator= (window&& rhs) noexcept {
+    surface_ = std::move(rhs.surface_);
+    shell_surface_ = std::move(rhs.shell_surface_);
+    if (shell_surface_)
+      wl_shell_surface_set_user_data(shell_surface_.get(), this);
+    return *this;
+  }
+
+  ~window() = default;
+
+  static window create_toplevel(wl_compositor& compositor, wl_shell& shell) {
+    wl::unique_ptr<wl_surface> surface{wl_compositor_create_surface(&compositor)};
+    wl::unique_ptr<wl_shell_surface> shell_surf{wl_shell_get_shell_surface(&shell, surface.get())};
+    wl_shell_surface_set_toplevel(shell_surf.get());
+    return {std::move(surface), std::move(shell_surf)};
+  }
+
+  void set_delegate(delegate* val) {delegate_ = val;}
+
+  bool valid() const noexcept {return surface_ && shell_surface_;}
+
+  wl_surface* get_surface() {return surface_.get();}
+
+  /// @pre this->valid()
+  void maximize(wl_output* output = nullptr) {
+    wl_shell_surface_set_maximized(shell_surface_.get(), output);
+  }
+
+private:
+  window(wl::unique_ptr<wl_surface> surface, wl::unique_ptr<wl_shell_surface> shell_surface) noexcept:
+    surface_{std::move(surface)},
+    shell_surface_{std::move(shell_surface)}
+  {
+    wl_shell_surface_add_listener(shell_surface_.get(), &shell_surface_listener, this);
+  }
+
+  static void ping(void*, wl_shell_surface* surf, uint32_t serial) {wl_shell_surface_pong(surf, serial);}
+  static void configure(void* data, wl_shell_surface*, uint32_t edges, int32_t w, int32_t h) {
+    auto* self = reinterpret_cast<window*>(data);
+    if (self->delegate_)
+      self->delegate_->resize(*self, edges, {w, h});
+  }
+  static void popup_done(void*, wl_shell_surface*) {}
+
+  static wl_shell_surface_listener shell_surface_listener;
+
+private:
+  wl::unique_ptr<wl_surface> surface_;
+  wl::unique_ptr<wl_shell_surface> shell_surface_;
+  delegate* delegate_ = nullptr;
+};
+
+wl_shell_surface_listener window::shell_surface_listener = {
+  .ping = window::ping,
+  .configure = window::configure,
+  .popup_done = window::popup_done
+};
+
 namespace egl {
 
 const std::error_category& category() {
@@ -394,7 +473,7 @@ public:
   void resize(wl::size sz) {
     glClearColor(0, 0, 0, .9);
     len_ = std::min(sz.width, sz.height);
-    glViewport((sz.width - len_)/2, (sz.height - len_)/2, len_, len_);
+    glViewport(0, 0, len_, len_);
   }
 
   void draw(clock::time_point ts) {
@@ -456,50 +535,39 @@ int main(int argc, char** argv) try {
   wl_display_roundtrip(display.get());
   services.check();
 
-  struct window_data {
+  struct egl_delegate : public window::delegate {
+    explicit egl_delegate(gsl::not_null<wl_display*> display): egl_display(display) {}
+
     egl::display egl_display;
-    wl::unique_ptr<wl_surface> surface;
     EGLConfig cfg = egl_display.choose_config();
     egl::context ctx = egl_display.create_context(cfg);
     wl::unique_ptr<wl_egl_window> egl_wnd;
     egl::surface egl_surface;
     wl::size sz;
     std::optional<renderer> drawer;
-  } data = {
-    egl::display{display.get()},
-    wl::unique_ptr<wl_surface>{wl_compositor_create_surface(services.compositor.service.get())}
-  };
 
-  wl::unique_ptr<wl_shell_surface> shell_surface{
-    {wl_shell_get_shell_surface(services.shell.service.get(), data.surface.get())}
-  };
-  wl_shell_surface_set_toplevel(shell_surface.get());
-  wl_shell_surface_set_maximized(shell_surface.get(), services.outputs.front().service.get());
+    virtual void resize(window& wnd, uint32_t, wl::size new_sz) override {
+      if (sz == new_sz)
+        return;
+      sz = new_sz;
+      egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(wnd.get_surface(), sz.width, sz.height)};
+      egl_display.reset_surface(egl_surface, cfg, egl_wnd.get());
+      ctx.make_current(egl_surface);
+      if (!drawer)
+        drawer.emplace();
+      drawer->resize(sz);
+    }
+  } delegate{display.get()};
 
-  wl_shell_surface_listener pong_responder = {
-      .ping = [](void*, wl_shell_surface* surf, uint32_t serial) {wl_shell_surface_pong(surf, serial);},
-      .configure = [](void* data, wl_shell_surface*, uint32_t, int32_t w, int32_t h) {
-        const wl::size new_sz{w, h};
-        auto* wnd_data = reinterpret_cast<window_data*>(data);
-        if (wnd_data->sz == new_sz)
-          return;
-        wnd_data->sz = new_sz;
-        wnd_data->egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(wnd_data->surface.get(), w, h)};
-        wnd_data->egl_display.reset_surface(wnd_data->egl_surface, wnd_data->cfg, wnd_data->egl_wnd.get());
-        wnd_data->ctx.make_current(wnd_data->egl_surface);
-        if (!wnd_data->drawer)
-          wnd_data->drawer.emplace();
-        wnd_data->drawer->resize(wnd_data->sz);
-      },
-      .popup_done = [](void*, wl_shell_surface*) {}
-  };
-  wl_shell_surface_add_listener(shell_surface.get(), &pong_responder, &data);
-  pong_responder.configure(&data, shell_surface.get(), 0, 480, 480);
+  auto wnd = window::create_toplevel(*services.compositor.service, *services.shell.service);
+  wnd.set_delegate(&delegate);
+  wnd.maximize(services.outputs.front().service.get());
+  delegate.resize(wnd, 0, {480, 480});
 
   while (true) {
-    if (data.drawer) {
-      data.drawer->draw(std::chrono::steady_clock::now());
-      data.egl_surface.swap_buffers();
+    if (delegate.drawer) {
+      delegate.drawer->draw(std::chrono::steady_clock::now());
+      delegate.egl_surface.swap_buffers();
       wl_display_dispatch_pending(display.get());
     } else
       wl_display_dispatch(display.get());
