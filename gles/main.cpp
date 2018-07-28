@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <wayland/client.hpp>
+#include <xdg_shell.h>
 
 #include <EGL/egl.h>
 
