@@ -7,29 +7,32 @@
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
+#include "xdg_shell.h"
+
 namespace wl {
 
 using std::literals::operator "" sv;
 
 struct deleter {
-  void operator() (wl_buffer* ptr) {wl_buffer_destroy(ptr);}
-  void operator() (wl_callback* ptr) {wl_callback_destroy(ptr);}
-  void operator() (wl_compositor* ptr) {wl_compositor_destroy(ptr);}
-  void operator() (wl_display* ptr) {wl_display_disconnect(ptr);}
+  void operator() (wl_buffer* ptr) noexcept {wl_buffer_destroy(ptr);}
+  void operator() (wl_callback* ptr) noexcept {wl_callback_destroy(ptr);}
+  void operator() (wl_compositor* ptr) noexcept {wl_compositor_destroy(ptr);}
+  void operator() (wl_display* ptr) noexcept {wl_display_disconnect(ptr);}
   void operator() (wl_egl_window* ptr) noexcept {wl_egl_window_destroy(ptr);}
-  void operator() (wl_event_queue* ptr) {wl_event_queue_destroy(ptr);}
-  void operator() (wl_keyboard* ptr) {wl_keyboard_destroy(ptr);}
-  void operator() (wl_output* ptr) {wl_output_destroy(ptr);}
-  void operator() (wl_pointer* ptr) {wl_pointer_destroy(ptr);}
-  void operator() (wl_registry* ptr) {wl_registry_destroy(ptr);}
-  void operator() (wl_seat* ptr) {wl_seat_destroy(ptr);}
-  void operator() (wl_shell* ptr) {wl_shell_destroy(ptr);}
-  void operator() (wl_shell_surface* ptr) {wl_shell_surface_destroy(ptr);}
-  void operator() (wl_shm* ptr) {wl_shm_destroy(ptr);}
-  void operator() (wl_shm_pool* ptr) {wl_shm_pool_destroy(ptr);}
-  void operator() (wl_subcompositor* ptr) {wl_subcompositor_destroy(ptr);}
-  void operator() (wl_subsurface* ptr) {wl_subsurface_destroy(ptr);}
-  void operator() (wl_surface* ptr) {wl_surface_destroy(ptr);}
+  void operator() (wl_event_queue* ptr) noexcept {wl_event_queue_destroy(ptr);}
+  void operator() (wl_keyboard* ptr) noexcept {wl_keyboard_destroy(ptr);}
+  void operator() (wl_output* ptr) noexcept {wl_output_destroy(ptr);}
+  void operator() (wl_pointer* ptr) noexcept {wl_pointer_destroy(ptr);}
+  void operator() (wl_registry* ptr) noexcept {wl_registry_destroy(ptr);}
+  void operator() (wl_seat* ptr) noexcept {wl_seat_destroy(ptr);}
+  void operator() (wl_shell* ptr) noexcept {wl_shell_destroy(ptr);}
+  void operator() (wl_shell_surface* ptr) noexcept {wl_shell_surface_destroy(ptr);}
+  void operator() (wl_shm* ptr) noexcept {wl_shm_destroy(ptr);}
+  void operator() (wl_shm_pool* ptr) noexcept {wl_shm_pool_destroy(ptr);}
+  void operator() (wl_subcompositor* ptr) noexcept {wl_subcompositor_destroy(ptr);}
+  void operator() (wl_subsurface* ptr) noexcept {wl_subsurface_destroy(ptr);}
+  void operator() (wl_surface* ptr) noexcept {wl_surface_destroy(ptr);}
+  void operator() (zxdg_shell_v6* ptr) noexcept {zxdg_shell_v6_destroy(ptr);}
 };
 template<typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;
@@ -53,6 +56,12 @@ template<>
 struct service_trait<wl_output> {
   static constexpr auto name = "wl_output"sv;
   static constexpr const wl_interface* iface = &wl_output_interface;
+};
+
+template<>
+struct service_trait<zxdg_shell_v6> {
+  static constexpr auto name = "zxdg_shell_v6"sv;
+  static constexpr const wl_interface* iface = &zxdg_shell_v6_interface;
 };
 
 template<typename Service>

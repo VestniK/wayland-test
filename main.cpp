@@ -3,8 +3,7 @@
 #include <optional>
 #include <vector>
 
-#include <wayland/client.hpp>
-#include <xdg_shell.h>
+#include "client.hpp"
 
 #include <EGL/egl.h>
 

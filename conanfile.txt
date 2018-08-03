@@ -1,9 +1,6 @@
 [requires]
-log4cplus/2.0.0-rc2@bincrafters/stable
-fmt/4.1.0@bincrafters/stable
 gsl_microsoft/20180102@bincrafters/stable
 glm/0.9.8.5@bincrafters/stable
-portable_concurrency/0.7.0@VestniK/stable
 
 [options]
 

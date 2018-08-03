@@ -9,7 +9,7 @@
 
 #include <experimental/filesystem>
 
-#include <util/bitmask.hpp>
+#include "bitmask.hpp"
 
 namespace fs = std::experimental::filesystem;
 
