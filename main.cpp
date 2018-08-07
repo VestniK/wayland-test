@@ -34,8 +34,7 @@ struct identified {
 struct watched_services {
   wl_registry_listener listener = {&global, &global_remove};
   identified<wl_compositor> compositor;
-  identified<wl_shell> shell;
-  std::vector<identified<wl_output>> outputs;
+  identified<zxdg_shell_v6> shell;
   bool initial_sync_done = false;
 
   void check() {
@@ -43,18 +42,14 @@ struct watched_services {
       throw std::runtime_error{"Compositor is not available"};
     if (!shell.service)
       throw std::runtime_error{"Shell is not available"};
-    if (outputs.empty())
-      throw std::runtime_error{"No outputs available"};
   }
 
   static void global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver) {
     watched_services* self = reinterpret_cast<watched_services*>(data);
     if (name == wl::service_trait<wl_compositor>::name)
       self->compositor = {wl::bind<wl_compositor>(reg, id, ver), id};
-    if (name == wl::service_trait<wl_shell>::name)
-      self->shell = {wl::bind<wl_shell>(reg, id, ver), id};
-    if (name == wl::service_trait<wl_output>::name)
-      self->outputs.push_back({wl::bind<wl_output>(reg, id, ver), id});
+    if (name == wl::service_trait<zxdg_shell_v6>::name)
+      self->shell = {wl::bind<zxdg_shell_v6>(reg, id, ver), id};
   }
   static void global_remove(void* data, wl_registry*, uint32_t id) {
     watched_services* self = reinterpret_cast<watched_services*>(data);
@@ -62,13 +57,6 @@ struct watched_services {
       self->compositor = {{}, {}};
     if (id == self->shell.id)
       self->shell = {{}, {}};
-    if (
-      const auto it = std::find_if(
-        self->outputs.begin(), self->outputs.end(), [&](const auto& item) {return item.id == id;}
-      );
-      it != self->outputs.end()
-    )
-      self->outputs.erase(it);
   }
 };
 
@@ -76,7 +64,8 @@ class window {
 public:
   struct delegate {
     /// @pre wnd.valid()
-    virtual void resize(window& wnd, uint32_t edges, wl::size sz) = 0;
+    virtual void resize(window& wnd, wl::size sz) = 0;
+    virtual void close(window& wnd) = 0;
   };
 
 public:
@@ -87,68 +76,83 @@ public:
 
   window(window&& rhs) noexcept:
     surface_{std::move(rhs.surface_)},
-    shell_surface_{std::move(rhs.shell_surface_)}
+    toplevel_{std::move(rhs.toplevel_)}
   {
-    if (shell_surface_)
-      wl_shell_surface_set_user_data(shell_surface_.get(), this);
+    if (toplevel_)
+      zxdg_toplevel_v6_set_user_data(toplevel_.get(), this);
   }
 
   window& operator= (window&& rhs) noexcept {
     surface_ = std::move(rhs.surface_);
-    shell_surface_ = std::move(rhs.shell_surface_);
-    if (shell_surface_)
-      wl_shell_surface_set_user_data(shell_surface_.get(), this);
+    toplevel_ = std::move(rhs.toplevel_);
+    if (toplevel_)
+      zxdg_toplevel_v6_set_user_data(toplevel_.get(), this);
     return *this;
   }
 
   ~window() = default;
 
-  static window create_toplevel(wl_compositor& compositor, wl_shell& shell) {
+  static window create_toplevel(wl_compositor& compositor, zxdg_shell_v6& shell) {
     wl::unique_ptr<wl_surface> surface{wl_compositor_create_surface(&compositor)};
-    wl::unique_ptr<wl_shell_surface> shell_surf{wl_shell_get_shell_surface(&shell, surface.get())};
-    wl_shell_surface_set_toplevel(shell_surf.get());
-    return {std::move(surface), std::move(shell_surf)};
+    wl::unique_ptr<zxdg_surface_v6> xdg_surf{zxdg_shell_v6_get_xdg_surface(&shell, surface.get())};
+    wl::unique_ptr<zxdg_toplevel_v6> toplevel{zxdg_surface_v6_get_toplevel(xdg_surf.get())};
+    return {std::move(surface), std::move(xdg_surf), std::move(toplevel)};
   }
 
   void set_delegate(delegate* val) {delegate_ = val;}
 
-  bool valid() const noexcept {return surface_ && shell_surface_;}
+  bool valid() const noexcept {return surface_ && toplevel_;}
 
   wl_surface* get_surface() {return surface_.get();}
 
   /// @pre this->valid()
-  void maximize(wl_output* output = nullptr) {
-    wl_shell_surface_set_maximized(shell_surface_.get(), output);
+  void maximize() {
+    zxdg_toplevel_v6_set_maximized(toplevel_.get());
   }
 
 private:
-  window(wl::unique_ptr<wl_surface> surface, wl::unique_ptr<wl_shell_surface> shell_surface) noexcept:
+  window(
+    wl::unique_ptr<wl_surface> surface,
+    wl::unique_ptr<zxdg_surface_v6> xdg_surf,
+    wl::unique_ptr<zxdg_toplevel_v6> toplevel
+  ) noexcept:
     surface_{std::move(surface)},
-    shell_surface_{std::move(shell_surface)}
+    xdg_surface_{std::move(xdg_surf)},
+    toplevel_{std::move(toplevel)}
   {
-    wl_shell_surface_add_listener(shell_surface_.get(), &shell_surface_listener, this);
+    zxdg_toplevel_v6_add_listener(toplevel_.get(), &toplevel_listener, this);
+    zxdg_surface_v6_add_listener(xdg_surface_.get(), &xdg_surface_listener, this);
   }
 
-  static void ping(void*, wl_shell_surface* surf, uint32_t serial) {wl_shell_surface_pong(surf, serial);}
-  static void configure(void* data, wl_shell_surface*, uint32_t edges, int32_t w, int32_t h) {
+  static void configure_surface(void*, zxdg_surface_v6*, uint32_t) {}
+  static void configure_toplevel(void* data, zxdg_toplevel_v6*, int32_t width, int32_t height, wl_array*) {
     auto* self = reinterpret_cast<window*>(data);
     if (self->delegate_)
-      self->delegate_->resize(*self, edges, {w, h});
+      self->delegate_->resize(*self, {width, height});
   }
-  static void popup_done(void*, wl_shell_surface*) {}
+  static void close(void* data, zxdg_toplevel_v6*) {
+    auto* self = reinterpret_cast<window*>(data);
+    if (self->delegate_)
+      self->delegate_->close(*self);
+  }
 
-  static wl_shell_surface_listener shell_surface_listener;
+  static zxdg_toplevel_v6_listener toplevel_listener;
+  static zxdg_surface_v6_listener xdg_surface_listener;
 
 private:
   wl::unique_ptr<wl_surface> surface_;
-  wl::unique_ptr<wl_shell_surface> shell_surface_;
+  wl::unique_ptr<zxdg_surface_v6> xdg_surface_;
+  wl::unique_ptr<zxdg_toplevel_v6> toplevel_;
   delegate* delegate_ = nullptr;
 };
 
-wl_shell_surface_listener window::shell_surface_listener = {
-  .ping = window::ping,
-  .configure = window::configure,
-  .popup_done = window::popup_done
+zxdg_toplevel_v6_listener window::toplevel_listener = {
+  .configure = window::configure_toplevel,
+  .close = window::close
+};
+
+zxdg_surface_v6_listener window::xdg_surface_listener = {
+  .configure = window::configure_surface
 };
 
 namespace egl {
@@ -545,8 +549,9 @@ int main(int argc, char** argv) try {
     egl::surface egl_surface;
     wl::size sz;
     std::optional<renderer> drawer;
+    bool closed = false;
 
-    virtual void resize(window& wnd, uint32_t, wl::size new_sz) override {
+    void resize(window& wnd, wl::size new_sz) override {
       if (sz == new_sz)
         return;
       sz = new_sz;
@@ -557,14 +562,15 @@ int main(int argc, char** argv) try {
         drawer.emplace();
       drawer->resize(sz);
     }
+
+    void close(window&) override {closed = true;}
   } delegate{display.get()};
 
   auto wnd = window::create_toplevel(*services.compositor.service, *services.shell.service);
   wnd.set_delegate(&delegate);
-  wnd.maximize(services.outputs.front().service.get());
-  delegate.resize(wnd, 0, {480, 480});
+  wnd.maximize();
 
-  while (true) {
+  while (!delegate.closed) {
     if (delegate.drawer) {
       delegate.drawer->draw(std::chrono::steady_clock::now());
       delegate.egl_surface.swap_buffers();

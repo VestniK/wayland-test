@@ -32,7 +32,10 @@ struct deleter {
   void operator() (wl_subcompositor* ptr) noexcept {wl_subcompositor_destroy(ptr);}
   void operator() (wl_subsurface* ptr) noexcept {wl_subsurface_destroy(ptr);}
   void operator() (wl_surface* ptr) noexcept {wl_surface_destroy(ptr);}
+
   void operator() (zxdg_shell_v6* ptr) noexcept {zxdg_shell_v6_destroy(ptr);}
+  void operator() (zxdg_surface_v6* ptr) noexcept {zxdg_surface_v6_destroy(ptr);}
+  void operator() (zxdg_toplevel_v6* ptr) noexcept {zxdg_toplevel_v6_destroy(ptr);}
 };
 template<typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;

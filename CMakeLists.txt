@@ -21,9 +21,10 @@ pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
   COMMAND ${WAYLAND_SCANNER} client-header ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
+  COMMAND ${WAYLAND_SCANNER} private-code ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
   DEPENDS ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
 )
-set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h PROPERTIES GENERATED On)
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c PROPERTIES GENERATED On)
 
 # EGL GLES related deps
 pkg_check_modules(egl REQUIRED IMPORTED_TARGET egl)
@@ -48,6 +49,7 @@ add_executable(wlgles
   xdg.hpp
 
   ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
+  ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
 )
 target_link_libraries(wlgles
   PkgConfig::wayland-client PkgConfig::wayland-egl
