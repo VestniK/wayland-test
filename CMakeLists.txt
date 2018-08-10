@@ -40,9 +40,14 @@ add_executable(wlgles
   bitmask.hpp
   client.hpp
   conanfile.txt
+  egl.h
+  egl.cpp
   error.hpp
   file.hpp
+  geom.h
   main.cpp
+  renderer.h
+  renderer.cpp
   shmem.hpp
   util.hpp
   wlutil.hpp

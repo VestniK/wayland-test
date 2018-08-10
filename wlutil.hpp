@@ -7,6 +7,7 @@
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
+#include "geom.h"
 #include "xdg_shell.h"
 
 namespace wl {
@@ -72,40 +73,20 @@ auto bind(wl_registry* reg, uint32_t id, uint32_t ver) {
   return unique_ptr<Service>{reinterpret_cast<Service*>(wl_registry_bind(reg, id, service_trait<Service>::iface, ver))};
 }
 
-template<typename T>
-struct basic_point {
-  T x = 0;
-  T y = 0;
-};
-
 enum class fixed_t: wl_fixed_t {};
 inline int to_int(fixed_t val) noexcept {return wl_fixed_to_int(static_cast<wl_fixed_t>(val));}
 inline double to_double(fixed_t val) noexcept {return wl_fixed_to_double(static_cast<wl_fixed_t>(val));}
 inline fixed_t to_fixed(int val) noexcept {return fixed_t{wl_fixed_from_int(val)};}
 inline fixed_t to_fixed(double val) noexcept {return fixed_t{wl_fixed_from_double(val)};}
 
-using point = basic_point<int32_t>;
 using fixed_point = basic_point<fixed_t>;
-
-template<typename T>
-struct basic_size {
-  T width = {};
-  T height = {};
-};
 
 template<typename T>
 constexpr bool operator== (basic_size<T> lhs, basic_size<T> rhs) {
   return lhs.width == rhs.width && lhs.height == rhs.height;
 }
 
-using size = basic_size<int32_t>;
-
 enum class millimeters: int32_t {};
 using physical_size = basic_size<millimeters>;
-
-struct rect {
-  point top_left;
-  ::wl::size size;
-};
 
 }
