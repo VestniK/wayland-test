@@ -23,3 +23,16 @@ xdg_toplevel_listener toplevel_window::toplevel_listener = {
 xdg_surface_listener toplevel_window::surface_listener = {
   .configure = toplevel_window::configure_surface
 };
+
+void toplevel_window::configure_surface(void*, xdg_surface* surf, uint32_t serial) {
+  xdg_surface_ack_configure(surf, serial);
+}
+
+void toplevel_window::configure_toplevel(void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*) {
+  auto* self = reinterpret_cast<toplevel_window*>(data);
+  self->resize({width, height});
+}
+void toplevel_window::close(void* data, xdg_toplevel*) {
+  auto* self = reinterpret_cast<toplevel_window*>(data);
+  self->close();
+}

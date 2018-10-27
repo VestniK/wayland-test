@@ -1,11 +1,5 @@
-#include <cassert>
 #include <chrono>
-#include <iostream>
 #include <optional>
-#include <vector>
-
-#include <gsl/string_span>
-#include <gsl/pointers>
 
 #include "client.hpp"
 #include "egl.h"
@@ -49,42 +43,35 @@ struct watched_services {
   }
 };
 
+egl::context make_egl_context(wl_display& display) {
+  egl::display egl_display{display};
+  egl_display.bind_api(EGL_OPENGL_ES_API);
+  EGLint count;
+  const EGLint cfg_attr[] = {
+    EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+    EGL_RED_SIZE, 8,
+    EGL_GREEN_SIZE, 8,
+    EGL_BLUE_SIZE, 8,
+    EGL_ALPHA_SIZE, 8,
+    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+    EGL_NONE
+  };
+  EGLConfig cfg;
+  if (eglChooseConfig(egl_display.native_handle(), cfg_attr, &cfg, 1, &count) == EGL_FALSE)
+    throw std::system_error{eglGetError(), egl::category(), "eglChooseConfig"};
+
+  return egl::context{std::move(egl_display), cfg};
+}
+
 class egl_window: public toplevel_window {
 public:
   egl_window(wl_display& display, wl_compositor& compositor, xdg_wm_base& wm):
     toplevel_window(compositor, wm),
-    egl_display_{&display}
-  {
-    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
-      throw std::system_error{eglGetError(), egl::category(), "eglBindAPI"};
-    EGLint count;
-    const EGLint cfg_attr[] = {
-      EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-      EGL_RED_SIZE, 8,
-      EGL_GREEN_SIZE, 8,
-      EGL_BLUE_SIZE, 8,
-      EGL_ALPHA_SIZE, 8,
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-      EGL_NONE
-    };
-    if (eglChooseConfig(egl_display_.native_handle(), cfg_attr, &cfg, 1, &count) == EGL_FALSE)
-      throw std::system_error{eglGetError(), egl::category(), "eglChooseConfig"};
-
-    const EGLint ctx_attr[] = {
-      EGL_CONTEXT_MAJOR_VERSION, 2,
-      EGL_CONTEXT_MINOR_VERSION, 0,
-      EGL_NONE
-    };
-    ctx = eglCreateContext(egl_display_.native_handle(), cfg, EGL_NO_CONTEXT, ctx_attr);
-    if (ctx == EGL_NO_CONTEXT)
-      throw std::system_error{eglGetError(), egl::category(), "eglCreateContext"};
-  }
+    egl_context_(make_egl_context(display))
+  {}
 
   ~egl_window() noexcept override {
-    if (ctx != EGL_NO_CONTEXT) {
-      eglReleaseThread();
-      eglDestroyContext(egl_display_.native_handle(), ctx);
-    }
+    eglReleaseThread();
   }
 
   bool is_closed() const noexcept {return  closed;}
@@ -104,11 +91,10 @@ protected:
     sz = new_sz;
     if (!egl_wnd) {
       egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(get_surface(), sz.width, sz.height)};
-      egl_display_.reset_surface(egl_surface, cfg, egl_wnd.get());
+      egl_context_.reset_surface(egl_surface, egl_wnd.get());
     } else
       wl_egl_window_resize(egl_wnd.get(), sz.width, sz.height, 0, 0);
-    if (eglMakeCurrent(egl_display_.native_handle(), egl_surface.native_handle(), egl_surface.native_handle(), ctx) == EGL_FALSE)
-      throw std::system_error{eglGetError(), egl::category(), "eglMakeCurrent"};
+    egl_context_.make_current(egl_surface);
     if (!drawer_)
       drawer_.emplace();
     drawer_->resize(sz);
@@ -117,9 +103,7 @@ protected:
   void close() override {closed = true;}
 
 private:
-  egl::display egl_display_;
-  EGLConfig cfg;
-  EGLContext ctx = EGL_NO_CONTEXT;
+  egl::context egl_context_;
   wl::unique_ptr<wl_egl_window> egl_wnd;
   egl::surface egl_surface;
   size sz;
@@ -127,7 +111,7 @@ private:
   bool closed = false;
 };
 
-int main(int argc, char** argv) try {
+int main(int argc, char** argv) {
   wl::unique_ptr<wl_display> display{wl_display_connect(argc > 1 ? argv[1] : nullptr)};
   if (!display)
     throw std::system_error{errno, std::system_category(), "wl_display_connect"};
@@ -142,6 +126,7 @@ int main(int argc, char** argv) try {
   wnd.maximize();
 
   while (!wnd.is_closed()) {
+    services.check();
     if (wnd.paint())
       wl_display_dispatch_pending(display.get());
     else
@@ -149,7 +134,4 @@ int main(int argc, char** argv) try {
   }
 
   return EXIT_SUCCESS;
-} catch(const std::exception& error) {
-  std::cerr << error.what() << '\n';
-  return EXIT_FAILURE;
 }

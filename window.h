@@ -21,24 +21,16 @@ public:
 
   wl_surface* get_surface() {return surface_.get();}
 
-  void maximize() {
-    xdg_toplevel_set_maximized(toplevel_.get());
-  }
+  void maximize() {xdg_toplevel_set_maximized(toplevel_.get());}
 
 protected:
   virtual void resize(size sz) = 0;
   virtual void close() = 0;
 
 private:
-  static void configure_surface(void*, xdg_surface* surf, uint32_t serial) {xdg_surface_ack_configure(surf, serial);}
-  static void configure_toplevel(void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*) {
-    auto* self = reinterpret_cast<toplevel_window*>(data);
-    self->resize({width, height});
-  }
-  static void close(void* data, xdg_toplevel*) {
-    auto* self = reinterpret_cast<toplevel_window*>(data);
-    self->close();
-  }
+  static void configure_surface(void*, xdg_surface* surf, uint32_t serial);
+  static void configure_toplevel(void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*);
+  static void close(void* data, xdg_toplevel*);
 
   static xdg_toplevel_listener toplevel_listener;
   static xdg_surface_listener surface_listener;
