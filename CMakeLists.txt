@@ -20,8 +20,8 @@ pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
-  COMMAND ${WAYLAND_SCANNER} client-header ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
-  COMMAND ${WAYLAND_SCANNER} private-code ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
+  COMMAND ${WAYLAND_SCANNER} client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
+  COMMAND ${WAYLAND_SCANNER} private-code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
   DEPENDS ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
 )
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c PROPERTIES GENERATED On)
@@ -50,6 +50,8 @@ add_executable(wlgles
   renderer.cpp
   shmem.hpp
   util.hpp
+  window.h
+  window.cpp
   wlutil.hpp
   xdg.hpp
 

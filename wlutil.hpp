@@ -34,9 +34,9 @@ struct deleter {
   void operator() (wl_subsurface* ptr) noexcept {wl_subsurface_destroy(ptr);}
   void operator() (wl_surface* ptr) noexcept {wl_surface_destroy(ptr);}
 
-  void operator() (zxdg_shell_v6* ptr) noexcept {zxdg_shell_v6_destroy(ptr);}
-  void operator() (zxdg_surface_v6* ptr) noexcept {zxdg_surface_v6_destroy(ptr);}
-  void operator() (zxdg_toplevel_v6* ptr) noexcept {zxdg_toplevel_v6_destroy(ptr);}
+  void operator() (xdg_wm_base* ptr) noexcept {xdg_wm_base_destroy(ptr);}
+  void operator() (xdg_surface* ptr) noexcept {xdg_surface_destroy(ptr);}
+  void operator() (xdg_toplevel* ptr) noexcept {xdg_toplevel_destroy(ptr);}
 };
 template<typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;
@@ -63,9 +63,9 @@ struct service_trait<wl_output> {
 };
 
 template<>
-struct service_trait<zxdg_shell_v6> {
-  static constexpr auto name = "zxdg_shell_v6"sv;
-  static constexpr const wl_interface* iface = &zxdg_shell_v6_interface;
+struct service_trait<xdg_wm_base> {
+  static constexpr auto name = "xdg_wm_base"sv;
+  static constexpr const wl_interface* iface = &xdg_wm_base_interface;
 };
 
 template<typename Service>

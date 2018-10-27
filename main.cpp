@@ -1,3 +1,4 @@
+#include <cassert>
 #include <chrono>
 #include <iostream>
 #include <optional>
@@ -9,6 +10,7 @@
 #include "client.hpp"
 #include "egl.h"
 #include "renderer.h"
+#include "window.h"
 
 using namespace std::literals;
 
@@ -21,7 +23,7 @@ struct identified {
 struct watched_services {
   wl_registry_listener listener = {&global, &global_remove};
   identified<wl_compositor> compositor;
-  identified<zxdg_shell_v6> shell;
+  identified<xdg_wm_base> shell;
   bool initial_sync_done = false;
 
   void check() {
@@ -35,8 +37,8 @@ struct watched_services {
     watched_services* self = reinterpret_cast<watched_services*>(data);
     if (name == wl::service_trait<wl_compositor>::name)
       self->compositor = {wl::bind<wl_compositor>(reg, id, ver), id};
-    if (name == wl::service_trait<zxdg_shell_v6>::name)
-      self->shell = {wl::bind<zxdg_shell_v6>(reg, id, ver), id};
+    if (name == wl::service_trait<xdg_wm_base>::name)
+      self->shell = {wl::bind<xdg_wm_base>(reg, id, ver), id};
   }
   static void global_remove(void* data, wl_registry*, uint32_t id) {
     watched_services* self = reinterpret_cast<watched_services*>(data);
@@ -47,99 +49,87 @@ struct watched_services {
   }
 };
 
-class window {
-public:
-  struct delegate {
-    /// @pre wnd.valid()
-    virtual void resize(window& wnd, size sz) = 0;
-    virtual void close(window& wnd) = 0;
-  };
+//struct wl_egl_context {
+//public:
+//  ~wl_egl_context() {
+//    if (display_ == EGL_NO_DISPLAY) {
+//      assert(surf_ == EGL_NO_SURFACE);
+//      assert(ctx_ == EGL_NO_CONTEXT);
+//      return;
+//    }
+//    if (surf_ != EGL_NO_SURFACE)
+//      eglDestroySurface(display_, surf_);
+//    if (ctx_ != EGL_NO_CONTEXT)
+//      eglDestroyContext(display_, ctx_);
+//  }
+//private:
+//  EGLDisplay display_ = EGL_NO_DISPLAY;
+//  EGLConfig cfg;
+//  EGLContext ctx_ = EGL_NO_CONTEXT;
+//  EGLSurface surf_ = EGL_NO_SURFACE;
+//  wl::unique_ptr<wl_egl_window> window;
+//};
 
-public:
-  window() noexcept = default;
+struct egl_delegate : window::delegate {
+  explicit egl_delegate(gsl::not_null<wl_display*> display): egl_display(display) {
+    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
+      throw std::system_error{eglGetError(), egl::category(), "eglBindAPI"};
+    EGLint count;
+    const EGLint cfg_attr[] = {
+      EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+      EGL_RED_SIZE, 8,
+      EGL_GREEN_SIZE, 8,
+      EGL_BLUE_SIZE, 8,
+      EGL_ALPHA_SIZE, 8,
+      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+      EGL_NONE
+    };
+    if (eglChooseConfig(egl_display.native_handle(), cfg_attr, &cfg, 1, &count) == EGL_FALSE)
+      throw std::system_error{eglGetError(), egl::category(), "eglChooseConfig"};
 
-  window(const window&) = delete;
-  window& operator= (const window&) = delete;
-
-  window(window&& rhs) noexcept:
-    surface_{std::move(rhs.surface_)},
-    toplevel_{std::move(rhs.toplevel_)}
-  {
-    if (toplevel_)
-      zxdg_toplevel_v6_set_user_data(toplevel_.get(), this);
+    const EGLint ctx_attr[] = {
+      EGL_CONTEXT_MAJOR_VERSION, 2,
+      EGL_CONTEXT_MINOR_VERSION, 0,
+      EGL_NONE
+    };
+    ctx = eglCreateContext(egl_display.native_handle(), cfg, EGL_NO_CONTEXT, ctx_attr);
+    if (ctx == EGL_NO_CONTEXT)
+      throw std::system_error{eglGetError(), egl::category(), "eglCreateContext"};
   }
 
-  window& operator= (window&& rhs) noexcept {
-    surface_ = std::move(rhs.surface_);
-    toplevel_ = std::move(rhs.toplevel_);
-    if (toplevel_)
-      zxdg_toplevel_v6_set_user_data(toplevel_.get(), this);
-    return *this;
+  egl::display egl_display;
+  EGLConfig cfg;
+  EGLContext ctx = EGL_NO_CONTEXT;
+  wl::unique_ptr<wl_egl_window> egl_wnd;
+  egl::surface egl_surface;
+  size sz;
+  std::optional<renderer> drawer;
+  bool closed = false;
+
+  ~egl_delegate() noexcept override {
+    if (ctx != EGL_NO_CONTEXT) {
+      eglReleaseThread();
+      eglDestroyContext(egl_display.native_handle(), ctx);
+    }
   }
 
-  ~window() = default;
-
-  static window create_toplevel(wl_compositor& compositor, zxdg_shell_v6& shell) {
-    wl::unique_ptr<wl_surface> surface{wl_compositor_create_surface(&compositor)};
-    wl::unique_ptr<zxdg_surface_v6> xdg_surf{zxdg_shell_v6_get_xdg_surface(&shell, surface.get())};
-    wl::unique_ptr<zxdg_toplevel_v6> toplevel{zxdg_surface_v6_get_toplevel(xdg_surf.get())};
-    return {std::move(surface), std::move(xdg_surf), std::move(toplevel)};
+  void resize(window& wnd, size new_sz) override {
+    if (sz == new_sz)
+      return;
+    sz = new_sz;
+    if (!egl_wnd) {
+      egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(wnd.get_surface(), sz.width, sz.height)};
+      egl_display.reset_surface(egl_surface, cfg, egl_wnd.get());
+    } else
+      wl_egl_window_resize(egl_wnd.get(), sz.width, sz.height, 0, 0);
+    if (eglMakeCurrent(egl_display.native_handle(), egl_surface.native_handle(), egl_surface.native_handle(), ctx) == EGL_FALSE)
+      throw std::system_error{eglGetError(), egl::category(), "eglMakeCurrent"};
+    if (!drawer)
+      drawer.emplace();
+    drawer->resize(sz);
   }
 
-  void set_delegate(delegate* val) {delegate_ = val;}
-
-  bool valid() const noexcept {return surface_ && toplevel_;}
-
-  wl_surface* get_surface() {return surface_.get();}
-
-  /// @pre this->valid()
-  void maximize() {
-    zxdg_toplevel_v6_set_maximized(toplevel_.get());
-  }
-
-private:
-  window(
-    wl::unique_ptr<wl_surface> surface,
-    wl::unique_ptr<zxdg_surface_v6> xdg_surf,
-    wl::unique_ptr<zxdg_toplevel_v6> toplevel
-  ) noexcept:
-    surface_{std::move(surface)},
-    xdg_surface_{std::move(xdg_surf)},
-    toplevel_{std::move(toplevel)}
-  {
-    zxdg_toplevel_v6_add_listener(toplevel_.get(), &toplevel_listener, this);
-    zxdg_surface_v6_add_listener(xdg_surface_.get(), &xdg_surface_listener, this);
-  }
-
-  static void configure_surface(void*, zxdg_surface_v6*, uint32_t) {}
-  static void configure_toplevel(void* data, zxdg_toplevel_v6*, int32_t width, int32_t height, wl_array*) {
-    auto* self = reinterpret_cast<window*>(data);
-    if (self->delegate_)
-      self->delegate_->resize(*self, {width, height});
-  }
-  static void close(void* data, zxdg_toplevel_v6*) {
-    auto* self = reinterpret_cast<window*>(data);
-    if (self->delegate_)
-      self->delegate_->close(*self);
-  }
-
-  static zxdg_toplevel_v6_listener toplevel_listener;
-  static zxdg_surface_v6_listener xdg_surface_listener;
-
-private:
-  wl::unique_ptr<wl_surface> surface_;
-  wl::unique_ptr<zxdg_surface_v6> xdg_surface_;
-  wl::unique_ptr<zxdg_toplevel_v6> toplevel_;
-  delegate* delegate_ = nullptr;
-};
-
-zxdg_toplevel_v6_listener window::toplevel_listener = {
-  .configure = window::configure_toplevel,
-  .close = window::close
-};
-
-zxdg_surface_v6_listener window::xdg_surface_listener = {
-  .configure = window::configure_surface
+  void close(window&) override {closed = true;}
 };
 
 int main(int argc, char** argv) try {
@@ -153,32 +143,7 @@ int main(int argc, char** argv) try {
   wl_display_roundtrip(display.get());
   services.check();
 
-  struct egl_delegate : public window::delegate {
-    explicit egl_delegate(gsl::not_null<wl_display*> display): egl_display(display) {}
-
-    egl::display egl_display;
-    EGLConfig cfg = egl_display.choose_config();
-    egl::context ctx = egl_display.create_context(cfg);
-    wl::unique_ptr<wl_egl_window> egl_wnd;
-    egl::surface egl_surface;
-    size sz;
-    std::optional<renderer> drawer;
-    bool closed = false;
-
-    void resize(window& wnd, size new_sz) override {
-      if (sz == new_sz)
-        return;
-      sz = new_sz;
-      egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(wnd.get_surface(), sz.width, sz.height)};
-      egl_display.reset_surface(egl_surface, cfg, egl_wnd.get());
-      ctx.make_current(egl_surface);
-      if (!drawer)
-        drawer.emplace();
-      drawer->resize(sz);
-    }
-
-    void close(window&) override {closed = true;}
-  } delegate{display.get()};
+  egl_delegate delegate{display.get()};
 
   auto wnd = window::create_toplevel(*services.compositor.service, *services.shell.service);
   wnd.set_delegate(&delegate);

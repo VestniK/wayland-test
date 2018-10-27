@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 template<typename T>
 struct basic_point {
   T x = 0;

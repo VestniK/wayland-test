@@ -37,7 +37,7 @@ public:
       eglDestroySurface(disp_, surf_);
     surf_ = eglCreateWindowSurface(disp, cfg, wnd, nullptr);
     if (surf_ == EGL_NO_SURFACE)
-      throw std::system_error{eglGetError(), category(), "eglCreaeglCreateWindowSurfaceteContext"};
+      throw std::system_error{eglGetError(), category(), "eglCreateWindowSurface"};
     disp_ = disp;
   }
 
