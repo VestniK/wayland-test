@@ -67,11 +67,12 @@ class egl_window: public toplevel_window {
 public:
   egl_window(wl_display& display, wl_compositor& compositor, xdg_wm_base& wm):
     toplevel_window(compositor, wm),
-    egl_context_(make_egl_context(display))
+    egl_surface_(make_egl_context(display))
   {}
 
   ~egl_window() noexcept override {
-    eglReleaseThread();
+    if (egl_surface_)
+      egl_surface_.release_thread();
   }
 
   bool is_closed() const noexcept {return  closed;}
@@ -80,21 +81,26 @@ public:
       return false;
 
     drawer_->draw(std::chrono::steady_clock::now());
-    egl_surface.swap_buffers();
+    egl_surface_.swap_buffers();
     return true;
   }
 
+  size get_size() const noexcept {
+    size sz;
+    wl_egl_window_get_attached_size(egl_wnd_.get(), &sz.width, &sz.height);
+    return sz;
+  }
+
 protected:
-  void resize(size new_sz) override {
-    if (sz == new_sz)
+  void resize(size sz) override {
+    if (egl_wnd_ && get_size() == sz)
       return;
-    sz = new_sz;
-    if (!egl_wnd) {
-      egl_wnd = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(get_surface(), sz.width, sz.height)};
-      egl_context_.reset_surface(egl_surface, egl_wnd.get());
+    if (!egl_wnd_) {
+      egl_wnd_ = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(get_surface(), sz.width, sz.height)};
+      egl_surface_.set_window(*egl_wnd_);
     } else
-      wl_egl_window_resize(egl_wnd.get(), sz.width, sz.height, 0, 0);
-    egl_context_.make_current(egl_surface);
+      wl_egl_window_resize(egl_wnd_.get(), sz.width, sz.height, 0, 0);
+    egl_surface_.make_current();
     if (!drawer_)
       drawer_.emplace();
     drawer_->resize(sz);
@@ -103,10 +109,8 @@ protected:
   void close() override {closed = true;}
 
 private:
-  egl::context egl_context_;
-  wl::unique_ptr<wl_egl_window> egl_wnd;
-  egl::surface egl_surface;
-  size sz;
+  egl::surface egl_surface_;
+  wl::unique_ptr<wl_egl_window> egl_wnd_;
   std::optional<renderer> drawer_;
   bool closed = false;
 };
