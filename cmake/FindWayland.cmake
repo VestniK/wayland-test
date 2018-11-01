@@ -26,7 +26,7 @@ mark_as_advanced(
   WAYLAND_CLIENT_LIBRARY
 )
 
-if (WAYLAND_FOUND)
+if (WAYLAND_FOUND AND NOT TARGET Wayland::client)
   add_library(Wayland::client UNKNOWN IMPORTED)
   set_target_properties(Wayland::client PROPERTIES
     IMPORTED_LOCATION "${WAYLAND_CLIENT_LIBRARY}"
