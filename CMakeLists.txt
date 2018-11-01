@@ -13,13 +13,18 @@ if (EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
-set_directory_properties(PROPERTIES COMPILE_OPTIONS -Werror=all)
+add_compile_options(-Werror=all)
 
 find_package(Wayland REQUIRED)
+find_package(OpenGL COMPONENTS EGL OpenGL)
 find_package(GLM REQUIRED)
 
-find_package(PkgConfig)
+add_library(GLM::glm IMPORTED INTERFACE)
+set_target_properties(GLM::glm PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GLM_INCLUDE_DIR}
+)
 
+find_package(PkgConfig)
 # wayland related deps
 pkg_check_modules(wayland-egl REQUIRED IMPORTED_TARGET wayland-egl)
 
@@ -32,15 +37,6 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
   DEPENDS ${WAYLAND_PROTOCOLS}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
 )
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c PROPERTIES GENERATED On)
-
-# EGL GLES related deps
-pkg_check_modules(egl REQUIRED IMPORTED_TARGET egl)
-pkg_check_modules(glesv2 REQUIRED IMPORTED_TARGET glesv2)
-
-add_library(GLM::glm IMPORTED INTERFACE)
-set_target_properties(GLM::glm PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES ${GLM_INCLUDE_DIR}
-)
 
 add_executable(wlgles
   bitmask.hpp
@@ -67,7 +63,7 @@ add_executable(wlgles
 target_link_libraries(wlgles
   Wayland::client
   PkgConfig::wayland-egl
-  PkgConfig::egl PkgConfig::glesv2
+  OpenGL::OpenGL OpenGL::EGL
   GLM::glm
   $<$<CXX_COMPILER_ID:Clang>:c++experimental>
   $<$<CXX_COMPILER_ID:GNU>:stdc++fs>
