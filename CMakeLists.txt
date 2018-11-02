@@ -24,10 +24,8 @@ set_target_properties(GLM::glm PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${GLM_INCLUDE_DIR}
 )
 
-find_package(PkgConfig)
 # wayland related deps
-pkg_check_modules(wayland-egl REQUIRED IMPORTED_TARGET wayland-egl)
-
+find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
 
@@ -61,8 +59,7 @@ add_executable(wlgles
   ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
 )
 target_link_libraries(wlgles
-  Wayland::client
-  PkgConfig::wayland-egl
+  Wayland::client Wayland::egl
   OpenGL::OpenGL OpenGL::EGL
   GLM::glm
   $<$<CXX_COMPILER_ID:Clang>:c++experimental>
