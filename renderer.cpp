@@ -5,6 +5,8 @@
 
 #include "renderer.h"
 
+#include <EGL/egl.h>
+
 using namespace std::literals;
 
 shader::shader(type type, gsl::czstring<> src) {
@@ -27,6 +29,27 @@ shader::shader(type type, gsl::czstring<> src) {
     glDeleteShader(shader_);
     throw std::runtime_error{"Failed to compile shader: " + msg};
   }
+}
+
+shader::~shader() {
+  if (shader_ != 0)
+    glDeleteShader(shader_);
+}
+
+shader::shader(shader&& rhs) noexcept: shader_(std::exchange(rhs.shader_, 0)) {}
+shader& shader::operator= (shader&& rhs) noexcept {
+  if (shader_ != 0)
+    glDeleteShader(shader_);
+  shader_ = std::exchange(rhs.shader_, 0);
+  return *this;
+}
+
+elements_array_buffer::elements_array_buffer() {
+  glGenBuffers(1, &handle_);
+}
+
+elements_array_buffer::~elements_array_buffer() {
+  glDeleteBuffers(1, &handle_);
 }
 
 renderer::renderer():

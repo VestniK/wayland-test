@@ -18,7 +18,6 @@ struct watched_services {
   wl_registry_listener listener = {&global, &global_remove};
   identified<wl_compositor> compositor;
   identified<xdg_wm_base> shell;
-  bool initial_sync_done = false;
 
   void check() {
     if (!compositor.service)
