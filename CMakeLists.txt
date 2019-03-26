@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(wayland)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -22,7 +22,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
 )
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c PROPERTIES GENERATED ON)
 
-add_executable(wayland
+add_library(wayland.obj OBJECT
   conanfile.txt
   scripts/wayland.chai
 
@@ -33,7 +33,6 @@ add_executable(wayland
   wayland/geom.hpp
   wayland/get_option.cpp
   wayland/get_option.hpp
-  wayland/main.cpp
   wayland/script_player.cpp
   wayland/script_player.hpp
   wayland/ui_category.cpp
@@ -52,11 +51,11 @@ add_executable(wayland
   ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
   ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
 )
-target_compile_features(wayland PRIVATE cxx_std_17)
+target_compile_features(wayland.obj PUBLIC cxx_std_17)
 if (WAYLAND_TEST_WERROR)
-  target_compile_options(wayland PRIVATE -Werror=all)
+  target_compile_options(wayland.obj PUBLIC -Werror=all)
 endif()
-target_link_libraries(wayland
+target_link_libraries(wayland.obj
   stdc++fs
   Wayland::client Wayland::egl
   OpenGL::OpenGL OpenGL::EGL
@@ -64,11 +63,16 @@ target_link_libraries(wayland
   CONAN_PKG::gsl_microsoft
   CONAN_PKG::chaiscript ${CMAKE_DL_LIBS}
 )
-target_include_directories(wayland PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
-target_compile_definitions(wayland PRIVATE CHAISCRIPT_NO_THREADS)
+target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
+target_compile_definitions(wayland.obj PUBLIC CHAISCRIPT_NO_THREADS)
 
+add_executable(wayland wayland/main.cpp)
+target_link_libraries(wayland PRIVATE wayland.obj)
 add_custom_command(TARGET wayland POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland>
   COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:wayland>.dbg $<TARGET_FILE:wayland>
 )
+
+add_executable(get_option.test wayland/get_option.test.cpp)
+target_link_libraries(get_option.test PRIVATE wayland.obj CONAN_PKG::gtest)

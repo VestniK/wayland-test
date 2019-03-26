@@ -7,7 +7,7 @@
 #include <wayland/xdg.hpp>
 
 int main(int argc, char** argv) {
-  if (has_flag(argc, argv, "-h")) {
+  if (get_flag(argc, argv, "-h")) {
     std::cout << "Ussage: " << argv[0] << " [-d DISPLAY] [-s SCRIPT_PATH]\n";
     std::cout << "\t-d DISPLAY\tSpecify wayland display. Current session "
                  "default is used if nowhing is specified.\n";

@@ -1,6 +1,7 @@
 [requires]
 gsl_microsoft/20180102@bincrafters/stable
 glm/0.9.8.5@bincrafters/stable
+gtest/1.8.0@bincrafters/stable
 chaiscript/6.1.0@sesame/stable
 
 [options]

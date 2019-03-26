@@ -3,22 +3,24 @@
 
 #include <wayland/get_option.hpp>
 
-bool has_flag(int argc, char** argv, std::string_view flag) noexcept {
+bool get_flag(int& argc, char** argv, std::string_view flag) noexcept {
   assert(argc > 0);
   char** first = argv + 1;
   char** last = argv + argc;
-  auto it = std::find(first, last, flag);
-  return it != last;
+  char** fres = std::remove(first, last, flag);
+  argc -= std::distance(fres, last);
+  return fres != last;
 }
 
-gsl::czstring<> get_option(int argc, char** argv, std::string_view option) noexcept {
+gsl::czstring<> get_option(int& argc, char** argv, std::string_view option) noexcept {
   assert(argc > 0);
   char** first = argv + 1;
   char** last = argv + argc;
-  auto it = std::adjacent_find(
-    first, last, [&](gsl::czstring<> opt, gsl::czstring<> val) {return opt == option && val[0] !='-';}
-  );
-  if (it == last)
+  char** fres = std::adjacent_find(
+      first, last, [&](gsl::czstring<> opt, gsl::czstring<> val) { return opt == option && val[0] != '-'; });
+  if (fres == last)
     return nullptr;
-  return *std::next(it);
+  fres = std::move(std::next(fres, 2), last, fres);
+  argc -= 2;
+  return *std::next(fres);
 }
