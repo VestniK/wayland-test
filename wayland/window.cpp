@@ -1,8 +1,9 @@
 #include <utility>
 
-#include "window.h"
-#include "wlutil.hpp"
-#include "xdg_shell.h"
+#include <xdg-shell.h>
+
+#include <wayland/window.hpp>
+#include <wayland/wlutil.hpp>
 
 toplevel_window::~toplevel_window() = default;
 
@@ -24,6 +25,11 @@ xdg_surface_listener toplevel_window::surface_listener = {
   .configure = toplevel_window::configure_surface
 };
 
+wl_surface_listener toplevel_window::surface_output_listener = {
+  .enter = toplevel_window::enter_output,
+  .leave = toplevel_window::leave_output,
+};
+
 void toplevel_window::configure_surface(void*, xdg_surface* surf, uint32_t serial) {
   xdg_surface_ack_configure(surf, serial);
 }
@@ -35,4 +41,10 @@ void toplevel_window::configure_toplevel(void* data, xdg_toplevel*, int32_t widt
 void toplevel_window::close(void* data, xdg_toplevel*) {
   auto* self = reinterpret_cast<toplevel_window*>(data);
   self->close();
+}
+
+void toplevel_window::enter_output(void*, wl_surface*, wl_output*) {}
+void toplevel_window::leave_output(void* data, wl_surface*, wl_output* output) {
+  auto* self = reinterpret_cast<toplevel_window*>(data);
+  self->display(*output);
 }

@@ -1,68 +1,74 @@
-cmake_minimum_required(VERSION 3.8)
-project(wayland-test)
-
-if (POLICY CMP0069)
-  cmake_policy(SET CMP0069 NEW)
-endif()
+cmake_minimum_required(VERSION 3.10)
+project(wayland)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-if (EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
-  include("${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
-  set(CONAN_CMAKE_FIND_ROOT_PATH ${CONAN_CMAKE_MODULE_PATH})
-  conan_basic_setup(TARGETS)
-endif()
+include("${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
+set(CONAN_CMAKE_FIND_ROOT_PATH ${CONAN_CMAKE_MODULE_PATH})
+conan_basic_setup(TARGETS)
 
-set(CMAKE_CXX_STANDARD 17)
-add_compile_options(-Werror=all)
+option(WAYLAND_TEST_WERROR OFF "Treat warnings as errors")
 
 find_package(Wayland REQUIRED)
-find_package(OpenGL COMPONENTS EGL OpenGL)
-find_package(GLM REQUIRED)
-
-add_library(GLM::glm IMPORTED INTERFACE)
-set_target_properties(GLM::glm PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES ${GLM_INCLUDE_DIR}
-)
+find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
 
 # wayland related deps
 find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
-  COMMAND Wayland::scanner client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
-  COMMAND Wayland::scanner private-code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
+  COMMAND Wayland::scanner client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
+  COMMAND Wayland::scanner code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
   DEPENDS ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml
 )
-set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c PROPERTIES GENERATED On)
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c PROPERTIES GENERATED ON)
 
-add_executable(wlgles
-  bitmask.hpp
-  client.hpp
+add_executable(wayland
   conanfile.txt
-  egl.h
-  egl.cpp
-  error.hpp
-  file.hpp
-  geom.h
-  main.cpp
-  renderer.h
-  renderer.cpp
-  shmem.hpp
-  util.hpp
-  window.h
-  window.cpp
-  wlutil.hpp
-  xdg.hpp
+  scripts/wayland.chai
 
-  ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.h
-  ${CMAKE_CURRENT_BINARY_DIR}/xdg_shell.c
+  wayland/egl.cpp
+  wayland/egl.hpp
+  wayland/event_loop.cpp
+  wayland/event_loop.hpp
+  wayland/geom.hpp
+  wayland/get_option.cpp
+  wayland/get_option.hpp
+  wayland/main.cpp
+  wayland/script_player.cpp
+  wayland/script_player.hpp
+  wayland/ui_category.cpp
+  wayland/ui_category.hpp
+  wayland/renderer.cpp
+  wayland/renderer.hpp
+  wayland/wayland-client.hpp
+  wayland/window.cpp
+  wayland/window.hpp
+  wayland/wlutil.hpp
+  wayland/xdg.cpp
+  wayland/xdg.hpp
+  wayland/gles_window.cpp
+  wayland/gles_window.hpp
+
+  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
+  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
 )
-target_link_libraries(wlgles
+target_compile_features(wayland PRIVATE cxx_std_17)
+if (WAYLAND_TEST_WERROR)
+  target_compile_options(wayland PRIVATE -Werror=all)
+endif()
+target_link_libraries(wayland
+  stdc++fs
   Wayland::client Wayland::egl
   OpenGL::OpenGL OpenGL::EGL
-  GLM::glm
-  $<$<CXX_COMPILER_ID:Clang>:c++experimental>
-  $<$<CXX_COMPILER_ID:GNU>:stdc++fs>
+  CONAN_PKG::glm
   CONAN_PKG::gsl_microsoft
+  CONAN_PKG::chaiscript ${CMAKE_DL_LIBS}
 )
-target_include_directories(wlgles PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(wayland PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
+target_compile_definitions(wayland PRIVATE CHAISCRIPT_NO_THREADS)
+
+add_custom_command(TARGET wayland POST_BUILD
+  COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
+  COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland>
+  COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:wayland>.dbg $<TARGET_FILE:wayland>
+)

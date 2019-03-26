@@ -1,7 +1,7 @@
 #pragma once
 
-#include "geom.h"
-#include "wlutil.hpp"
+#include <wayland/geom.hpp>
+#include <wayland/wlutil.hpp>
 
 struct wl_compositor;
 struct wl_surface;
@@ -26,14 +26,18 @@ public:
 protected:
   virtual void resize(size sz) = 0;
   virtual void close() = 0;
+  virtual void display(wl_output& disp) = 0;
 
 private:
   static void configure_surface(void*, xdg_surface* surf, uint32_t serial);
   static void configure_toplevel(void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*);
   static void close(void* data, xdg_toplevel*);
+  static void enter_output(void* data, wl_surface*, wl_output* output);
+  static void leave_output(void* data, wl_surface*, wl_output* output);
 
   static xdg_toplevel_listener toplevel_listener;
   static xdg_surface_listener surface_listener;
+  static wl_surface_listener surface_output_listener;
 
 private:
   wl::unique_ptr<wl_surface> surface_;

@@ -6,9 +6,9 @@
 
 #include <wayland-client.h>
 #include <wayland-egl.h>
+#include <xdg-shell.h>
 
-#include "geom.h"
-#include "xdg_shell.h"
+#include <wayland/geom.hpp>
 
 namespace wl {
 
