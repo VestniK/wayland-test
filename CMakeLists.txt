@@ -23,7 +23,6 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c PROPERTIES GENERATED ON)
 
 add_library(wayland.obj OBJECT
-  conanfile.txt
   scripts/wayland.chai
 
   wayland/egl.cpp
@@ -66,7 +65,11 @@ target_link_libraries(wayland.obj
 target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
 target_compile_definitions(wayland.obj PUBLIC CHAISCRIPT_NO_THREADS)
 
-add_executable(wayland wayland/main.cpp)
+add_executable(wayland
+  conanfile.txt
+  .clang-format
+  wayland/main.cpp
+)
 target_link_libraries(wayland PRIVATE wayland.obj)
 add_custom_command(TARGET wayland POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
@@ -75,4 +78,4 @@ add_custom_command(TARGET wayland POST_BUILD
 )
 
 add_executable(get_option.test wayland/get_option.test.cpp)
-target_link_libraries(get_option.test PRIVATE wayland.obj CONAN_PKG::gtest)
+target_link_libraries(get_option.test PRIVATE wayland.obj CONAN_PKG::catch2)

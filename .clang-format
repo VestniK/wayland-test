@@ -2,7 +2,7 @@
 BasedOnStyle: LLVM
 AlignAfterOpenBracket: 'false'
 AlwaysBreakTemplateDeclarations: 'true'
-ColumnLimit: '120'
+ColumnLimit: '80'
 MaxEmptyLinesToKeep: '1'
 PointerAlignment: Left
 
