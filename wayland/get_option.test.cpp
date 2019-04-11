@@ -10,11 +10,17 @@ namespace test {
 
 using namespace std::literals;
 
+using arg_views = std::vector<std::string_view>;
+
 TEST_CASE("get_option") {
   char arg0[] = "prog";
-  char arg1[] = "-d";
-  char arg2[] = "wayland-1";
-  std::vector<char*> args = {arg0, arg1, arg2};
+  char arg1[] = "-m";
+  char arg2[] = "nsk";
+  char arg3[] = "-d";
+  char arg4[] = "wayland-1";
+  char arg5[] = "-m";
+  char arg6[] = "msk";
+  std::vector<char*> args = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
   char** argv = args.data();
   int argc = static_cast<int>(args.size());
 
@@ -26,8 +32,14 @@ TEST_CASE("get_option") {
   }
   SECTION("removes found option") {
     get_option(argc, argv, "-d");
-    REQUIRE(argc == 1);
-    REQUIRE(argv[0] == "prog"sv);
+    REQUIRE(arg_views{argv, argv + argc} ==
+            arg_views{"prog", "-m", "nsk", "-m", "msk"});
+  }
+  SECTION("returns repeating options preserving order") {
+    arg_views maps;
+    while (const char* map = get_option(argc, argv, "-m"))
+      maps.push_back(map);
+    REQUIRE(maps == arg_views{{"nsk", "msk"}});
   }
 }
 
