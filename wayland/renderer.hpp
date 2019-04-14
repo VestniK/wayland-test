@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <chrono>
 
 #include <gsl/string_span>
@@ -52,19 +53,17 @@ struct program_deleter {
 using program = gl_resource<program_deleter>;
 program link(const shader& vertex, const shader& fragment);
 
-// elements buffer
-class elements_array_buffer {
-public:
-  using native_handle_type = GLuint;
-  native_handle_type native_handle() const { return handle_; }
-
-  elements_array_buffer() { glGenBuffers(1, &handle_); }
-
-  ~elements_array_buffer() { glDeleteBuffers(1, &handle_); }
-
-private:
-  GLuint handle_ = 0;
+// Buffers
+struct buffer_deleter {
+  void operator()(GLuint handle) { glDeleteBuffers(1, &handle); }
 };
+
+using buffer = gl_resource<buffer_deleter>;
+inline buffer gen_buffer() {
+  GLuint handle;
+  glGenBuffers(1, &handle);
+  return {handle};
+}
 
 class renderer {
   using clock = std::chrono::steady_clock;
@@ -79,6 +78,7 @@ private:
   shader vertex_shader_;
   shader fragment_shader_;
   program program_;
-  elements_array_buffer idxs_;
+  buffer ibo_;
+  buffer vbo_;
   int32_t len_;
 };

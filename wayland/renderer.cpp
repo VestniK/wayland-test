@@ -57,9 +57,9 @@ program link(const shader& vertex_shader, const shader& fragment_shader) {
 renderer::renderer()
     : vertex_shader_{compile(shader_type::vertex, R"(
       uniform mat4 rotation;
-      attribute vec4 position;
+      attribute vec2 position;
       void main() {
-        gl_Position = rotation * position;
+        gl_Position = rotation * vec4(position.xy, 0., 1.);
       }
     )")},
       fragment_shader_{compile(shader_type::fragment, R"(
@@ -72,9 +72,15 @@ renderer::renderer()
         gl_FragColor = vec4(color.r*factor, color.g*factor, color.b*factor, 1);
       }
     )")},
-      program_{link(vertex_shader_, fragment_shader_)} {
+      program_{link(vertex_shader_, fragment_shader_)}, ibo_{gen_buffer()},
+      vbo_{gen_buffer()} {
+  static const glm::vec2 vertices[] = {
+      {-.5, .5}, {.5, .5}, {-.5, -.5}, {.5, -.5}};
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
   static const GLuint idxs[] = {0, 1, 2, 1, 3, 2};
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxs_.native_handle());
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxs), idxs, GL_STATIC_DRAW);
 }
 
@@ -85,12 +91,6 @@ void renderer::resize(size sz) {
 }
 
 void renderer::draw(clock::time_point ts) {
-  struct vertex {
-    GLfloat x = 0;
-    GLfloat y = 0;
-  };
-  static const vertex vertices[] = {{-.5, .5}, {.5, .5}, {-.5, -.5}, {.5, -.5}};
-
   constexpr auto period = 3s;
   constexpr auto spot_period = 7s;
 
@@ -115,9 +115,10 @@ void renderer::draw(clock::time_point ts) {
   glUniform4fv(hotspot_uniform, 1, glm::value_ptr(hotspot));
 
   glUseProgram(program_.get());
-  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
+  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
   glEnableVertexAttribArray(position_location);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxs_.native_handle());
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   glFlush();
 }
