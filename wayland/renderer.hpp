@@ -80,5 +80,5 @@ private:
   program program_;
   buffer ibo_;
   buffer vbo_;
-  int32_t len_;
+  size sz_;
 };

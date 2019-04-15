@@ -20,11 +20,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
   COMMAND Wayland::scanner code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
   DEPENDS ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml
 )
-set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c PROPERTIES GENERATED ON)
+set_source_files_properties(
+  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
+  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
+  PROPERTIES
+    GENERATED ON
+)
 
 add_library(wayland.obj OBJECT
-  scripts/wayland.chai
-
   wayland/egl.cpp
   wayland/egl.hpp
   wayland/event_loop.cpp
@@ -68,6 +71,7 @@ target_compile_definitions(wayland.obj PUBLIC CHAISCRIPT_NO_THREADS)
 add_executable(wayland
   conanfile.txt
   .clang-format
+  scripts/wayland.chai
   wayland/main.cpp
 )
 target_link_libraries(wayland PRIVATE wayland.obj)
