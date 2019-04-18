@@ -1,13 +1,12 @@
 #pragma once
 
-#include <cassert>
-#include <chrono>
-
-#include <gsl/string_span>
+#include <utility>
 
 #include <GLES2/gl2.h>
 
-#include <wayland/geom.hpp>
+#include <gsl/string_span>
+
+#include <wayland/util/geom.hpp>
 
 template <typename Deleter>
 class gl_resource : Deleter {
@@ -64,21 +63,3 @@ inline buffer gen_buffer() {
   glGenBuffers(1, &handle);
   return {handle};
 }
-
-class renderer {
-  using clock = std::chrono::steady_clock;
-
-public:
-  renderer();
-
-  void resize(size sz);
-  void draw(clock::time_point ts);
-
-private:
-  shader vertex_shader_;
-  shader fragment_shader_;
-  program program_;
-  buffer ibo_;
-  buffer vbo_;
-  size sz_;
-};

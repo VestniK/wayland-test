@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-#include <wayland/get_option.hpp>
+#include <wayland/util/get_option.hpp>
 
 namespace test {
 

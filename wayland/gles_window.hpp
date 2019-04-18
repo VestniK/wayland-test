@@ -4,9 +4,9 @@
 
 #include <wayland/egl.hpp>
 #include <wayland/event_loop.hpp>
-#include <wayland/geom.hpp>
-#include <wayland/renderer.hpp>
+#include <wayland/gles2/renderer.hpp>
 #include <wayland/script_player.hpp>
+#include <wayland/util/geom.hpp>
 #include <wayland/window.hpp>
 
 class gles_window final : public toplevel_window, public script_window {

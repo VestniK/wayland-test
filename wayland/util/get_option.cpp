@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include <wayland/get_option.hpp>
+#include <wayland/util/get_option.hpp>
 
 bool get_flag(int& argc, char** argv, std::string_view flag) noexcept {
   assert(argc > 0);

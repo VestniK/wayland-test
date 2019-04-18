@@ -1,10 +1,10 @@
 #include <iostream>
 
 #include <wayland/event_loop.hpp>
-#include <wayland/get_option.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/script_player.hpp>
-#include <wayland/xdg.hpp>
+#include <wayland/util/get_option.hpp>
+#include <wayland/util/xdg.hpp>
 
 int main(int argc, char** argv) {
   if (get_flag(argc, argv, "-h")) {
@@ -23,7 +23,8 @@ int main(int argc, char** argv) {
   while (!wnd.is_closed() && !wnd.is_initialized())
     eloop.dispatch();
 
-  play_script(get_option(argc, argv, "-s", xdg::find_config("wayland.chai")), wnd);
+  play_script(
+      get_option(argc, argv, "-s", xdg::find_config("wayland.chai")), wnd);
 
   return EXIT_SUCCESS;
 }

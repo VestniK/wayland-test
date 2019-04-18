@@ -2,7 +2,7 @@
 
 #include <gsl/string_span>
 
-#include <wayland/xdg.hpp>
+#include <wayland/util/xdg.hpp>
 
 namespace fs = std::filesystem;
 
@@ -16,14 +16,14 @@ fs::path config_home() {
   env = ::getenv("HOME");
   if (!env || *env == 0)
     throw std::runtime_error{"environment variable ${HOME} is not set"};
-  return fs::path{env}/".config";
+  return fs::path{env} / ".config";
 }
 
 fs::path find_config(fs::path relative) {
   if (relative.is_absolute())
     return relative;
 
-  const fs::path user_cfg = config_home()/relative;
+  const fs::path user_cfg = config_home() / relative;
   if (fs::exists(user_cfg))
     return user_cfg;
 
@@ -34,7 +34,7 @@ fs::path find_config(fs::path relative) {
   for (const char* p = env; *p != 0; ++p) {
     if (*p != ':')
       continue;
-    const auto candidate = fs::path{env, p}/relative;
+    const auto candidate = fs::path{env, p} / relative;
     if (fs::exists(candidate))
       return candidate;
     env = p + 1;
@@ -52,7 +52,7 @@ fs::path data_home() {
   env = ::getenv("HOME");
   if (!env || *env == 0)
     throw std::runtime_error{"environment variable ${HOME} is not set"};
-  return fs::path{env}/".local/share";
+  return fs::path{env} / ".local/share";
 }
 
 // TODO: уменьшить копипасту
@@ -60,7 +60,7 @@ fs::path find_data(fs::path relative) {
   if (relative.is_absolute())
     return relative;
 
-  const fs::path user_cfg = data_home()/relative;
+  const fs::path user_cfg = data_home() / relative;
   if (fs::exists(user_cfg))
     return user_cfg;
 
@@ -71,7 +71,7 @@ fs::path find_data(fs::path relative) {
   for (const char* p = env; *p != 0; ++p) {
     if (*p != ':')
       continue;
-    const auto candidate = fs::path{env, p}/relative;
+    const auto candidate = fs::path{env, p} / relative;
     if (fs::exists(candidate))
       return candidate;
     env = p + 1;

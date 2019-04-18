@@ -1,6 +1,6 @@
 #pragma once
 
-#include <wayland/geom.hpp>
+#include <wayland/util/geom.hpp>
 #include <wayland/wlutil.hpp>
 
 struct wl_compositor;
@@ -11,17 +11,17 @@ class toplevel_window {
 public:
   toplevel_window() = delete;
   toplevel_window(const toplevel_window&) = delete;
-  toplevel_window& operator= (const toplevel_window&) = delete;
+  toplevel_window& operator=(const toplevel_window&) = delete;
   toplevel_window(toplevel_window&& rhs) = delete;
-  toplevel_window& operator= (toplevel_window&& rhs) = delete;
+  toplevel_window& operator=(toplevel_window&& rhs) = delete;
 
   virtual ~toplevel_window();
 
   toplevel_window(wl_compositor& compositor, xdg_wm_base& shell);
 
-  wl_surface* get_surface() {return surface_.get();}
+  wl_surface* get_surface() { return surface_.get(); }
 
-  void maximize() {xdg_toplevel_set_maximized(toplevel_.get());}
+  void maximize() { xdg_toplevel_set_maximized(toplevel_.get()); }
 
 protected:
   virtual void resize(size sz) = 0;
@@ -30,7 +30,8 @@ protected:
 
 private:
   static void configure_surface(void*, xdg_surface* surf, uint32_t serial);
-  static void configure_toplevel(void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*);
+  static void configure_toplevel(
+      void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*);
   static void close(void* data, xdg_toplevel*);
   static void enter_output(void* data, wl_surface*, wl_output* output);
   static void leave_output(void* data, wl_surface*, wl_output* output);
