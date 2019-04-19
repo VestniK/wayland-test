@@ -1,1 +1,1 @@
-window.draw_for(10*s);
+window.draw_for(30*s);

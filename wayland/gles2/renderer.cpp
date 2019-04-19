@@ -7,29 +7,53 @@
 
 using namespace std::literals;
 
+struct vertex {
+  glm::vec2 position;
+  glm::vec3 normal;
+};
+
 renderer::renderer()
     : vertex_shader_{compile(shader_type::vertex, R"(
+      #version 100
+      precision mediump float;
+
       uniform mat4 camera;
-      uniform mat4 rotation;
+      uniform mat4 model;
+
       attribute vec2 position;
+      attribute vec3 normal;
+
+      varying vec3 frag_normal;
+      varying vec3 frag_pos;
+
       void main() {
-        gl_Position = camera * rotation * vec4(position.xy, 1., 1.);
+        frag_normal = normal;
+        frag_pos = vec3(position.xy, 1.);
+        gl_Position = camera * model * vec4(position.xy, 1., 1.);
       }
     )")},
       fragment_shader_{compile(shader_type::fragment, R"(
+      #version 100
       precision mediump float;
-      uniform vec4 hotspot;
+
+      uniform vec3 light_pos;
+      uniform mat4 model;
+
+      varying vec3 frag_normal;
+      varying vec3 frag_pos;
+
       void main() {
-        float norm_dist = length(gl_FragCoord - hotspot)/90.0;
-        float factor = exp(-norm_dist*norm_dist);
-        vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-        gl_FragColor = vec4(color.r*factor, color.g*factor, color.b*factor, 1);
+        vec3 light_vector = light_pos - vec3(model*vec4(frag_pos, 1.0));
+        float brightnes = dot(frag_normal, light_vector)/length(light_vector);
+        brightnes = clamp(brightnes, 0.0, 1.0);
+        gl_FragColor = vec4(brightnes*vec3(0.0, 0.0, 1.0), 1.0);
       }
     )")},
       program_{link(vertex_shader_, fragment_shader_)}, ibo_{gen_buffer()},
       vbo_{gen_buffer()} {
-  static const glm::vec2 vertices[] = {
-      {-1., 1.}, {1., 1.}, {-1., -1.}, {1., -1.}};
+  static const vertex vertices[] = {{{-1., 1.}, {0., 0., -1.}},
+      {{1., 1.}, {0., 0., -1.}}, {{-1., -1.}, {0., 0., -1.}},
+      {{1., -1.}, {0., 0., -1.}}};
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
@@ -65,25 +89,29 @@ void renderer::draw(clock::time_point ts) {
 
   const GLfloat spot_angle = 2 * M_PI * spot_phase;
   const GLfloat angle = 2 * M_PI * phase;
-  glm::vec4 hotspot = {
-      sz_.width / 2 + 7 * sz_.width / 24 * std::cos(spot_angle),
-      5 * sz_.height / 12 + sz_.height / 24 * std::cos(2 * spot_angle), 0, 0};
-  glm::mat4 rotation = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
+  glm::vec3 light_pos = {
+      3. * std::cos(spot_angle), 6. * std::sin(2.5 * spot_angle), 0.0};
+  glm::mat4 model = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
 
-  const GLint rotation_uniform =
-      glGetUniformLocation(program_.get(), "rotation");
-  const GLint hotspot_uniform = glGetUniformLocation(program_.get(), "hotspot");
+  const GLint model_uniform = glGetUniformLocation(program_.get(), "model");
+  const GLint light_pos_uniform =
+      glGetUniformLocation(program_.get(), "light_pos");
   const GLint position_location =
       glGetAttribLocation(program_.get(), "position");
+  const GLint normal_location = glGetAttribLocation(program_.get(), "normal");
 
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glUniformMatrix4fv(rotation_uniform, 1, GL_FALSE, glm::value_ptr(rotation));
-  glUniform4fv(hotspot_uniform, 1, glm::value_ptr(hotspot));
+  glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+  glUniform3fv(light_pos_uniform, 1, glm::value_ptr(light_pos));
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
-  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+  glVertexAttribPointer(
+      position_location, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), nullptr);
+  glVertexAttribPointer(normal_location, 3, GL_FLOAT, GL_FALSE, sizeof(vertex),
+      reinterpret_cast<const GLvoid*>(sizeof(glm::vec2)));
   glEnableVertexAttribArray(position_location);
+  glEnableVertexAttribArray(normal_location);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   glFlush();
