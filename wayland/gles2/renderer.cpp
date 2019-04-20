@@ -8,7 +8,7 @@
 using namespace std::literals;
 
 struct vertex {
-  glm::vec2 position;
+  glm::vec3 position;
   glm::vec3 normal;
 };
 
@@ -20,7 +20,7 @@ renderer::renderer()
       uniform mat4 camera;
       uniform mat4 model;
 
-      attribute vec2 position;
+      attribute vec3 position;
       attribute vec3 normal;
 
       varying vec3 frag_normal;
@@ -28,8 +28,8 @@ renderer::renderer()
 
       void main() {
         frag_normal = normal;
-        frag_pos = vec3(position.xy, 1.);
-        gl_Position = camera * model * vec4(position.xy, 1., 1.);
+        frag_pos = position;
+        gl_Position = camera * model * vec4(position.xyz, 1.);
       }
     )")},
       fragment_shader_{compile(shader_type::fragment, R"(
@@ -38,22 +38,23 @@ renderer::renderer()
 
       uniform vec3 light_pos;
       uniform mat4 model;
+      uniform mat3 norm_rotation;
 
       varying vec3 frag_normal;
       varying vec3 frag_pos;
 
       void main() {
         vec3 light_vector = light_pos - vec3(model*vec4(frag_pos, 1.0));
-        float brightnes = dot(frag_normal, light_vector)/length(light_vector);
+        float brightnes = dot(normalize(norm_rotation*frag_normal), light_vector)/length(light_vector);
         brightnes = clamp(brightnes, 0.0, 1.0);
         gl_FragColor = vec4(brightnes*vec3(0.0, 0.0, 1.0), 1.0);
       }
     )")},
       program_{link(vertex_shader_, fragment_shader_)}, ibo_{gen_buffer()},
       vbo_{gen_buffer()} {
-  static const vertex vertices[] = {{{-1., 1.}, {0., 0., -1.}},
-      {{1., 1.}, {0., 0., -1.}}, {{-1., -1.}, {0., 0., -1.}},
-      {{1., -1.}, {0., 0., -1.}}};
+  static const vertex vertices[] = {{{-1., 1., 0.}, {0., 0., -1.}},
+      {{1., 1., 0.}, {0., 0., -1.}}, {{-1., -1., 0.}, {0., 0., -1.}},
+      {{1., -1., 0.}, {0., 0., -1.}}};
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
@@ -70,7 +71,7 @@ void renderer::resize(size sz) {
   const float len = std::min(sz.width, sz.height);
   glViewport(0, 0, sz.width, sz.height);
   const glm::mat4 camera = glm::frustum(-sz.width / len, sz.width / len,
-                               -sz.height / len, sz.height / len, .5f, 2.f) *
+                               -sz.height / len, sz.height / len, 3.f, 8.f) *
                            glm::lookAt(glm::vec3{.0, .0, .0},
                                glm::vec3{.0, .0, 2.}, glm::vec3{.0, 1., .0});
 
@@ -91,8 +92,12 @@ void renderer::draw(clock::time_point ts) {
   const GLfloat angle = 2 * M_PI * phase;
   glm::vec3 light_pos = {
       3. * std::cos(spot_angle), 6. * std::sin(2.5 * spot_angle), 0.0};
-  glm::mat4 model = glm::rotate(glm::mat4{1.}, angle, {0, 0, 1});
+  glm::mat4 model = glm::translate(glm::vec3{0, 0, 6}) *
+                    glm::rotate(glm::mat4{1.}, angle, {0, 1, 1});
+  glm::mat3 norm_rotation = glm::transpose(glm::inverse(glm::mat3(model)));
 
+  const GLint norm_rotation_uniform =
+      glGetUniformLocation(program_.get(), "norm_rotation");
   const GLint model_uniform = glGetUniformLocation(program_.get(), "model");
   const GLint light_pos_uniform =
       glGetUniformLocation(program_.get(), "light_pos");
@@ -103,13 +108,15 @@ void renderer::draw(clock::time_point ts) {
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+  glUniformMatrix3fv(
+      norm_rotation_uniform, 1, GL_FALSE, glm::value_ptr(norm_rotation));
   glUniform3fv(light_pos_uniform, 1, glm::value_ptr(light_pos));
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glVertexAttribPointer(
-      position_location, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), nullptr);
+      position_location, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), nullptr);
   glVertexAttribPointer(normal_location, 3, GL_FLOAT, GL_FALSE, sizeof(vertex),
-      reinterpret_cast<const GLvoid*>(sizeof(glm::vec2)));
+      reinterpret_cast<const GLvoid*>(sizeof(glm::vec3)));
   glEnableVertexAttribArray(position_location);
   glEnableVertexAttribArray(normal_location);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
