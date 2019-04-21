@@ -36,7 +36,22 @@ renderer::renderer()
       #version 100
       precision mediump float;
 
-      uniform vec3 light_pos;
+      struct light_source {
+        vec3 pos;
+        float intense;
+        float ambient;
+      };
+
+      vec3 phong_reflect(light_source light, vec3 surf_color, vec3 world_pos, vec3 world_normal) {
+        vec3 light_direction = normalize(light.pos - world_pos);
+        float brightnes = light.intense*dot(world_normal, light_direction);
+        brightnes = clamp(brightnes, 0.0, 1.0);
+        vec3 diffuse = brightnes*surf_color;
+        vec3 ambient = light.intense*light.ambient*surf_color;
+        return diffuse + ambient;
+      }
+
+      uniform light_source light;
       uniform mat4 model;
       uniform mat3 norm_rotation;
 
@@ -44,10 +59,12 @@ renderer::renderer()
       varying vec3 frag_pos;
 
       void main() {
-        vec3 light_vector = light_pos - vec3(model*vec4(frag_pos, 1.0));
-        float brightnes = dot(normalize(norm_rotation*frag_normal), light_vector)/length(light_vector);
-        brightnes = clamp(brightnes, 0.0, 1.0);
-        gl_FragColor = vec4(brightnes*vec3(0.0, 0.0, 1.0), 1.0);
+        vec3 color = vec3(0.0, 0.7, 0.7);
+
+        gl_FragColor = vec4(
+          phong_reflect(light, color, vec3(model*vec4(frag_pos, 1.0)), normalize(norm_rotation*frag_normal)),
+          1.0
+        );
       }
     )")},
       program_{link(vertex_shader_, fragment_shader_)}, ibo_{gen_buffer()},
@@ -108,6 +125,13 @@ renderer::renderer()
 
   glUseProgram(program_.get());
 
+  const GLint light_intense_uniform =
+      glGetUniformLocation(program_.get(), "light.intense");
+  const GLint light_ambient_uniform =
+      glGetUniformLocation(program_.get(), "light.ambient");
+  glUniform1f(light_intense_uniform, 0.6);
+  glUniform1f(light_ambient_uniform, 0.094);
+
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
   glClearColor(0, 0, 0, .9);
@@ -147,7 +171,7 @@ void renderer::draw(clock::time_point ts) {
       glGetUniformLocation(program_.get(), "norm_rotation");
   const GLint model_uniform = glGetUniformLocation(program_.get(), "model");
   const GLint light_pos_uniform =
-      glGetUniformLocation(program_.get(), "light_pos");
+      glGetUniformLocation(program_.get(), "light.pos");
   const GLint position_location =
       glGetAttribLocation(program_.get(), "position");
   const GLint normal_location = glGetAttribLocation(program_.get(), "normal");
