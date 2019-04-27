@@ -125,9 +125,8 @@ const GLuint cube_idxs[] = {
 shader_pipeline::shader_pipeline(
     gsl::span<gsl::czstring<>> vertex_shader_sources,
     gsl::span<gsl::czstring<>> fragment_shader_sources)
-    : vertex_{compile(shader_type::vertex, vertex_shader_sources)},
-      fragment_{compile(shader_type::fragment, fragment_shader_sources)},
-      program_{link(vertex_, fragment_)} {}
+    : program_{link(compile(shader_type::vertex, vertex_shader_sources),
+          compile(shader_type::fragment, fragment_shader_sources))} {}
 
 void shader_pipeline::use() { glUseProgram(program_.get()); }
 

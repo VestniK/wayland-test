@@ -16,7 +16,7 @@ using member_ptr = M C::*;
 
 class shader_pipeline {
 public:
-  shader_pipeline(gsl::span<gsl::czstring<>> vertex_shader_sources,
+  explicit shader_pipeline(gsl::span<gsl::czstring<>> vertex_shader_sources,
       gsl::span<gsl::czstring<>> fragment_shader_sources);
 
   void use();
@@ -36,8 +36,6 @@ public:
   }
 
 private:
-  shader vertex_;
-  shader fragment_;
   shader_program program_;
 };
 
