@@ -54,8 +54,8 @@ shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs);
 struct program_deleter {
   void operator()(GLuint handle) { glDeleteProgram(handle); }
 };
-using program = gl_resource<program_deleter>;
-program link(const shader& vertex, const shader& fragment);
+using shader_program = gl_resource<program_deleter>;
+shader_program link(const shader& vertex, const shader& fragment);
 
 // Buffers
 struct buffer_deleter {
