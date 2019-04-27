@@ -2,9 +2,11 @@ cmake_minimum_required(VERSION 3.13)
 project(wayland)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include("${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
-set(CONAN_CMAKE_FIND_ROOT_PATH ${CONAN_CMAKE_MODULE_PATH})
-conan_basic_setup(TARGETS)
+include(cmake/conan.cmake)
+conan_cmake_run(CONANFILE conanfile.txt
+  BASIC_SETUP CMAKE_TARGETS
+  BUILD missing
+)
 
 enable_testing()
 
