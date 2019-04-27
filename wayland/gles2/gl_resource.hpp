@@ -22,8 +22,12 @@ public:
   gl_resource(const gl_resource&) = delete;
   gl_resource& operator=(const gl_resource&) = delete;
 
-  constexpr gl_resource(gl_resource&&) noexcept = default;
-  constexpr gl_resource& operator=(gl_resource&&) noexcept = delete;
+  constexpr gl_resource(gl_resource&& rhs) noexcept
+      : handle_{std::exchange(rhs.handle_, 0)} {}
+  constexpr gl_resource& operator=(gl_resource&& rhs) noexcept {
+    gl_resource old{std::exchange(handle_, std::exchange(rhs.handle_, 0))};
+    return *this;
+  }
 
   constexpr GLuint get() const noexcept { return handle_; }
   constexpr GLuint release() noexcept { return std::exchange(handle_, 0); }
