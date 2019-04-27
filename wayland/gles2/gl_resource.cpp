@@ -1,10 +1,14 @@
 #include <wayland/gles2/gl_resource.hpp>
 
 shader compile(shader_type type, gsl::czstring<> src) {
+  return compile(type, gsl::span<gsl::czstring<>>{&src, 1});
+}
+
+shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs) {
   shader res{glCreateShader(static_cast<GLenum>(type))};
   if (!res)
     throw std::runtime_error{"Failed to create shader"};
-  glShaderSource(res.get(), 1, &src, nullptr);
+  glShaderSource(res.get(), srcs.size(), srcs.data(), nullptr);
   glCompileShader(res.get());
   GLint compiled;
   glGetShaderiv(res.get(), GL_COMPILE_STATUS, &compiled);

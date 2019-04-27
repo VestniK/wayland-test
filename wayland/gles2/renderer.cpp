@@ -7,35 +7,31 @@
 
 using namespace std::literals;
 
-struct vertex {
-  glm::vec3 position;
-  glm::vec3 normal;
-};
+gsl::czstring<> vertex_shader = R"(
+  #version 100
+  precision mediump float;
 
-renderer::renderer()
-    : vertex_shader_{compile(shader_type::vertex, R"(
+  uniform mat4 camera;
+  uniform mat4 model;
+
+  attribute vec3 position;
+  attribute vec3 normal;
+
+  varying vec3 frag_normal;
+  varying vec3 frag_pos;
+
+  void main() {
+    frag_normal = normal;
+    frag_pos = position;
+    gl_Position = camera * model * vec4(position.xyz, 1.);
+  }
+)";
+
+gsl::czstring<> fragment_shaders[] = {
+    R"(
       #version 100
-      precision mediump float;
-
-      uniform mat4 camera;
-      uniform mat4 model;
-
-      attribute vec3 position;
-      attribute vec3 normal;
-
-      varying vec3 frag_normal;
-      varying vec3 frag_pos;
-
-      void main() {
-        frag_normal = normal;
-        frag_pos = position;
-        gl_Position = camera * model * vec4(position.xyz, 1.);
-      }
-    )")},
-      fragment_shader_{compile(shader_type::fragment, R"(
-      #version 100
-      precision mediump float;
-
+      precision mediump float;)",
+    R"(
       struct light_source {
         vec3 pos;
         float intense;
@@ -50,7 +46,8 @@ renderer::renderer()
         vec3 ambient = light.intense*light.ambient*surf_color;
         return diffuse + ambient;
       }
-
+    )",
+    R"(
       uniform light_source light;
       uniform mat4 model;
       uniform mat3 norm_rotation;
@@ -66,7 +63,16 @@ renderer::renderer()
           1.0
         );
       }
-    )")},
+    )"};
+
+struct vertex {
+  glm::vec3 position;
+  glm::vec3 normal;
+};
+
+renderer::renderer()
+    : vertex_shader_{compile(shader_type::vertex, vertex_shader)},
+      fragment_shader_{compile(shader_type::fragment, fragment_shaders)},
       program_{link(vertex_shader_, fragment_shader_)}, ibo_{gen_buffer()},
       vbo_{gen_buffer()} {
   // clang-format off
@@ -129,12 +135,12 @@ renderer::renderer()
       glGetUniformLocation(program_.get(), "light.intense");
   const GLint light_ambient_uniform =
       glGetUniformLocation(program_.get(), "light.ambient");
-  glUniform1f(light_intense_uniform, 0.6);
-  glUniform1f(light_ambient_uniform, 0.094);
+  glUniform1f(light_intense_uniform, 0.8);
+  glUniform1f(light_ambient_uniform, 0.09);
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
-  glClearColor(0, 0, 0, .9);
+  glClearColor(0, 0, 0, .75);
 }
 
 void renderer::resize(size sz) {

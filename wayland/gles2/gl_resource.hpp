@@ -44,6 +44,7 @@ enum class shader_type : GLenum {
   fragment = GL_FRAGMENT_SHADER
 };
 shader compile(shader_type type, gsl::czstring<> src);
+shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs);
 
 // shader program
 struct program_deleter {
