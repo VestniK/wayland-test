@@ -13,3 +13,12 @@ target_link_libraries(gles2 PUBLIC
   CONAN_PKG::glm
   CONAN_PKG::gsl_microsoft
 )
+
+add_executable(gl_resource.test gl_resource.test.cpp)
+target_link_libraries(gl_resource.test
+PRIVATE
+  gles2
+  CONAN_PKG::catch2
+)
+add_test(NAME gl_resource COMMAND gl_resource.test --order rand)
+
