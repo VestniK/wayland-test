@@ -116,13 +116,11 @@ const GLuint cube_idxs[] = {
 // clang-format on
 
 void apply_model_world_transformation(glm::mat4 transformation,
-    shader_pipeline& pipeline_, gsl::czstring<> model_mat_name,
-    gsl::czstring<> norm_mat_name) {
-  glm::mat3 norm_rotation =
-      glm::transpose(glm::inverse(glm::mat3(transformation)));
-
-  pipeline_.set_uniform(model_mat_name, transformation);
-  pipeline_.set_uniform(norm_mat_name, norm_rotation);
+    uniform_location<glm::mat4> model_mat_uniform,
+    uniform_location<glm::mat3> normal_mat_uniform) {
+  model_mat_uniform.set_value(transformation);
+  normal_mat_uniform.set_value(
+      glm::transpose(glm::inverse(glm::mat3(transformation))));
 }
 
 } // namespace
@@ -134,29 +132,6 @@ shader_pipeline::shader_pipeline(
           compile(shader_type::fragment, fragment_shader_sources))} {}
 
 void shader_pipeline::use() { glUseProgram(program_.get()); }
-
-void shader_pipeline::set_uniform(gsl::czstring<> name, float value) {
-  const GLuint id = glGetUniformLocation(program_.get(), name);
-  glUniform1f(id, value);
-}
-
-void shader_pipeline::set_uniform(
-    gsl::czstring<> name, const glm::mat4& value) {
-  const GLuint id = glGetUniformLocation(program_.get(), name);
-  glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(value));
-}
-
-void shader_pipeline::set_uniform(
-    gsl::czstring<> name, const glm::mat3& value) {
-  const GLuint id = glGetUniformLocation(program_.get(), name);
-  glUniformMatrix3fv(id, 1, GL_FALSE, glm::value_ptr(value));
-}
-
-void shader_pipeline::set_uniform(
-    gsl::czstring<> name, const glm::vec3& value) {
-  const GLuint id = glGetUniformLocation(program_.get(), name);
-  glUniform3fv(id, 1, glm::value_ptr(value));
-}
 
 mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
     : ibo_{gen_buffer()}, vbo_{gen_buffer()}, triangles_count_{
@@ -185,8 +160,13 @@ renderer::renderer()
                                                       cube_idxs} {
 
   pipeline_.use();
-  pipeline_.set_uniform("light.intense", 0.8);
-  pipeline_.set_uniform("light.ambient", 0.09);
+  pipeline_.get_uniform<float>("light.intense").set_value(0.8);
+  pipeline_.get_uniform<float>("light.ambient").set_value(0.09);
+  light_pos_uniform_ = pipeline_.get_uniform<glm::vec3>("light.pos");
+  model_world_uniform_ = pipeline_.get_uniform<glm::mat4>("model");
+  norm_world_uniform_ = pipeline_.get_uniform<glm::mat3>("norm_rotation");
+
+  camera_uniform_ = pipeline_.get_uniform<glm::mat4>("camera");
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
@@ -202,7 +182,7 @@ void renderer::resize(size sz) {
                            glm::lookAt(glm::vec3{.0, .0, .0},
                                glm::vec3{.0, .0, 2.}, glm::vec3{.0, 1., .0});
 
-  pipeline_.set_uniform("camera", camera);
+  camera_uniform_.set_value(camera);
 }
 
 void renderer::draw(clock::time_point ts) {
@@ -218,7 +198,7 @@ void renderer::draw(clock::time_point ts) {
   const GLfloat angle = 2 * M_PI * phase;
   glm::vec3 light_pos = {
       3. * std::cos(spot_angle), 6. * std::sin(2.5 * spot_angle), 0.0};
-  pipeline_.set_uniform("light.pos", light_pos);
+  light_pos_uniform_.set_value(light_pos);
 
   glm::mat4 model =
       glm::translate(glm::vec3{2 * std::cos(3 * spot_angle),
@@ -227,7 +207,8 @@ void renderer::draw(clock::time_point ts) {
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  apply_model_world_transformation(model, pipeline_, "model", "norm_rotation");
+  apply_model_world_transformation(
+      model, model_world_uniform_, norm_world_uniform_);
   cube_.draw(pipeline_, "position", "normal");
   glFlush();
 }
