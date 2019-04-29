@@ -115,6 +115,16 @@ const GLuint cube_idxs[] = {
 };
 // clang-format on
 
+void apply_model_world_transformation(glm::mat4 transformation,
+    shader_pipeline& pipeline_, gsl::czstring<> model_mat_name,
+    gsl::czstring<> norm_mat_name) {
+  glm::mat3 norm_rotation =
+      glm::transpose(glm::inverse(glm::mat3(transformation)));
+
+  pipeline_.set_uniform(model_mat_name, transformation);
+  pipeline_.set_uniform(norm_mat_name, norm_rotation);
+}
+
 } // namespace
 
 shader_pipeline::shader_pipeline(
@@ -208,19 +218,16 @@ void renderer::draw(clock::time_point ts) {
   const GLfloat angle = 2 * M_PI * phase;
   glm::vec3 light_pos = {
       3. * std::cos(spot_angle), 6. * std::sin(2.5 * spot_angle), 0.0};
+  pipeline_.set_uniform("light.pos", light_pos);
+
   glm::mat4 model =
       glm::translate(glm::vec3{2 * std::cos(3 * spot_angle),
           -0.6 * std::sin(5 * spot_angle), 6 + std::cos(spot_angle)}) *
       glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
-  glm::mat3 norm_rotation = glm::transpose(glm::inverse(glm::mat3(model)));
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  pipeline_.set_uniform("model", model);
-  pipeline_.set_uniform("norm_rotation", norm_rotation);
-  pipeline_.set_uniform("light.pos", light_pos);
-
+  apply_model_world_transformation(model, pipeline_, "model", "norm_rotation");
   cube_.draw(pipeline_, "position", "normal");
   glFlush();
 }
