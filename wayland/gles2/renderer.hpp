@@ -39,6 +39,25 @@ private:
   shader_program program_;
 };
 
+struct vertex {
+  glm::vec3 position;
+  glm::vec3 normal;
+};
+
+class mesh {
+public:
+  explicit mesh(
+      gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes);
+
+  void draw(shader_pipeline& pipeline, gsl::czstring<> pos_name,
+      gsl::czstring<> normal_name);
+
+private:
+  buffer ibo_;
+  buffer vbo_;
+  unsigned triangles_count_;
+};
+
 class renderer {
   using clock = std::chrono::steady_clock;
 
@@ -50,7 +69,6 @@ public:
 
 private:
   shader_pipeline pipeline_;
-  buffer ibo_;
-  buffer vbo_;
+  mesh cube_;
   size sz_;
 };

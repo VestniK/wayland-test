@@ -68,11 +68,6 @@ gsl::czstring<> fragment_shaders[] = {
       }
     )"};
 
-struct vertex {
-  glm::vec3 position;
-  glm::vec3 normal;
-};
-
 // clang-format off
 const vertex cube_vertices[] = {
   {{-1., 1., -1.}, {0., 0., -1.}},
@@ -153,16 +148,31 @@ void shader_pipeline::set_uniform(
   glUniform3fv(id, 1, glm::value_ptr(value));
 }
 
-renderer::renderer()
-    : pipeline_{vertex_shader, fragment_shaders}, ibo_{gen_buffer()},
-      vbo_{gen_buffer()} {
+mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
+    : ibo_{gen_buffer()}, vbo_{gen_buffer()}, triangles_count_{
+                                                  static_cast<unsigned>(
+                                                      indexes.size())} {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
-  glBufferData(
-      GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, verticies.size_bytes(), verticies.data(),
+      GL_STATIC_DRAW);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
-  glBufferData(
-      GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_idxs), cube_idxs, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size_bytes(), indexes.data(),
+      GL_STATIC_DRAW);
+}
+
+void mesh::draw(shader_pipeline& pipeline, gsl::czstring<> pos_name,
+    gsl::czstring<> normal_name) {
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
+  pipeline.set_attrib_pointer(pos_name, &vertex::position);
+  pipeline.set_attrib_pointer(normal_name, &vertex::normal);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
+  glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
+}
+
+renderer::renderer()
+    : pipeline_{vertex_shader, fragment_shaders}, cube_{cube_vertices,
+                                                      cube_idxs} {
 
   pipeline_.use();
   pipeline_.set_uniform("light.intense", 0.8);
@@ -211,10 +221,6 @@ void renderer::draw(clock::time_point ts) {
   pipeline_.set_uniform("norm_rotation", norm_rotation);
   pipeline_.set_uniform("light.pos", light_pos);
 
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
-  pipeline_.set_attrib_pointer("position", &vertex::position);
-  pipeline_.set_attrib_pointer("normal", &vertex::normal);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
-  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+  cube_.draw(pipeline_, "position", "normal");
   glFlush();
 }
