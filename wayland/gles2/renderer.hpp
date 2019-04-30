@@ -80,16 +80,19 @@ struct vertex {
 
 class mesh {
 public:
+  constexpr mesh() noexcept = default;
   explicit mesh(
       gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes);
 
   void draw(shader_pipeline& pipeline, gsl::czstring<> pos_name,
       gsl::czstring<> normal_name);
 
+  constexpr explicit operator bool() const noexcept { return vbo_ && ibo_; };
+
 private:
   buffer ibo_;
   buffer vbo_;
-  unsigned triangles_count_;
+  unsigned triangles_count_ = 0;
 };
 
 class renderer {
@@ -108,5 +111,6 @@ private:
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;
   mesh cube_;
+  mesh landscape_;
   size sz_;
 };
