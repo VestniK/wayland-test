@@ -107,7 +107,6 @@ public:
 private:
   shader_pipeline pipeline_;
   uniform_location<glm::mat4> camera_uniform_;
-  uniform_location<glm::vec3> light_pos_uniform_;
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;
   mesh cube_;

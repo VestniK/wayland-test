@@ -39,6 +39,7 @@ gsl::czstring<> fragment_shaders[] = {
         vec3 pos;
         float intense;
         float ambient;
+        float attenuation;
       };
 
       vec3 phong_reflect(light_source light, vec3 surf_color, vec3 world_pos, vec3 world_normal) {
@@ -47,7 +48,8 @@ gsl::czstring<> fragment_shaders[] = {
         brightnes = clamp(brightnes, 0.0, 1.0);
         vec3 diffuse = brightnes*surf_color;
         vec3 ambient = light.intense*light.ambient*surf_color;
-        return diffuse + ambient;
+        float attenuation = 1.0/(1.0 + light.attenuation*pow(length(light.pos - world_pos), 2.0));
+        return ambient + attenuation*diffuse;
       }
     )",
     R"(
@@ -212,15 +214,15 @@ renderer::renderer()
                                                       cube_idxs} {
   pipeline_.use();
   pipeline_.get_uniform<float>("light.intense").set_value(0.8);
-  pipeline_.get_uniform<float>("light.ambient").set_value(0.09);
-  light_pos_uniform_ = pipeline_.get_uniform<glm::vec3>("light.pos");
+  pipeline_.get_uniform<float>("light.ambient").set_value(0.3);
+  pipeline_.get_uniform<float>("light.attenuation").set_value(0.01);
+  pipeline_.get_uniform<glm::vec3>("light.pos").set_value({2., 5., 15.});
   model_world_uniform_ = pipeline_.get_uniform<glm::mat4>("model");
   norm_world_uniform_ = pipeline_.get_uniform<glm::mat3>("norm_rotation");
 
   camera_uniform_ = pipeline_.get_uniform<glm::mat4>("camera");
-  light_pos_uniform_.set_value({.0, 5., 15.});
 
-  const mesh_data land_data = generate_flat_landscape(.5, 5);
+  const mesh_data land_data = generate_flat_landscape(.5, 15);
   landscape_ = mesh{land_data.verticies, land_data.indexes};
 
   glEnable(GL_DEPTH_TEST);
@@ -232,8 +234,8 @@ void renderer::resize(size sz) {
   sz_ = sz;
   glViewport(0, 0, sz.width, sz.height);
   const glm::mat4 camera =
-      glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 5.f, 15.f) *
-      glm::lookAt(glm::vec3{.0, .0, 10.}, glm::vec3{4., 2.5, .0},
+      glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f) *
+      glm::lookAt(glm::vec3{.0, .0, 20.}, glm::vec3{4., 2.5, .0},
           glm::vec3{.0, .0, 1.});
 
   camera_uniform_.set_value(camera);
@@ -261,7 +263,7 @@ void renderer::draw(clock::time_point ts) {
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
   cube_.draw(pipeline_, "position", "normal");
-  apply_model_world_transformation(glm::translate(glm::vec3{3., 0., 0.}),
+  apply_model_world_transformation(glm::translate(glm::vec3{1.5, 0., 0.}),
       model_world_uniform_, norm_world_uniform_);
   landscape_.draw(pipeline_, "position", "normal");
   glFlush();
