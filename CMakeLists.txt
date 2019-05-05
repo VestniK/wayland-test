@@ -6,6 +6,9 @@ include(cmake/conan.cmake)
 conan_cmake_run(CONANFILE conanfile.txt
   BASIC_SETUP CMAKE_TARGETS
   BUILD missing
+  SETTINGS arch=${CMAKE_SYSTEM_PROCESSOR}
+  ENV CC=${CMAKE_C_COMPILER}
+  ENV CXX=${CMAKE_CXX_COMPILER}
 )
 
 enable_testing()
@@ -19,6 +22,7 @@ find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
 find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
+add_subdirectory(catch)
 add_subdirectory(wayland)
 
 add_executable(wayland

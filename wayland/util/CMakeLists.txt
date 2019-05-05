@@ -21,6 +21,6 @@ add_executable(get_option.test get_option.test.cpp)
 target_link_libraries(get_option.test
 PRIVATE
   util
-  CONAN_PKG::catch2
+  catch_main
 )
 add_test(NAME get_option COMMAND get_option.test --order rand)

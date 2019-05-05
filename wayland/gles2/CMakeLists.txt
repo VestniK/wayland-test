@@ -2,6 +2,9 @@ add_library(gles2 OBJECT)
 target_sources(gles2 PRIVATE
   gl_resource.cpp
   gl_resource.hpp
+  landscape.cpp
+  landscape.hpp
+  mesh_data.hpp
   renderer.cpp
   renderer.hpp
 )
@@ -18,7 +21,15 @@ add_executable(gl_resource.test gl_resource.test.cpp)
 target_link_libraries(gl_resource.test
 PRIVATE
   gles2
-  CONAN_PKG::catch2
+  catch_main
 )
 add_test(NAME gl_resource COMMAND gl_resource.test --order rand)
 
+add_executable(landscape.test landscape.test.cpp)
+target_link_libraries(landscape.test
+PRIVATE
+  gles2
+  catch_main
+  CONAN_PKG::fmt
+)
+add_test(NAME landscape COMMAND landscape.test --order rand)
