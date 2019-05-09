@@ -172,7 +172,7 @@ renderer::renderer()
 
   camera_uniform_ = pipeline_.get_uniform<glm::mat4>("camera");
 
-  const mesh_data land_data = generate_flat_landscape(.5, 15);
+  const mesh_data land_data = generate_flat_landscape(.5, 15, 10);
   landscape_ = mesh{land_data.verticies, land_data.indexes};
 
   glEnable(GL_DEPTH_TEST);

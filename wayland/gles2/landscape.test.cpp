@@ -34,7 +34,7 @@ std::array<glm::vec3, vertixies_in_triangle * N> get_triangles(
 } // namespace
 
 TEST_CASE("landscape consists of hexagons") {
-  const mesh_data landscape = generate_flat_landscape(1.0, 10);
+  const mesh_data landscape = generate_flat_landscape(1.0, 5, 3);
 
   REQUIRE(landscape.indexes.size() % vertixies_in_hexagon == 0);
 
@@ -60,7 +60,7 @@ TEST_CASE("landscape consists of hexagons") {
                     triangle[1] - triangle[2]) == 0.5_a);
         }
 
-        SECTION("there are 7 unique points (center and hexagon itself)") {
+        SECTION("there are 7 unique points (center and hexagon perimeter)") {
           std::sort(triangles_set.begin(), triangles_set.end(),
               [](glm::vec3 l, glm::vec3 r) {
                 return std::tie(l.x, l.y, l.z) < std::tie(r.x, r.y, r.z);
