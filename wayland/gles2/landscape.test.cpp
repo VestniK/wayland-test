@@ -34,7 +34,10 @@ std::array<glm::vec3, vertixies_in_triangle * N> get_triangles(
 } // namespace
 
 TEST_CASE("landscape consists of hexagons") {
-  const mesh_data landscape = generate_flat_landscape(1.0, 5, 3);
+  auto columns = GENERATE(range(1, 4));
+  auto rows = GENERATE(range(1, 4));
+  auto radius = 0.1 * GENERATE(range(9, 11));
+  const mesh_data landscape = generate_flat_landscape(radius, columns, rows);
 
   REQUIRE(landscape.indexes.size() % vertixies_in_hexagon == 0);
 
@@ -52,12 +55,15 @@ TEST_CASE("landscape consists of hexagons") {
 
         SECTION("triangle {} is equilateral"_format(
             triangle_offset / triangles_in_hexagon)) {
-          CHECK(glm::dot(triangle[1] - triangle[0],
-                    triangle[2] - triangle[0]) == 0.5_a);
-          CHECK(glm::dot(triangle[0] - triangle[1],
-                    triangle[2] - triangle[1]) == 0.5_a);
-          CHECK(glm::dot(triangle[0] - triangle[2],
-                    triangle[1] - triangle[2]) == 0.5_a);
+          CHECK(glm::dot(triangle[1] - triangle[0], triangle[2] - triangle[0]) /
+                    std::pow(radius, 2) ==
+                0.5_a);
+          CHECK(glm::dot(triangle[0] - triangle[1], triangle[2] - triangle[1]) /
+                    std::pow(radius, 2) ==
+                0.5_a);
+          CHECK(glm::dot(triangle[0] - triangle[2], triangle[1] - triangle[2]) /
+                    std::pow(radius, 2) ==
+                0.5_a);
         }
 
         SECTION("there are 7 unique points (center and hexagon perimeter)") {
