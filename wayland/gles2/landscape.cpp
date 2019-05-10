@@ -1,9 +1,40 @@
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 
 #include <glm/ext.hpp>
 
 #include <wayland/gles2/landscape.hpp>
+#include <wayland/gles2/triangular_net.hpp>
+
+namespace {
+namespace morton {
+
+constexpr uint64_t S[] = {16, 8, 4, 2, 1};
+constexpr uint64_t M[] = {0x0000'ffff'0000'ffff, 0x00ff'00ff'00ff'00ff,
+    0x0f0f'0f0f'0f0f'0f0f, 0x3333'3333'3333'3333, 0x5555'5555'5555'5555};
+
+constexpr uint64_t interleave(uint32_t val) noexcept {
+  uint64_t r = val;
+  r = (r | (r << S[0])) & M[0];
+  r = (r | (r << S[1])) & M[1];
+  r = (r | (r << S[2])) & M[2];
+  r = (r | (r << S[3])) & M[3];
+  r = (r | (r << S[4])) & M[4];
+  return r;
+}
+
+constexpr uint64_t code(uint32_t x, uint32_t y) noexcept {
+  return interleave(x) | (interleave(y) << 1);
+}
+
+struct hasher {
+  constexpr size_t operator()(triangular::point pt) const noexcept {
+    return code(static_cast<unsigned>(pt.tx), static_cast<unsigned>(pt.ty));
+  }
+};
+
+} // namespace morton
+} // namespace
 
 mesh_data generate_flat_landscape(float cell_radius, int columns, int rows) {
   /*
@@ -39,19 +70,13 @@ mesh_data generate_flat_landscape(float cell_radius, int columns, int rows) {
    */
   mesh_data res;
 
-  // clang-format off
-  const auto triangle_to_cartesian = cell_radius * glm::mat2{
-      1., 0.,
-      std::cos(M_PI / 3), std::sin(M_PI / 3)
-  };
-  // clang-format on
-
-  std::map<std::pair<int, int>, GLuint> idxs;
+  std::unordered_map<triangular::point, GLuint, morton::hasher> idxs;
   auto idx = [&](int tx, int ty) {
     auto [it, success] = idxs.insert({{tx, ty}, res.verticies.size()});
     if (success) {
       res.verticies.push_back(
-          {{triangle_to_cartesian * glm::vec2{tx, ty}, 0.}, {0., 0., 1.}});
+          {{cell_radius * triangular::to_cartesian(it->first), 0.},
+              {0., 0., 1.}});
     }
     return it->second;
   };

@@ -1,7 +1,7 @@
 [requires]
 gsl_microsoft/20180102@bincrafters/stable
 glm/0.9.8.5@bincrafters/stable
-catch2/2.5.0@bincrafters/stable
+Catch2/2.7.2@catchorg/stable
 fmt/5.3.0@bincrafters/stable
 chaiscript/6.1.0@sesame/stable
 

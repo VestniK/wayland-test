@@ -7,6 +7,8 @@ target_sources(gles2 PRIVATE
   mesh_data.hpp
   renderer.cpp
   renderer.hpp
+  triangular_net.cpp
+  triangular_net.hpp
 )
 target_include_directories(gles2 PUBLIC ${PROJECT_SOURCE_DIR})
 target_compile_features(gles2 PUBLIC cxx_std_17)
@@ -21,6 +23,7 @@ add_catch_tests(
 SOURCES
   gl_resource.test.cpp
   landscape.test.cpp
+  triangular_net.test.cpp
 LIBS
   gles2
 )
