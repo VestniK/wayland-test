@@ -17,19 +17,11 @@ target_link_libraries(gles2 PUBLIC
   CONAN_PKG::gsl_microsoft
 )
 
-add_executable(gl_resource.test gl_resource.test.cpp)
-target_link_libraries(gl_resource.test
-PRIVATE
+add_catch_tests(
+SOURCES
+  gl_resource.test.cpp
+  landscape.test.cpp
+LIBS
   gles2
-  catch_main
 )
-add_test(NAME gl_resource COMMAND gl_resource.test --order rand)
-
-add_executable(landscape.test landscape.test.cpp)
-target_link_libraries(landscape.test
-PRIVATE
-  gles2
-  catch_main
-  CONAN_PKG::fmt
-)
-add_test(NAME landscape COMMAND landscape.test --order rand)
+target_link_libraries(landscape.test PRIVATE CONAN_PKG::fmt)

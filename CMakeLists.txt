@@ -23,6 +23,7 @@ find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
 add_subdirectory(catch)
+include(catch/add_catch_tests.cmake)
 add_subdirectory(wayland)
 
 add_executable(wayland

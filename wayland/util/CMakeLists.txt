@@ -17,10 +17,9 @@ if (WAYLAND_TEST_WERROR)
   target_compile_options(util PUBLIC -Werror=all)
 endif()
 
-add_executable(get_option.test get_option.test.cpp)
-target_link_libraries(get_option.test
-PRIVATE
+add_catch_tests(
+SOURCES
+  get_option.test.cpp
+LIBS
   util
-  catch_main
 )
-add_test(NAME get_option COMMAND get_option.test --order rand)
