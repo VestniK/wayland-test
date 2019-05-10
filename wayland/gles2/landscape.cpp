@@ -81,16 +81,17 @@ mesh_data generate_flat_landscape(float cell_radius, int columns, int rows) {
     return it->second;
   };
 
-  for (int n = 0; n < rows; ++n) {
-    const int m0 = -n / 2;
-    for (int m = m0; m < columns - m0; ++m) {
-      const GLuint c = idx(m - n, 2 * n + m);
-      const GLuint l0 = idx(m - n, 2 * n + m - 1);
-      const GLuint l1 = idx(m - n - 1, 2 * n + m);
-      const GLuint l2 = idx(m - n - 1, 2 * n + m + 1);
-      const GLuint r0 = idx(m - n + 1, 2 * n + m - 1);
-      const GLuint r1 = idx(m - n + 1, 2 * n + m);
-      const GLuint r2 = idx(m - n, 2 * n + m + 1);
+  for (int m = 0; m < columns; ++m) {
+    for (int n = 0; n < rows - m % 2; ++n) {
+      triangular::point center{
+          2 * m - n - (m + 1) / 2, 2 * n + 1 - (m + 1) % 2};
+      const GLuint c = idx(center.tx, center.ty);
+      const GLuint l0 = idx(center.tx, center.ty - 1);
+      const GLuint l1 = idx(center.tx - 1, center.ty);
+      const GLuint l2 = idx(center.tx - 1, center.ty + 1);
+      const GLuint r0 = idx(center.tx + 1, center.ty - 1);
+      const GLuint r1 = idx(center.tx + 1, center.ty);
+      const GLuint r2 = idx(center.tx, center.ty + 1);
 
       res.indexes.push_back(c);
       res.indexes.push_back(l0);

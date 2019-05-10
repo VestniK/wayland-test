@@ -9,7 +9,6 @@
 #include <wayland/gles2/landscape.hpp>
 
 using namespace fmt::literals;
-using namespace Catch::literals;
 
 namespace test {
 
@@ -31,48 +30,93 @@ std::array<glm::vec3, vertixies_in_triangle * N> get_triangles(
   return triangles_set;
 }
 
+struct box {
+  glm::vec3 min{std::numeric_limits<float>::max()};
+  glm::vec3 max{std::numeric_limits<float>::min()};
+
+  float length() const noexcept { return max.x > min.x ? max.x - min.x : 0.f; }
+  float width() const noexcept { return max.y > min.y ? max.y - min.y : 0.f; }
+  float height() const noexcept { return max.z > min.z ? max.z - min.z : 0.f; }
+};
+
+box expand(box b, vertex pt) noexcept {
+  b.min.x = std::min(b.min.x, pt.position.x);
+  b.min.y = std::min(b.min.y, pt.position.y);
+  b.min.z = std::min(b.min.z, pt.position.z);
+
+  b.max.x = std::max(b.max.x, pt.position.x);
+  b.max.y = std::max(b.max.y, pt.position.y);
+  b.max.z = std::max(b.max.z, pt.position.z);
+  return b;
+}
+
+template <typename InputIt>
+box bounding_box(InputIt first, InputIt last) noexcept {
+  return std::accumulate(first, last, box{}, expand);
+}
+
 } // namespace
 
-TEST_CASE("landscape consists of hexagons") {
-  auto columns = GENERATE(range(1, 4));
-  auto rows = GENERATE(range(1, 4));
-  auto radius = 0.1 * GENERATE(range(9, 11));
+TEST_CASE("generate_flat_landscape", "[landscape]") {
+  const auto columns = GENERATE(range(1, 4));
+  const auto rows = GENERATE(range(2, 4));
+  const auto radius = 0.1 * GENERATE(range(9, 11));
+  INFO("{}x{} hexagons of size {}"_format(columns, rows, radius));
   const mesh_data landscape = generate_flat_landscape(radius, columns, rows);
 
-  REQUIRE(landscape.indexes.size() % vertixies_in_hexagon == 0);
+  SECTION("covers flat rectangular area") {
+    const box landscape_bounds =
+        bounding_box(landscape.verticies.begin(), landscape.verticies.end());
+    SECTION("mesh is flat") {
+      CHECK_THAT(landscape_bounds.height(), Catch::WithinAbs(0., 0.0001));
+    }
+    SECTION("mesh has proper x dimensions") {
+      CHECK(landscape_bounds.length() ==
+            Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) * radius));
+    }
+    SECTION("mesh has proper y dimensions") {
+      CHECK(landscape_bounds.width() ==
+            Approx(rows * 2 * radius * std::sin(M_PI / 3)));
+    }
+  }
 
-  for (size_t index_set_start = 0; index_set_start < landscape.indexes.size();
-       index_set_start += vertixies_in_hexagon) {
-    std::array<glm::vec3, vertixies_in_hexagon> triangles_set =
-        get_triangles<triangles_in_hexagon>(landscape, index_set_start);
+  SECTION("generates set of hexagons") {
 
-    SECTION("triangles {} - {} of {} forms hexagon"_format(index_set_start,
-        index_set_start + vertixies_in_hexagon, landscape.indexes.size())) {
-      for (size_t triangle_offset = 0; triangle_offset < triangles_set.size();
-           triangle_offset += vertixies_in_triangle) {
-        gsl::span<const glm::vec3, vertixies_in_triangle> triangle{
-            triangles_set.data() + triangle_offset, vertixies_in_triangle};
+    REQUIRE(landscape.indexes.size() % vertixies_in_hexagon == 0);
 
-        SECTION("triangle {} is equilateral"_format(
-            triangle_offset / triangles_in_hexagon)) {
-          CHECK(glm::dot(triangle[1] - triangle[0], triangle[2] - triangle[0]) /
-                    std::pow(radius, 2) ==
-                0.5_a);
-          CHECK(glm::dot(triangle[0] - triangle[1], triangle[2] - triangle[1]) /
-                    std::pow(radius, 2) ==
-                0.5_a);
-          CHECK(glm::dot(triangle[0] - triangle[2], triangle[1] - triangle[2]) /
-                    std::pow(radius, 2) ==
-                0.5_a);
-        }
+    for (size_t index_set_start = 0; index_set_start < landscape.indexes.size();
+         index_set_start += vertixies_in_hexagon) {
+      std::array<glm::vec3, vertixies_in_hexagon> triangles_set =
+          get_triangles<triangles_in_hexagon>(landscape, index_set_start);
 
-        SECTION("there are 7 unique points (center and hexagon perimeter)") {
-          std::sort(triangles_set.begin(), triangles_set.end(),
-              [](glm::vec3 l, glm::vec3 r) {
-                return std::tie(l.x, l.y, l.z) < std::tie(r.x, r.y, r.z);
-              });
-          auto it = std::unique(triangles_set.begin(), triangles_set.end());
-          CHECK(std::distance(triangles_set.begin(), it) == 7);
+      SECTION("triangles {} - {} of {} forms hexagon"_format(index_set_start,
+          index_set_start + vertixies_in_hexagon, landscape.indexes.size())) {
+        for (size_t triangle_offset = 0; triangle_offset < triangles_set.size();
+             triangle_offset += vertixies_in_triangle) {
+          gsl::span<const glm::vec3, vertixies_in_triangle> triangle{
+              triangles_set.data() + triangle_offset, vertixies_in_triangle};
+
+          SECTION("triangle {} is equilateral"_format(
+              triangle_offset / triangles_in_hexagon)) {
+            CHECK(glm::dot(
+                      triangle[1] - triangle[0], triangle[2] - triangle[0]) ==
+                  Approx(0.5 * radius * radius));
+            CHECK(glm::dot(
+                      triangle[0] - triangle[1], triangle[2] - triangle[1]) ==
+                  Approx(0.5 * radius * radius));
+            CHECK(glm::dot(
+                      triangle[0] - triangle[2], triangle[1] - triangle[2]) ==
+                  Approx(0.5 * radius * radius));
+          }
+
+          SECTION("there are 7 unique points (center and hexagon perimeter)") {
+            std::sort(triangles_set.begin(), triangles_set.end(),
+                [](glm::vec3 l, glm::vec3 r) {
+                  return std::tie(l.x, l.y, l.z) < std::tie(r.x, r.y, r.z);
+                });
+            auto it = std::unique(triangles_set.begin(), triangles_set.end());
+            CHECK(std::distance(triangles_set.begin(), it) == 7);
+          }
         }
       }
     }
