@@ -2,6 +2,13 @@
 
 #include <glm/glm.hpp>
 
+/**
+ * Triangle coords system basis:
+ *
+ *     ty
+ *    /       angle between basis vectors = M_PI/3
+ *   /___tx   basis vector length = cell_radius
+ */
 namespace triangular {
 
 struct point {

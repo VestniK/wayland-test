@@ -10,8 +10,3 @@ struct vertex {
   glm::vec3 position;
   glm::vec3 normal;
 };
-
-struct mesh_data {
-  std::vector<vertex> verticies;
-  std::vector<GLuint> indexes;
-};

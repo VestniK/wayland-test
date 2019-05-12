@@ -172,8 +172,8 @@ renderer::renderer()
 
   camera_uniform_ = pipeline_.get_uniform<glm::mat4>("camera");
 
-  const mesh_data land_data = generate_flat_landscape(.3, 8, 9);
-  landscape_ = mesh{land_data.verticies, land_data.indexes};
+  landscape land{.2, 30, 20};
+  landscape_ = mesh{land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
@@ -213,8 +213,8 @@ void renderer::draw(clock::time_point ts) {
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
   cube_.draw(pipeline_, "position", "normal");
-  apply_model_world_transformation(glm::translate(glm::vec3{1.5, 0., 0.}),
-      model_world_uniform_, norm_world_uniform_);
+  apply_model_world_transformation(
+      glm::mat4{1.}, model_world_uniform_, norm_world_uniform_);
   landscape_.draw(pipeline_, "position", "normal");
   glFlush();
 }

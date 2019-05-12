@@ -21,12 +21,12 @@ constexpr unsigned vertixies_in_hexagon =
 
 template <size_t N>
 std::array<glm::vec3, vertixies_in_triangle * N> get_triangles(
-    const mesh_data& mesh, size_t start_offset) noexcept {
+    const landscape& land, size_t start_offset) noexcept {
   std::array<glm::vec3, vertixies_in_triangle * N> triangles_set;
-  const auto indexes = gsl::span<const GLuint>{mesh.indexes}.subspan(
+  const auto indexes = gsl::span<const GLuint>{land.indexes()}.subspan(
       start_offset, vertixies_in_triangle * N);
   std::transform(indexes.begin(), indexes.end(), triangles_set.begin(),
-      [&](GLuint idx) { return mesh.verticies[idx].position; });
+      [vert = land.verticies()](GLuint idx) { return vert[idx].position; });
   return triangles_set;
 }
 
@@ -60,13 +60,13 @@ box bounding_box(InputIt first, InputIt last) noexcept {
 TEST_CASE("generate_flat_landscape", "[landscape]") {
   const auto columns = GENERATE(range(1, 4));
   const auto rows = GENERATE(range(2, 4));
-  const auto radius = 0.1 * GENERATE(range(9, 11));
+  const auto radius = 0.1f * GENERATE(range(9, 11));
   INFO("{}x{} hexagons of size {}"_format(columns, rows, radius));
-  const mesh_data landscape = generate_flat_landscape(radius, columns, rows);
+  landscape land{radius, columns, rows};
 
   SECTION("covers flat rectangular area") {
-    const box landscape_bounds =
-        bounding_box(landscape.verticies.begin(), landscape.verticies.end());
+    gsl::span<const vertex> vert = land.verticies();
+    const box landscape_bounds = bounding_box(vert.begin(), vert.end());
     SECTION("mesh is flat") {
       CHECK_THAT(landscape_bounds.height(), Catch::WithinAbs(0., 0.0001));
     }
@@ -82,15 +82,15 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
 
   SECTION("generates set of hexagons") {
 
-    REQUIRE(landscape.indexes.size() % vertixies_in_hexagon == 0);
+    REQUIRE(land.indexes().size() % vertixies_in_hexagon == 0);
 
-    for (size_t index_set_start = 0; index_set_start < landscape.indexes.size();
+    for (int index_set_start = 0; index_set_start < land.indexes().size();
          index_set_start += vertixies_in_hexagon) {
       std::array<glm::vec3, vertixies_in_hexagon> triangles_set =
-          get_triangles<triangles_in_hexagon>(landscape, index_set_start);
+          get_triangles<triangles_in_hexagon>(land, index_set_start);
 
       SECTION("triangles {} - {} of {} forms hexagon"_format(index_set_start,
-          index_set_start + vertixies_in_hexagon, landscape.indexes.size())) {
+          index_set_start + vertixies_in_hexagon, land.indexes().size())) {
         for (size_t triangle_offset = 0; triangle_offset < triangles_set.size();
              triangle_offset += vertixies_in_triangle) {
           gsl::span<const glm::vec3, vertixies_in_triangle> triangle{
