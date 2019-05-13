@@ -19,12 +19,12 @@ target_link_libraries(gles2 PUBLIC
   CONAN_PKG::gsl_microsoft
 )
 
-add_catch_tests(
+add_catch_test(
+NAME
+  gles2.test
 SOURCES
   gl_resource.test.cpp
   landscape.test.cpp
   triangular_net.test.cpp
-LIBS
-  gles2
 )
-target_link_libraries(landscape.test PRIVATE CONAN_PKG::fmt)
+target_link_libraries(gles2.test PRIVATE gles2 CONAN_PKG::fmt)

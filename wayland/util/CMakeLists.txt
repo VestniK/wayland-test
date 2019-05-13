@@ -17,9 +17,10 @@ if (WAYLAND_TEST_WERROR)
   target_compile_options(util PUBLIC -Werror=all)
 endif()
 
-add_catch_tests(
+add_catch_test(
+NAME
+  util.test
 SOURCES
   get_option.test.cpp
-LIBS
-  util
 )
+target_link_libraries(util.test PRIVATE util)

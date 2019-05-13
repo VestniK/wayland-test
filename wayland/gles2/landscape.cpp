@@ -43,15 +43,6 @@ landscape::landscape(float cell_radius, int columns, int rows) {
    * l1     c     r1
    *   \         /
    *    l0 --- r0
-   *
-   * m - cell column
-   * n - cell row
-   *     __
-   *  __/11\__
-   * /01\__/21\
-   * \__/10\__/
-   * /00\__/20\
-   * \__/  \__/
    */
 
   std::unordered_map<triangular::point, GLuint, morton::hasher> idxs;
@@ -67,8 +58,7 @@ landscape::landscape(float cell_radius, int columns, int rows) {
 
   for (int m = 0; m < columns; ++m) {
     for (int n = 0; n < rows - m % 2; ++n) {
-      triangular::point center{
-          2 * m - n - (m + 1) / 2, 2 * n + 1 - (m + 1) % 2};
+      triangular::point center = hexagon_net::cell_center(m, n);
       const GLuint c = idx(center.tx, center.ty);
       const GLuint l0 = idx(center.tx, center.ty - 1);
       const GLuint l1 = idx(center.tx - 1, center.ty);

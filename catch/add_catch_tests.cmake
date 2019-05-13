@@ -1,20 +1,15 @@
-function(add_catch_tests)
+function(add_catch_test)
   set(options)
-  set(one_value_args)
-  set(multi_value_args SOURCES LIBS)
-  cmake_parse_arguments(CATCH_TESTS
+  set(one_value_args NAME)
+  set(multi_value_args SOURCES)
+  cmake_parse_arguments(CATCH_TEST
     "${options}" "${one_value_args}" "${multi_value_args}"
     ${ARGN}
   )
-  foreach(src ${CATCH_TESTS_SOURCES})
-    get_filename_component(target_name ${src} NAME_WLE)
-    get_filename_component(test_name ${src} NAME_WE)
-    add_executable(${target_name} ${src})
-    target_link_libraries(${target_name}
-    PRIVATE
-      ${CATCH_TESTS_LIBS}
-      catch_main
-    )
-    add_test(NAME ${test_name} COMMAND ${target_name} --order rand)
-  endforeach()
+  add_executable(${CATCH_TEST_NAME} ${CATCH_TEST_SOURCES})
+  target_link_libraries(${CATCH_TEST_NAME}
+  PRIVATE
+    catch_main
+  )
+  add_test(NAME ${CATCH_TEST_NAME} COMMAND ${CATCH_TEST_NAME} --order rand)
 endfunction()
