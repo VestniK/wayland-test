@@ -77,29 +77,12 @@ landscape::landscape(float cell_radius, int columns, int rows) {
       const GLuint r1 = idx(center.tx + 1, center.ty);
       const GLuint r2 = idx(center.tx, center.ty + 1);
 
-      indexes_.push_back(c);
-      indexes_.push_back(l0);
-      indexes_.push_back(l1);
-
-      indexes_.push_back(c);
-      indexes_.push_back(l1);
-      indexes_.push_back(l2);
-
-      indexes_.push_back(c);
-      indexes_.push_back(l2);
-      indexes_.push_back(r2);
-
-      indexes_.push_back(c);
-      indexes_.push_back(r2);
-      indexes_.push_back(r1);
-
-      indexes_.push_back(c);
-      indexes_.push_back(r1);
-      indexes_.push_back(r0);
-
-      indexes_.push_back(c);
-      indexes_.push_back(r0);
-      indexes_.push_back(l0);
+      triangles_.push_back({c, l0, l1});
+      triangles_.push_back({c, l1, l2});
+      triangles_.push_back({c, l2, r2});
+      triangles_.push_back({c, r2, r1});
+      triangles_.push_back({c, r1, r0});
+      triangles_.push_back({c, r0, l0});
     }
   }
 }
