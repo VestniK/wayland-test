@@ -1,6 +1,6 @@
 #include <vector>
 
-#include <glm/ext.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
 #include <wayland/gles2/landscape.hpp>
@@ -204,8 +204,9 @@ void renderer::draw(clock::time_point ts) {
   const GLfloat angle = 2 * M_PI * spin_phase;
 
   glm::mat4 model =
-      glm::translate(glm::vec3{4 + 2 * std::cos(3 * spot_angle),
-          2.5 - 0.6 * std::sin(5 * spot_angle), 1.5 + std::cos(spot_angle)}) *
+      glm::translate(glm::mat4{1.}, glm::vec3{4 + 2 * std::cos(3 * spot_angle),
+                                        2.5 - 0.6 * std::sin(5 * spot_angle),
+                                        1.5 + std::cos(spot_angle)}) *
       glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
