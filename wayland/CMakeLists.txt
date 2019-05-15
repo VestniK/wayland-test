@@ -3,7 +3,7 @@ add_subdirectory(gles2)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
   COMMAND Wayland::scanner client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
-  COMMAND Wayland::scanner code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
+  COMMAND Wayland::scanner private-code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
   DEPENDS ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml
 )
 set_source_files_properties(
