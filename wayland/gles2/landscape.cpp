@@ -29,7 +29,7 @@ constexpr uint64_t code(uint32_t x, uint32_t y) noexcept {
 
 struct hasher {
   constexpr size_t operator()(triangular::point pt) const noexcept {
-    return code(static_cast<unsigned>(pt.tx), static_cast<unsigned>(pt.ty));
+    return code(static_cast<unsigned>(pt.x), static_cast<unsigned>(pt.y));
   }
 };
 
@@ -37,17 +37,9 @@ struct hasher {
 } // namespace
 
 landscape::landscape(float cell_radius, int columns, int rows) {
-  /*
-   *    l2 --- r2
-   *   /         \
-   * l1     c     r1
-   *   \         /
-   *    l0 --- r0
-   */
-
   std::unordered_map<triangular::point, GLuint, morton::hasher> idxs;
-  auto idx = [&](int tx, int ty) {
-    auto [it, success] = idxs.insert({{tx, ty}, verticies_.size()});
+  auto idx = [&](triangular::point pt) {
+    auto [it, success] = idxs.insert({pt, verticies_.size()});
     if (success) {
       verticies_.push_back(
           {{cell_radius * triangular::to_cartesian(it->first), 0.},
@@ -56,23 +48,25 @@ landscape::landscape(float cell_radius, int columns, int rows) {
     return it->second;
   };
 
-  for (int m = 0; m < columns; ++m) {
-    for (int n = 0; n < rows - m % 2; ++n) {
-      triangular::point center = hexagon_net::cell_center(m, n);
-      const GLuint c = idx(center.tx, center.ty);
-      const GLuint l0 = idx(center.tx, center.ty - 1);
-      const GLuint l1 = idx(center.tx - 1, center.ty);
-      const GLuint l2 = idx(center.tx - 1, center.ty + 1);
-      const GLuint r0 = idx(center.tx + 1, center.ty - 1);
-      const GLuint r1 = idx(center.tx + 1, center.ty);
-      const GLuint r2 = idx(center.tx, center.ty + 1);
+  using namespace hexagon_net;
 
-      triangles_.push_back({c, l0, l1});
-      triangles_.push_back({c, l1, l2});
-      triangles_.push_back({c, l2, r2});
-      triangles_.push_back({c, r2, r1});
-      triangles_.push_back({c, r1, r0});
-      triangles_.push_back({c, r0, l0});
+  for (int m = 0; m < columns; ++m) {
+    for (int n = 0; n < rows - std::abs(m % 2); ++n) {
+      triangular::point center = hexagon_net::cell_center(m, n);
+      const GLuint c = idx(center);
+      const GLuint bl = idx(cell_coord(center, corner::bottom_left));
+      const GLuint ml = idx(cell_coord(center, corner::midle_left));
+      const GLuint tl = idx(cell_coord(center, corner::top_left));
+      const GLuint br = idx(cell_coord(center, corner::bottom_right));
+      const GLuint mr = idx(cell_coord(center, corner::midle_right));
+      const GLuint tr = idx(cell_coord(center, corner::top_right));
+
+      triangles_.push_back({c, bl, ml});
+      triangles_.push_back({c, ml, tl});
+      triangles_.push_back({c, tl, tr});
+      triangles_.push_back({c, tr, mr});
+      triangles_.push_back({c, mr, br});
+      triangles_.push_back({c, br, bl});
     }
   }
 }

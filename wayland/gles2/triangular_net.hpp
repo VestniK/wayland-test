@@ -11,27 +11,12 @@
  */
 namespace triangular {
 
-struct point {
-  int tx;
-  int ty;
-};
-
-constexpr point operator+(point l, point r) noexcept {
-  return {l.tx + r.tx, l.ty + r.ty};
-}
-constexpr point operator-(point l, point r) noexcept {
-  return {l.tx - r.tx, l.ty - r.ty};
-}
-constexpr point operator-(point pt) noexcept { return {-pt.tx, -pt.ty}; }
-
-constexpr bool operator==(point lhs, point rhs) noexcept {
-  return lhs.tx == rhs.tx && lhs.ty == rhs.ty;
-}
+using point = glm::ivec2;
 
 extern const glm::mat2 to_cartesian_transformation;
 
 inline glm::vec2 to_cartesian(point pt) noexcept {
-  return to_cartesian_transformation * glm::vec2{pt.tx, pt.ty};
+  return to_cartesian_transformation * pt;
 }
 
 } // namespace triangular
@@ -50,6 +35,48 @@ namespace hexagon_net {
  */
 constexpr inline triangular::point cell_center(int m, int n) noexcept {
   return {2 * m - n - (m + 1) / 2, 2 * n + 1 - (m + 1) % 2};
+}
+
+/**
+ *    tl --- tr
+ *   /         \
+ * ml     c     mr
+ *   \         /
+ *    bl --- br
+ */
+enum class corner {
+  top_left,
+  top_right,
+  midle_left,
+  midle_right,
+  bottom_left,
+  bottom_right
+};
+
+constexpr triangular::point cell_coord(
+    triangular::point center, corner point_corner) noexcept {
+  triangular::point res = center;
+  switch (point_corner) {
+  case corner::top_left:
+    res += triangular::point{-1, 1};
+    break;
+  case corner::top_right:
+    res += triangular::point{0, 1};
+    break;
+  case corner::midle_left:
+    res += triangular::point{-1, 0};
+    break;
+  case corner::midle_right:
+    res += triangular::point{1, 0};
+    break;
+  case corner::bottom_left:
+    res += triangular::point{0, -1};
+    break;
+  case corner::bottom_right:
+    res += triangular::point{1, -1};
+    break;
+  }
+  return res;
 }
 
 } // namespace hexagon_net
