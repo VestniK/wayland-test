@@ -6,7 +6,10 @@
 
 #include <gsl/string_span>
 
-#include <wayland/util/geom.hpp>
+#include <glm/ext.hpp>
+#include <glm/glm.hpp>
+
+#include <wayland/util/member.hpp>
 
 template <typename Deleter>
 class gl_resource : Deleter {
@@ -50,13 +53,6 @@ enum class shader_type : GLenum {
 shader compile(shader_type type, gsl::czstring<> src);
 shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs);
 
-// shader program
-struct program_deleter {
-  void operator()(GLuint handle) { glDeleteProgram(handle); }
-};
-using shader_program = gl_resource<program_deleter>;
-shader_program link(const shader& vertex, const shader& fragment);
-
 // Buffers
 struct buffer_deleter {
   void operator()(GLuint handle) { glDeleteBuffers(1, &handle); }
@@ -68,3 +64,70 @@ inline buffer gen_buffer() {
   glGenBuffers(1, &handle);
   return {handle};
 }
+
+// shader program uniforms
+template <typename T>
+class uniform_location {
+public:
+  constexpr uniform_location() noexcept = default;
+  constexpr explicit uniform_location(GLint location) noexcept
+      : location_{location} {}
+
+  // must be specialized for each reauired T
+  void set_value(const T& val) = delete;
+
+private:
+  GLint location_ = 0;
+};
+
+template <>
+inline void uniform_location<float>::set_value(const float& val) {
+  glUniform1f(location_, val);
+}
+
+template <>
+inline void uniform_location<glm::mat4>::set_value(const glm::mat4& val) {
+  glUniformMatrix4fv(location_, 1, GL_FALSE, glm::value_ptr(val));
+}
+
+template <>
+inline void uniform_location<glm::mat3>::set_value(const glm::mat3& val) {
+  glUniformMatrix3fv(location_, 1, GL_FALSE, glm::value_ptr(val));
+}
+
+template <>
+inline void uniform_location<glm::vec3>::set_value(const glm::vec3& val) {
+  glUniform3fv(location_, 1, glm::value_ptr(val));
+}
+
+// shader program
+struct program_deleter {
+  void operator()(GLuint handle) { glDeleteProgram(handle); }
+};
+gl_resource<program_deleter> link(const shader& vertex, const shader& fragment);
+
+class shader_program {
+public:
+  explicit shader_program(gsl::span<gsl::czstring<>> vertex_shader_sources,
+      gsl::span<gsl::czstring<>> fragment_shader_sources);
+
+  void use();
+
+  template <typename T>
+  uniform_location<T> get_uniform(gsl::czstring<> name) {
+    return uniform_location<T>{
+        glGetUniformLocation(program_handle_.get(), name)};
+  }
+
+  template <typename C>
+  void set_attrib_pointer(
+      gsl::czstring<> name, member_ptr<C, glm::vec3> member) {
+    const GLint id = glGetAttribLocation(program_handle_.get(), name);
+    glVertexAttribPointer(id, 3, GL_FLOAT, GL_FALSE, sizeof(C),
+        reinterpret_cast<const GLvoid*>(member_offset(member)));
+    glEnableVertexAttribArray(id);
+  }
+
+private:
+  gl_resource<program_deleter> program_handle_;
+};

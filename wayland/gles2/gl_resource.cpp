@@ -26,8 +26,9 @@ shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs) {
   return res;
 }
 
-shader_program link(const shader& vertex_shader, const shader& fragment_shader) {
-  shader_program res{glCreateProgram()};
+gl_resource<program_deleter> link(
+    const shader& vertex_shader, const shader& fragment_shader) {
+  gl_resource<program_deleter> res{glCreateProgram()};
   if (!res)
     throw std::runtime_error{"Failed to create GLSL program"};
   glAttachShader(res.get(), vertex_shader.get());

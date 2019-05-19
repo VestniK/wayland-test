@@ -129,13 +129,12 @@ void apply_model_world_transformation(glm::mat4 transformation,
 
 } // namespace
 
-shader_pipeline::shader_pipeline(
-    gsl::span<gsl::czstring<>> vertex_shader_sources,
+shader_program::shader_program(gsl::span<gsl::czstring<>> vertex_shader_sources,
     gsl::span<gsl::czstring<>> fragment_shader_sources)
-    : program_{link(compile(shader_type::vertex, vertex_shader_sources),
+    : program_handle_{link(compile(shader_type::vertex, vertex_shader_sources),
           compile(shader_type::fragment, fragment_shader_sources))} {}
 
-void shader_pipeline::use() { glUseProgram(program_.get()); }
+void shader_program::use() { glUseProgram(program_handle_.get()); }
 
 mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
     : ibo_{gen_buffer()}, vbo_{gen_buffer()}, triangles_count_{
@@ -150,11 +149,11 @@ mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
       GL_STATIC_DRAW);
 }
 
-void mesh::draw(shader_pipeline& pipeline, gsl::czstring<> pos_name,
+void mesh::draw(shader_program& program, gsl::czstring<> pos_name,
     gsl::czstring<> normal_name) {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
-  pipeline.set_attrib_pointer(pos_name, &vertex::position);
-  pipeline.set_attrib_pointer(normal_name, &vertex::normal);
+  program.set_attrib_pointer(pos_name, &vertex::position);
+  program.set_attrib_pointer(normal_name, &vertex::normal);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }

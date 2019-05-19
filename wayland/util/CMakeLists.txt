@@ -3,6 +3,7 @@ target_sources(util PRIVATE
   geom.hpp
   get_option.cpp
   get_option.hpp
+  member.hpp
   xdg.cpp
   xdg.hpp
 )
