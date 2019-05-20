@@ -51,7 +51,7 @@ landscape::landscape(float cell_radius, int columns, int rows) {
   using namespace hexagon_net;
 
   for (int m = 0; m < columns; ++m) {
-    for (int n = 0; n < rows - std::abs(m % 2); ++n) {
+    for (int n = 0; n < rows - (m & 1); ++n) {
       triangular::point center = hexagon_net::cell_center(m, n);
       const GLuint c = idx(center);
       const GLuint bl = idx(cell_coord(center, corner::bottom_left));

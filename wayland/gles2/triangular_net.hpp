@@ -34,7 +34,7 @@ namespace hexagon_net {
  * \__/  \__/
  */
 constexpr inline triangular::point cell_center(int m, int n) noexcept {
-  return {2 * m - n - (m + 1) / 2, 2 * n + 1 - (m + 1) % 2};
+  return {2 * m - n - (m + (m < 0 ? 0 : 1)) / 2, 2 * n + (m & 1)};
 }
 
 /**
