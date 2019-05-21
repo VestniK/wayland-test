@@ -1,1 +1,11 @@
+window.camera_look_at(
+  0, 0, 20,
+  3, 3, 0
+);
+window.draw_for(30*s);
+
+window.camera_look_at(
+  3, 5, 18,
+  3, 3, 0
+);
 window.draw_for(30*s);

@@ -129,13 +129,6 @@ void apply_model_world_transformation(glm::mat4 transformation,
 
 } // namespace
 
-shader_program::shader_program(gsl::span<gsl::czstring<>> vertex_shader_sources,
-    gsl::span<gsl::czstring<>> fragment_shader_sources)
-    : program_handle_{link(compile(shader_type::vertex, vertex_shader_sources),
-          compile(shader_type::fragment, fragment_shader_sources))} {}
-
-void shader_program::use() { glUseProgram(program_handle_.get()); }
-
 mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
     : ibo_{gen_buffer()}, vbo_{gen_buffer()}, triangles_count_{
                                                   static_cast<unsigned>(
@@ -171,6 +164,9 @@ renderer::renderer()
 
   camera_uniform_ = pipeline_.get_uniform<glm::mat4>("camera");
 
+  camera_ = glm::lookAt(
+      glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0}, glm::vec3{.1, .0, 0.});
+
   landscape land{.2, 30, 20};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
@@ -180,14 +176,11 @@ renderer::renderer()
 }
 
 void renderer::resize(size sz) {
-  sz_ = sz;
   glViewport(0, 0, sz.width, sz.height);
-  const glm::mat4 camera =
-      glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f) *
-      glm::lookAt(glm::vec3{.0, .0, 20.}, glm::vec3{4., 2.5, .0},
-          glm::vec3{.0, .0, 1.});
+  projection_ =
+      glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f);
 
-  camera_uniform_.set_value(camera);
+  camera_uniform_.set_value(projection_ * camera_);
 }
 
 void renderer::draw(clock::time_point ts) {
@@ -217,4 +210,9 @@ void renderer::draw(clock::time_point ts) {
       glm::mat4{1.}, model_world_uniform_, norm_world_uniform_);
   landscape_.draw(pipeline_, "position", "normal");
   glFlush();
+}
+
+void renderer::camera_look_at(glm::vec3 eye, glm::vec3 center) {
+  camera_ = glm::lookAt(eye, center, glm::vec3{.0, .0, 1.});
+  camera_uniform_.set_value(projection_ * camera_);
 }

@@ -105,6 +105,9 @@ void play_script(const std::filesystem::path& path, script_window& wnd) {
   engine.add(create_wnd_module());
   engine.add(create_chrono_module());
   engine.add(create_xdg_module());
+
+  engine.add(chaiscript::fun(&script_window::camera_look_at), "camera_look_at");
+
   try {
     engine.eval_file(path.string());
   } catch (stop_script) {

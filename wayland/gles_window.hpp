@@ -23,6 +23,8 @@ public:
   // script_window
   std::error_code draw_frame() override;
   std::error_code draw_for(std::chrono::milliseconds duration) override;
+  void camera_look_at(
+      float ex, float ey, float ez, float cx, float cy, float cz) override;
 
 protected:
   // toplevel_window

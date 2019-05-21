@@ -23,7 +23,8 @@ egl::context make_egl_context(wl_display& display) {
     EGL_NONE};
   // clang-format on
   EGLConfig cfg;
-  if (eglChooseConfig(egl_display.native_handle(), cfg_attr, &cfg, 1, &count) == EGL_FALSE)
+  if (eglChooseConfig(egl_display.native_handle(), cfg_attr, &cfg, 1, &count) ==
+      EGL_FALSE)
     throw std::system_error{eglGetError(), egl::category(), "eglChooseConfig"};
 
   return egl::context{std::move(egl_display), cfg};
@@ -40,7 +41,9 @@ gles_window::~gles_window() noexcept {
     egl_surface_.release_thread();
 }
 
-bool gles_window::is_initialized() const noexcept { return renderer_.has_value(); }
+bool gles_window::is_initialized() const noexcept {
+  return renderer_.has_value();
+}
 
 bool gles_window::paint() {
   if (!renderer_)
@@ -61,7 +64,8 @@ void gles_window::resize(size sz) {
   if (egl_wnd_ && get_size() == sz)
     return;
   if (!egl_wnd_) {
-    egl_wnd_ = wl::unique_ptr<wl_egl_window>{wl_egl_window_create(get_surface(), sz.width, sz.height)};
+    egl_wnd_ = wl::unique_ptr<wl_egl_window>{
+        wl_egl_window_create(get_surface(), sz.width, sz.height)};
     egl_surface_.set_window(*egl_wnd_);
   } else
     wl_egl_window_resize(egl_wnd_.get(), sz.width, sz.height, 0, 0);
@@ -96,4 +100,9 @@ std::error_code gles_window::draw_for(std::chrono::milliseconds duration) {
       return ec;
   }
   return ec;
+}
+
+void gles_window::camera_look_at(
+    float ex, float ey, float ez, float cx, float cy, float cz) {
+  renderer_->camera_look_at({ex, ey, ez}, {cx, cy, cz});
 }

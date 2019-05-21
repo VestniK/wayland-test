@@ -40,6 +40,8 @@ public:
   void resize(size sz);
   void draw(clock::time_point ts);
 
+  void camera_look_at(glm::vec3 eye, glm::vec3 center);
+
 private:
   shader_program pipeline_;
   uniform_location<glm::mat4> camera_uniform_;
@@ -47,5 +49,6 @@ private:
   uniform_location<glm::mat3> norm_world_uniform_;
   mesh cube_;
   mesh landscape_;
-  size sz_;
+  glm::mat4 projection_;
+  glm::mat4 camera_;
 };

@@ -51,3 +51,10 @@ gl_resource<program_deleter> link(
   }
   return res;
 }
+
+shader_program::shader_program(gsl::span<gsl::czstring<>> vertex_shader_sources,
+    gsl::span<gsl::czstring<>> fragment_shader_sources)
+    : program_handle_{link(compile(shader_type::vertex, vertex_shader_sources),
+          compile(shader_type::fragment, fragment_shader_sources))} {}
+
+void shader_program::use() { glUseProgram(program_handle_.get()); }

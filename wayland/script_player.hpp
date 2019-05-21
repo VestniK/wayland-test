@@ -7,6 +7,9 @@
 struct script_window {
   virtual ~script_window() = default;
 
+  virtual void camera_look_at(
+      float ex, float ey, float ez, float cx, float cy, float cz) = 0;
+
   virtual std::error_code draw_frame() = 0;
   virtual std::error_code draw_for(std::chrono::milliseconds) = 0;
 };
