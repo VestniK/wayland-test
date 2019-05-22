@@ -7,6 +7,8 @@
 #include <wayland/gles2/mesh_data.hpp>
 #include <wayland/gles2/renderer.hpp>
 
+#include <wayland/gles2/shaders/shaders.hpp>
+
 using namespace std::literals;
 
 namespace {
@@ -31,46 +33,6 @@ gsl::czstring<> vertex_shader[] = {
       gl_Position = camera * model * vec4(position.xyz, 1.);
     }
 )"};
-
-gsl::czstring<> fragment_shaders[] = {
-    R"(
-      #version 100
-      precision mediump float;)",
-    R"(
-      struct light_source {
-        vec3 pos;
-        float intense;
-        float ambient;
-        float attenuation;
-      };
-
-      vec3 phong_reflect(light_source light, vec3 surf_color, vec3 world_pos, vec3 world_normal) {
-        vec3 light_direction = normalize(light.pos - world_pos);
-        float brightnes = light.intense*dot(world_normal, light_direction);
-        brightnes = clamp(brightnes, 0.0, 1.0);
-        vec3 diffuse = brightnes*surf_color;
-        vec3 ambient = light.intense*light.ambient*surf_color;
-        float attenuation = 1.0/(1.0 + light.attenuation*pow(length(light.pos - world_pos), 2.0));
-        return ambient + attenuation*diffuse;
-      }
-    )",
-    R"(
-      uniform light_source light;
-      uniform mat4 model;
-      uniform mat3 norm_rotation;
-
-      varying vec3 frag_normal;
-      varying vec3 frag_pos;
-
-      void main() {
-        vec3 color = vec3(0.0, 0.7, 0.7);
-
-        gl_FragColor = vec4(
-          phong_reflect(light, color, vec3(model*vec4(frag_pos, 1.0)), normalize(norm_rotation*frag_normal)),
-          1.0
-        );
-      }
-    )"};
 
 // clang-format off
 const vertex cube_vertices[] = {
@@ -152,7 +114,7 @@ void mesh::draw(shader_program& program, gsl::czstring<> pos_name,
 }
 
 renderer::renderer()
-    : pipeline_{vertex_shader, fragment_shaders}, cube_{cube_vertices,
+    : pipeline_{vertex_shader, {&shaders::main_fsl, 1}}, cube_{cube_vertices,
                                                       cube_idxs} {
   pipeline_.use();
   pipeline_.get_uniform<float>("light.intense").set_value(0.8);

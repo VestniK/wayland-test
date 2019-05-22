@@ -4,7 +4,7 @@ shader compile(shader_type type, gsl::czstring<> src) {
   return compile(type, gsl::span<gsl::czstring<>>{&src, 1});
 }
 
-shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs) {
+shader compile(shader_type type, gsl::span<const gsl::czstring<>> srcs) {
   shader res{glCreateShader(static_cast<GLenum>(type))};
   if (!res)
     throw std::runtime_error{"Failed to create shader"};
@@ -52,8 +52,8 @@ gl_resource<program_deleter> link(
   return res;
 }
 
-shader_program::shader_program(gsl::span<gsl::czstring<>> vertex_shader_sources,
-    gsl::span<gsl::czstring<>> fragment_shader_sources)
+shader_program::shader_program(gsl::span<const gsl::czstring<> > vertex_shader_sources,
+    gsl::span<const gsl::czstring<> > fragment_shader_sources)
     : program_handle_{link(compile(shader_type::vertex, vertex_shader_sources),
           compile(shader_type::fragment, fragment_shader_sources))} {}
 

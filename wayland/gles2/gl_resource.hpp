@@ -51,7 +51,7 @@ enum class shader_type : GLenum {
   fragment = GL_FRAGMENT_SHADER
 };
 shader compile(shader_type type, gsl::czstring<> src);
-shader compile(shader_type type, gsl::span<gsl::czstring<>> srcs);
+shader compile(shader_type type, gsl::span<const gsl::czstring<>> srcs);
 
 // Buffers
 struct buffer_deleter {
@@ -108,8 +108,8 @@ gl_resource<program_deleter> link(const shader& vertex, const shader& fragment);
 
 class shader_program {
 public:
-  explicit shader_program(gsl::span<gsl::czstring<>> vertex_shader_sources,
-      gsl::span<gsl::czstring<>> fragment_shader_sources);
+  explicit shader_program(gsl::span<const gsl::czstring<>> vertex_shader_sources,
+      gsl::span<const gsl::czstring<>> fragment_shader_sources);
 
   void use();
 
