@@ -108,8 +108,8 @@ gl_resource<program_deleter> link(const shader& vertex, const shader& fragment);
 
 class shader_program {
 public:
-  explicit shader_program(gsl::span<const gsl::czstring<>> vertex_shader_sources,
-      gsl::span<const gsl::czstring<>> fragment_shader_sources);
+  explicit shader_program(gsl::czstring<> vertex_shader_sources,
+      gsl::czstring<> fragment_shader_sources);
 
   void use();
 

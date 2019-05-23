@@ -52,8 +52,8 @@ gl_resource<program_deleter> link(
   return res;
 }
 
-shader_program::shader_program(gsl::span<const gsl::czstring<> > vertex_shader_sources,
-    gsl::span<const gsl::czstring<> > fragment_shader_sources)
+shader_program::shader_program(gsl::czstring<> vertex_shader_sources,
+    gsl::czstring<> fragment_shader_sources)
     : program_handle_{link(compile(shader_type::vertex, vertex_shader_sources),
           compile(shader_type::fragment, fragment_shader_sources))} {}
 

@@ -13,27 +13,6 @@ using namespace std::literals;
 
 namespace {
 
-gsl::czstring<> vertex_shader[] = {
-    R"(
-    #version 100
-    precision mediump float;
-
-    uniform mat4 camera;
-    uniform mat4 model;
-
-    attribute vec3 position;
-    attribute vec3 normal;
-
-    varying vec3 frag_normal;
-    varying vec3 frag_pos;
-
-    void main() {
-      frag_normal = normal;
-      frag_pos = position;
-      gl_Position = camera * model * vec4(position.xyz, 1.);
-    }
-)"};
-
 // clang-format off
 const vertex cube_vertices[] = {
   {{-1., 1., -1.}, {0., 0., -1.}},
@@ -114,8 +93,8 @@ void mesh::draw(shader_program& program, gsl::czstring<> pos_name,
 }
 
 renderer::renderer()
-    : pipeline_{vertex_shader, {&shaders::main_fsl, 1}}, cube_{cube_vertices,
-                                                      cube_idxs} {
+    : pipeline_{shaders::main_vsl, shaders::main_fsl}, cube_{cube_vertices,
+                                                           cube_idxs} {
   pipeline_.use();
   pipeline_.get_uniform<float>("light.intense").set_value(0.8);
   pipeline_.get_uniform<float>("light.ambient").set_value(0.3);
