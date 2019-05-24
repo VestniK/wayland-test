@@ -43,7 +43,7 @@ public:
   void camera_look_at(glm::vec3 eye, glm::vec3 center);
 
 private:
-  shader_program pipeline_;
+  shader_program shader_prog_;
   uniform_location<glm::mat4> camera_uniform_;
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;

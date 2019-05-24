@@ -93,17 +93,17 @@ void mesh::draw(shader_program& program, gsl::czstring<> pos_name,
 }
 
 renderer::renderer()
-    : pipeline_{shaders::main_vsl, shaders::main_fsl}, cube_{cube_vertices,
+    : shader_prog_{shaders::main_vert, shaders::main_frag}, cube_{cube_vertices,
                                                            cube_idxs} {
-  pipeline_.use();
-  pipeline_.get_uniform<float>("light.intense").set_value(0.8);
-  pipeline_.get_uniform<float>("light.ambient").set_value(0.3);
-  pipeline_.get_uniform<float>("light.attenuation").set_value(0.01);
-  pipeline_.get_uniform<glm::vec3>("light.pos").set_value({2., 5., 15.});
-  model_world_uniform_ = pipeline_.get_uniform<glm::mat4>("model");
-  norm_world_uniform_ = pipeline_.get_uniform<glm::mat3>("norm_rotation");
+  shader_prog_.use();
+  shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
+  shader_prog_.get_uniform<float>("light.ambient").set_value(0.3);
+  shader_prog_.get_uniform<float>("light.attenuation").set_value(0.01);
+  shader_prog_.get_uniform<glm::vec3>("light.pos").set_value({2., 5., 15.});
+  model_world_uniform_ = shader_prog_.get_uniform<glm::mat4>("model");
+  norm_world_uniform_ = shader_prog_.get_uniform<glm::mat3>("norm_rotation");
 
-  camera_uniform_ = pipeline_.get_uniform<glm::mat4>("camera");
+  camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
 
   camera_ = glm::lookAt(
       glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0}, glm::vec3{.1, .0, 0.});
@@ -146,10 +146,10 @@ void renderer::draw(clock::time_point ts) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
-  cube_.draw(pipeline_, "position", "normal");
+  cube_.draw(shader_prog_, "position", "normal");
   apply_model_world_transformation(
       glm::mat4{1.}, model_world_uniform_, norm_world_uniform_);
-  landscape_.draw(pipeline_, "position", "normal");
+  landscape_.draw(shader_prog_, "position", "normal");
   glFlush();
 }
 
