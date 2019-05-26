@@ -92,8 +92,6 @@ inline fixed_t to_fixed(double val) noexcept {
   return fixed_t{wl_fixed_from_double(val)};
 }
 
-using fixed_point = basic_point<fixed_t>;
-
 template <typename T>
 constexpr bool operator==(basic_size<T> lhs, basic_size<T> rhs) {
   return lhs.width == rhs.width && lhs.height == rhs.height;
