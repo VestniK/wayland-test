@@ -1,4 +1,7 @@
 find_program(GPP_PATH gpp)
+if (NOT GPP_PATH)
+  message(FATAL_ERROR "gpp executable not found")
+endif()
 add_executable(GPP::gpp IMPORTED)
 set_target_properties(GPP::gpp PROPERTIES IMPORTED_LOCATION ${GPP_PATH})
 
@@ -20,7 +23,7 @@ function(add_shaders_lib)
   endforeach()
 
   # write header
-  file(WRITE ${_lib_hdr} "#pragma oncne\n")
+  file(WRITE ${_lib_hdr} "#pragma once\n")
   file(APPEND ${_lib_hdr} "namespace ${SHADER_LIB_NAME} {\n")
   foreach(_prog ${SHADER_LIB_PROGRAMS})
     get_filename_component(_prog_name "${_prog}" NAME_WE)
