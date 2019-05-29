@@ -11,13 +11,17 @@ class landscape {
 public:
   explicit landscape(float cell_radius, int columns, int rows);
 
+  ~landscape() noexcept = default;
+
   landscape(const landscape&) = delete;
   landscape& operator=(const landscape&) = delete;
   landscape(landscape&&) = delete;
   landscape& operator=(landscape&&) = delete;
 
-  gsl::span<const vertex> verticies() const noexcept { return verticies_; }
-  gsl::span<const GLuint> indexes() const noexcept {
+  [[nodiscard]] gsl::span<const vertex> verticies() const noexcept {
+    return verticies_;
+  }
+  [[nodiscard]] gsl::span<const GLuint> indexes() const noexcept {
     return as_concated(as_concated(hexagons_));
   }
 

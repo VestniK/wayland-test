@@ -32,7 +32,7 @@ public:
     return *this;
   }
 
-  constexpr GLuint get() const noexcept { return handle_; }
+  [[nodiscard]] constexpr GLuint get() const noexcept { return handle_; }
   constexpr GLuint release() noexcept { return std::exchange(handle_, 0); }
 
   constexpr explicit operator bool() const noexcept { return handle_ != 0; }

@@ -16,9 +16,9 @@ class event_loop {
 public:
   event_loop(gsl::czstring<> display);
 
-  wl_display& get_display() const noexcept {return *display_;}
-  wl_compositor* get_compositor() const noexcept {return compositor.service.get();}
-  xdg_wm_base* get_wm() const noexcept {return shell.service.get();}
+  [[nodiscard]] wl_display& get_display() const noexcept {return *display_;}
+  [[nodiscard]] wl_compositor* get_compositor() const noexcept {return compositor.service.get();}
+  [[nodiscard]] xdg_wm_base* get_wm() const noexcept {return shell.service.get();}
 
   void dispatch(std::error_code& ec) noexcept;
   void dispatch();

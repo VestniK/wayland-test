@@ -34,9 +34,9 @@ struct box {
   glm::vec3 min{std::numeric_limits<float>::max()};
   glm::vec3 max{std::numeric_limits<float>::min()};
 
-  float length() const noexcept { return max.x > min.x ? max.x - min.x : 0.f; }
-  float width() const noexcept { return max.y > min.y ? max.y - min.y : 0.f; }
-  float height() const noexcept { return max.z > min.z ? max.z - min.z : 0.f; }
+  [[nodiscard]] float length() const noexcept { return max.x > min.x ? max.x - min.x : 0.f; }
+  [[nodiscard]] float width() const noexcept { return max.y > min.y ? max.y - min.y : 0.f; }
+  [[nodiscard]] float height() const noexcept { return max.z > min.z ? max.z - min.z : 0.f; }
 };
 
 box expand(box b, vertex pt) noexcept {

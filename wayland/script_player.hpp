@@ -5,7 +5,13 @@
 #include <system_error>
 
 struct script_window {
-  virtual ~script_window() = default;
+  virtual ~script_window() noexcept = default;
+  script_window() noexcept = default;
+
+  script_window(const script_window&) = default;
+  script_window(script_window&&) = default;
+  script_window& operator=(const script_window&) = default;
+  script_window& operator=(script_window&&) = default;
 
   virtual void camera_look_at(
       float ex, float ey, float ez, float cx, float cy, float cz) = 0;

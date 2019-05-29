@@ -12,7 +12,7 @@ shader compile(shader_type type, gsl::span<const gsl::czstring<>> srcs) {
   glCompileShader(res.get());
   GLint compiled;
   glGetShaderiv(res.get(), GL_COMPILE_STATUS, &compiled);
-  if (!compiled) {
+  if (compiled == 0) {
     GLint msg_size;
     glGetShaderiv(res.get(), GL_INFO_LOG_LENGTH, &msg_size);
     std::string msg;
@@ -38,7 +38,7 @@ gl_resource<program_deleter> link(
 
   GLint linked;
   glGetProgramiv(res.get(), GL_LINK_STATUS, &linked);
-  if (!linked) {
+  if (linked == 0) {
     GLint msg_size = 0;
     glGetProgramiv(res.get(), GL_INFO_LOG_LENGTH, &msg_size);
     std::string msg;

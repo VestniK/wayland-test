@@ -1,5 +1,4 @@
 #include <chrono>
-#include <filesystem>
 #include <iostream>
 
 #include <chaiscript/chaiscript.hpp>
@@ -8,7 +7,6 @@
 #include <wayland/util/xdg.hpp>
 
 using namespace std::literals;
-namespace fs = std::filesystem;
 
 namespace {
 

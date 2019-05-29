@@ -2,9 +2,9 @@
 
 const std::error_category& ui_category() noexcept {
   static const struct final: std::error_category {
-    const char* name() const  noexcept override {return "UI";}
+    [[nodiscard]] const char* name() const  noexcept override {return "UI";}
 
-    std::string message(int cond) const override {
+    [[nodiscard]] std::string message(int cond) const override {
       if (cond == 0)
         return std::generic_category().message(0);
       switch (static_cast<ui_errc>(cond)) {

@@ -9,7 +9,7 @@ struct basic_size {
 };
 
 template <typename T>
-constexpr bool operator==(basic_size<T> lhs, basic_size<T> rhs) {
+constexpr bool operator==(basic_size<T> lhs, basic_size<T> rhs) noexcept {
   return lhs.width == rhs.width && lhs.height == rhs.height;
 }
 

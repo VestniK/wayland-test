@@ -14,11 +14,11 @@ public:
   gles_window(event_loop& eloop);
   ~gles_window() noexcept override;
 
-  bool is_closed() const noexcept { return closed; }
-  bool is_initialized() const noexcept;
+  [[nodiscard]] bool is_closed() const noexcept { return closed; }
+  [[nodiscard]] bool is_initialized() const noexcept;
   bool paint();
 
-  size get_size() const noexcept;
+  [[nodiscard]] size get_size() const noexcept;
 
   // script_window
   std::error_code draw_frame() override;
