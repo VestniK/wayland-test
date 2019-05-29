@@ -5,6 +5,7 @@
 #include <gsl/span>
 
 #include <wayland/gles2/mesh_data.hpp>
+#include <wayland/util/concat.hpp>
 
 class landscape {
 public:
@@ -17,12 +18,13 @@ public:
 
   gsl::span<const vertex> verticies() const noexcept { return verticies_; }
   gsl::span<const GLuint> indexes() const noexcept {
-    return {triangles_.data()->data(),
-        static_cast<gsl::span<const GLuint>::index_type>(
-            triangles_.data()->size() * triangles_.size())};
+    return as_concated(as_concated(hexagons_));
   }
 
 private:
+  using triangle = std::array<GLuint, 3>;
+  using hexagon = std::array<triangle, 6>;
+
   std::vector<vertex> verticies_;
-  std::vector<std::array<GLuint, 3>> triangles_;
+  std::vector<hexagon> hexagons_;
 };

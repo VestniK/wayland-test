@@ -61,12 +61,9 @@ landscape::landscape(float cell_radius, int columns, int rows) {
       const GLuint mr = idx(cell_coord(center, corner::midle_right));
       const GLuint tr = idx(cell_coord(center, corner::top_right));
 
-      triangles_.push_back({c, bl, ml});
-      triangles_.push_back({c, ml, tl});
-      triangles_.push_back({c, tl, tr});
-      triangles_.push_back({c, tr, mr});
-      triangles_.push_back({c, mr, br});
-      triangles_.push_back({c, br, bl});
+      hexagons_.push_back(
+          {triangle{c, bl, ml}, triangle{c, ml, tl}, triangle{c, tl, tr},
+              triangle{c, tr, mr}, triangle{c, mr, br}, triangle{c, br, bl}});
     }
   }
 }
