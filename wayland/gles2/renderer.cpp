@@ -94,7 +94,7 @@ void mesh::draw(shader_program& program, gsl::czstring<> pos_name,
 
 renderer::renderer()
     : shader_prog_{shaders::main_vert, shaders::main_frag}, cube_{cube_vertices,
-                                                           cube_idxs} {
+                                                                cube_idxs} {
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
   shader_prog_.get_uniform<float>("light.ambient").set_value(0.3);
@@ -108,7 +108,7 @@ renderer::renderer()
   camera_ = glm::lookAt(
       glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0}, glm::vec3{.1, .0, 0.});
 
-  landscape land{.2, 30, 20};
+  landscape land{centimeters{20}, 30, 20};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);

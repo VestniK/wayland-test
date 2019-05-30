@@ -34,9 +34,15 @@ struct box {
   glm::vec3 min{std::numeric_limits<float>::max()};
   glm::vec3 max{std::numeric_limits<float>::min()};
 
-  [[nodiscard]] float length() const noexcept { return max.x > min.x ? max.x - min.x : 0.f; }
-  [[nodiscard]] float width() const noexcept { return max.y > min.y ? max.y - min.y : 0.f; }
-  [[nodiscard]] float height() const noexcept { return max.z > min.z ? max.z - min.z : 0.f; }
+  [[nodiscard]] float length() const noexcept {
+    return max.x > min.x ? max.x - min.x : 0.f;
+  }
+  [[nodiscard]] float width() const noexcept {
+    return max.y > min.y ? max.y - min.y : 0.f;
+  }
+  [[nodiscard]] float height() const noexcept {
+    return max.z > min.z ? max.z - min.z : 0.f;
+  }
 };
 
 box expand(box b, vertex pt) noexcept {
@@ -60,8 +66,8 @@ box bounding_box(InputIt first, InputIt last) noexcept {
 TEST_CASE("generate_flat_landscape", "[landscape]") {
   const auto columns = GENERATE(range(1, 4));
   const auto rows = GENERATE(range(2, 4));
-  const auto radius = 0.1f * GENERATE(range(9, 11));
-  INFO("{}x{} hexagons of size {}"_format(columns, rows, radius));
+  const meters radius = centimeters{10} * GENERATE(range(9, 11));
+  INFO("{}x{} hexagons of size {}"_format(columns, rows, radius.count()));
   landscape land{radius, columns, rows};
 
   SECTION("covers flat rectangular area") {
@@ -72,11 +78,12 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
     }
     SECTION("mesh has proper x dimensions") {
       CHECK(landscape_bounds.length() ==
-            Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) * radius));
+            Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) *
+                   radius.count()));
     }
     SECTION("mesh has proper y dimensions") {
       CHECK(landscape_bounds.width() ==
-            Approx(rows * 2 * radius * std::sin(M_PI / 3)));
+            Approx(rows * 2 * radius.count() * std::sin(M_PI / 3)));
     }
   }
 
@@ -100,13 +107,13 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
               triangle_offset / triangles_in_hexagon)) {
             CHECK(glm::dot(
                       triangle[1] - triangle[0], triangle[2] - triangle[0]) ==
-                  Approx(0.5 * radius * radius));
+                  Approx(0.5 * radius.count() * radius.count()));
             CHECK(glm::dot(
                       triangle[0] - triangle[1], triangle[2] - triangle[1]) ==
-                  Approx(0.5 * radius * radius));
+                  Approx(0.5 * radius.count() * radius.count()));
             CHECK(glm::dot(
                       triangle[0] - triangle[2], triangle[1] - triangle[2]) ==
-                  Approx(0.5 * radius * radius));
+                  Approx(0.5 * radius.count() * radius.count()));
           }
 
           SECTION("there are 7 unique points (center and hexagon perimeter)") {

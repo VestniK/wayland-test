@@ -20,7 +20,8 @@ public:
       : value_{other.count() * std::ratio_divide<Per2, period>::num /
                std::ratio_divide<Per2, period>::den} {}
 
-  constexpr Rep count() noexcept(std::is_nothrow_copy_constructible_v<Rep>) {
+  constexpr Rep count() const
+      noexcept(std::is_nothrow_copy_constructible_v<Rep>) {
     return value_;
   }
 
@@ -52,18 +53,18 @@ constexpr auto operator-(
   return unit<Unit, Rep, Per>{l.count() - r.count()};
 }
 
-template <auto Unit, typename Rep, typename Per>
-constexpr auto operator*(Rep l, unit<Unit, Rep, Per> r) noexcept {
+template <auto Unit, typename Rep, typename Per, typename Num>
+constexpr auto operator*(Num l, unit<Unit, Rep, Per> r) noexcept {
   return unit<Unit, Rep, Per>{l * r.count()};
 }
 
-template <auto Unit, typename Rep, typename Per>
-constexpr auto operator*(unit<Unit, Rep, Per> l, Rep r) noexcept {
+template <auto Unit, typename Rep, typename Per, typename Num>
+constexpr auto operator*(unit<Unit, Rep, Per> l, Num r) noexcept {
   return unit<Unit, Rep, Per>{l.count() * r};
 }
 
-template <auto Unit, typename Rep, typename Per>
-constexpr auto operator/(unit<Unit, Rep, Per> l, Rep r) noexcept {
+template <auto Unit, typename Rep, typename Per, typename Num>
+constexpr auto operator/(unit<Unit, Rep, Per> l, Num r) noexcept {
   return unit<Unit, Rep, Per>{l.count() / r};
 }
 

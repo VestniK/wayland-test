@@ -36,13 +36,13 @@ struct hasher {
 } // namespace morton
 } // namespace
 
-landscape::landscape(float cell_radius, int columns, int rows) {
+landscape::landscape(meters cell_radius, int columns, int rows) {
   std::unordered_map<triangular::point, GLuint, morton::hasher> idxs;
   auto idx = [&](triangular::point pt) {
     auto [it, success] = idxs.insert({pt, verticies_.size()});
     if (success) {
       verticies_.push_back(
-          {{cell_radius * triangular::to_cartesian(it->first), 0.},
+          {{cell_radius.count() * triangular::to_cartesian(it->first), 0.},
               {0., 0., 1.}});
     }
     return it->second;

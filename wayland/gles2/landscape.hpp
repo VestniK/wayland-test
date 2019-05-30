@@ -6,10 +6,11 @@
 
 #include <wayland/gles2/mesh_data.hpp>
 #include <wayland/util/concat.hpp>
+#include <wayland/util/unit.hpp>
 
 class landscape {
 public:
-  explicit landscape(float cell_radius, int columns, int rows);
+  explicit landscape(meters cell_radius, int columns, int rows);
 
   ~landscape() noexcept = default;
 
