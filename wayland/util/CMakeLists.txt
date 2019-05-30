@@ -5,6 +5,7 @@ target_sources(util PRIVATE
   get_option.cpp
   get_option.hpp
   member.hpp
+  unit.hpp
   xdg.cpp
   xdg.hpp
 )
@@ -24,5 +25,6 @@ NAME
   util.test
 SOURCES
   get_option.test.cpp
+  unit.test.cpp
 )
 target_link_libraries(util.test PRIVATE util)
