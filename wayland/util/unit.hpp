@@ -55,17 +55,23 @@ constexpr auto operator-(
 
 template <auto Unit, typename Rep, typename Per, typename Num>
 constexpr auto operator*(Num l, unit<Unit, Rep, Per> r) noexcept {
-  return unit<Unit, Rep, Per>{l * r.count()};
+  return unit<Unit, decltype(l * r.count()), Per>{l * r.count()};
 }
 
 template <auto Unit, typename Rep, typename Per, typename Num>
 constexpr auto operator*(unit<Unit, Rep, Per> l, Num r) noexcept {
-  return unit<Unit, Rep, Per>{l.count() * r};
+  return unit<Unit, decltype(l.count() * r), Per>{l.count() * r};
 }
 
 template <auto Unit, typename Rep, typename Per, typename Num>
 constexpr auto operator/(unit<Unit, Rep, Per> l, Num r) noexcept {
   return unit<Unit, Rep, Per>{l.count() / r};
+}
+
+template <auto Unit, typename Rep, typename Per>
+constexpr auto operator/(
+    unit<Unit, Rep, Per> l, unit<Unit, Rep, Per> r) noexcept {
+  return l.count() / r.count();
 }
 
 enum class units { length };
