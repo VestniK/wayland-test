@@ -5,6 +5,7 @@ target_sources(util PRIVATE
   get_option.cpp
   get_option.hpp
   member.hpp
+  morton.hpp
   unit.hpp
   xdg.cpp
   xdg.hpp
@@ -25,6 +26,7 @@ NAME
   util.test
 SOURCES
   get_option.test.cpp
+  morton.test.cpp
   unit.test.cpp
 )
 target_link_libraries(util.test PRIVATE util CONAN_PKG::fmt)
