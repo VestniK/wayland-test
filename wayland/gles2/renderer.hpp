@@ -17,15 +17,16 @@ struct vertex;
 class mesh {
 public:
   constexpr mesh() noexcept = default;
-  explicit mesh(
+  explicit mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
       gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes);
 
-  void draw(shader_program& program, gsl::czstring<> pos_name,
-      gsl::czstring<> normal_name);
+  void draw();
 
   constexpr explicit operator bool() const noexcept { return vbo_ && ibo_; };
 
 private:
+  attrib_location<glm::vec3> pos_;
+  attrib_location<glm::vec3> norm_;
   buffer ibo_;
   buffer vbo_;
   unsigned triangles_count_ = 0;

@@ -70,10 +70,10 @@ void apply_model_world_transformation(glm::mat4 transformation,
 
 } // namespace
 
-mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
-    : ibo_{gen_buffer()}, vbo_{gen_buffer()}, triangles_count_{
-                                                  static_cast<unsigned>(
-                                                      indexes.size())} {
+mesh::mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
+    gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
+    : pos_{pos}, norm_{norm}, ibo_{gen_buffer()}, vbo_{gen_buffer()},
+      triangles_count_{static_cast<unsigned>(indexes.size())} {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glBufferData(GL_ARRAY_BUFFER, verticies.size_bytes(), verticies.data(),
       GL_STATIC_DRAW);
@@ -83,18 +83,19 @@ mesh::mesh(gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
       GL_STATIC_DRAW);
 }
 
-void mesh::draw(shader_program& program, gsl::czstring<> pos_name,
-    gsl::czstring<> normal_name) {
+void mesh::draw() {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
-  program.set_attrib_pointer(pos_name, &vertex::position);
-  program.set_attrib_pointer(normal_name, &vertex::normal);
+  pos_.set_pointer(&vertex::position);
+  norm_.set_pointer(&vertex::normal);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
 
 renderer::renderer()
-    : shader_prog_{shaders::main_vert, shaders::main_frag}, cube_{cube_vertices,
-                                                                cube_idxs} {
+    : shader_prog_{shaders::main_vert, shaders::main_frag},
+      cube_{shader_prog_.get_attrib<glm::vec3>("position"),
+          shader_prog_.get_attrib<glm::vec3>("normal"), cube_vertices,
+          cube_idxs} {
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
   shader_prog_.get_uniform<float>("light.ambient").set_value(0.3);
@@ -109,7 +110,9 @@ renderer::renderer()
       glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0}, glm::vec3{.1, .0, 0.});
 
   landscape land{centimeters{20}, 30, 20};
-  landscape_ = mesh{land.verticies(), land.indexes()};
+  landscape_ = mesh{shader_prog_.get_attrib<glm::vec3>("position"),
+      shader_prog_.get_attrib<glm::vec3>("normal"), land.verticies(),
+      land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
@@ -146,10 +149,10 @@ void renderer::draw(clock::time_point ts) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
-  cube_.draw(shader_prog_, "position", "normal");
+  cube_.draw();
   apply_model_world_transformation(
       glm::mat4{1.}, model_world_uniform_, norm_world_uniform_);
-  landscape_.draw(shader_prog_, "position", "normal");
+  landscape_.draw();
   glFlush();
 }
 

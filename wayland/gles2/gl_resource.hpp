@@ -65,6 +65,29 @@ inline buffer gen_buffer() {
   return {handle};
 }
 
+// shadet program attributes
+template <typename T>
+class attrib_location {
+public:
+  constexpr attrib_location() noexcept = default;
+  constexpr explicit attrib_location(GLint location) noexcept
+      : location_{location} {}
+
+  template <typename C>
+  void set_pointer(member_ptr<C, T> member);
+
+private:
+  GLint location_ = 0;
+};
+
+template <>
+template <typename C>
+void attrib_location<glm::vec3>::set_pointer(member_ptr<C, glm::vec3> member) {
+  glVertexAttribPointer(location_, 3, GL_FLOAT, GL_FALSE, sizeof(C),
+      reinterpret_cast<const GLvoid*>(member_offset(member)));
+  glEnableVertexAttribArray(location_);
+}
+
 // shader program uniforms
 template <typename T>
 class uniform_location {
@@ -119,13 +142,9 @@ public:
         glGetUniformLocation(program_handle_.get(), name)};
   }
 
-  template <typename C>
-  void set_attrib_pointer(
-      gsl::czstring<> name, member_ptr<C, glm::vec3> member) {
-    const GLint id = glGetAttribLocation(program_handle_.get(), name);
-    glVertexAttribPointer(id, 3, GL_FLOAT, GL_FALSE, sizeof(C),
-        reinterpret_cast<const GLvoid*>(member_offset(member)));
-    glEnableVertexAttribArray(id);
+  template <typename T>
+  attrib_location<T> get_attrib(gsl::czstring<> name) noexcept {
+    return attrib_location<T>{glGetAttribLocation(program_handle_.get(), name)};
   }
 
 private:
