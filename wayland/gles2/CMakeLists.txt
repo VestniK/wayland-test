@@ -1,8 +1,5 @@
 add_subdirectory(shaders)
 
-set(CMAKE_FIND_ROOT_PATH ${CONAN_PROTOC_INSTALLER_ROOT})
-find_package(protoc REQUIRED)
-
 add_library(gles2 OBJECT)
 target_sources(gles2 PRIVATE
   gl_resource.cpp
@@ -14,8 +11,6 @@ target_sources(gles2 PRIVATE
   renderer.hpp
   triangular_net.cpp
   triangular_net.hpp
-
-  mesh.proto
 )
 target_include_directories(gles2 PUBLIC ${PROJECT_SOURCE_DIR})
 target_compile_features(gles2 PUBLIC cxx_std_17)
@@ -25,9 +20,7 @@ target_link_libraries(gles2 PUBLIC
   OpenGL::OpenGL
   CONAN_PKG::glm
   CONAN_PKG::gsl_microsoft
-  CONAN_PKG::protobuf
 )
-protobuf_generate(TARGET gles2 LANGUAGE cpp PROTOS mesh.proto)
 
 add_catch_test(
 NAME
