@@ -32,7 +32,7 @@ add_library(wayland.obj OBJECT
   ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
   ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
 )
-target_compile_features(wayland.obj PUBLIC cxx_std_17)
+target_compile_features(wayland.obj PUBLIC cxx_std_20)
 if (WAYLAND_TEST_WERROR)
   target_compile_options(wayland.obj PUBLIC -Werror=all)
 endif()

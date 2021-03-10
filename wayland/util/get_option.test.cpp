@@ -1,4 +1,5 @@
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
+#include <catch2/catch_tostring.hpp>
 
 #include <string_view>
 #include <vector>
@@ -19,8 +20,8 @@ TEST_CASE("get_option") {
   char arg4[] = "wayland-1";
   char arg5[] = "-m";
   char arg6[] = "msk";
-  std::vector<char*> args = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
-  char** argv = args.data();
+  std::vector<char *> args = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
+  char **argv = args.data();
   int argc = static_cast<int>(args.size());
 
   SECTION("returns nullptr when there is no requested option") {
@@ -36,7 +37,7 @@ TEST_CASE("get_option") {
   }
   SECTION("returns repeating options preserving order") {
     arg_views maps;
-    while (const char* map = get_option(argc, argv, "-m"))
+    while (const char *map = get_option(argc, argv, "-m"))
       maps.push_back(map);
     REQUIRE(maps == arg_views{{"nsk", "msk"}});
   }
