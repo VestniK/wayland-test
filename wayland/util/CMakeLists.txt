@@ -10,7 +10,7 @@ target_sources(util PRIVATE
   xdg.cpp
   xdg.hpp
 )
-target_compile_features(util PUBLIC cxx_std_17)
+target_compile_features(util PUBLIC cxx_std_20)
 target_include_directories(util PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(util
 PUBLIC

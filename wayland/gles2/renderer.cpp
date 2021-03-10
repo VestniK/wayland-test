@@ -60,8 +60,8 @@ const GLuint cube_idxs[] = {
 };
 // clang-format on
 
-void apply_model_world_transformation(glm::mat4 transformation,
-    uniform_location<glm::mat4> model_mat_uniform,
+void apply_model_world_transformation(
+    glm::mat4 transformation, uniform_location<glm::mat4> model_mat_uniform,
     uniform_location<glm::mat3> normal_mat_uniform) {
   model_mat_uniform.set_value(transformation);
   normal_mat_uniform.set_value(
@@ -71,16 +71,16 @@ void apply_model_world_transformation(glm::mat4 transformation,
 } // namespace
 
 mesh::mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
-    gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes)
+           std::span<const vertex> verticies, std::span<const GLuint> indexes)
     : pos_{pos}, norm_{norm}, ibo_{gen_buffer()}, vbo_{gen_buffer()},
       triangles_count_{static_cast<unsigned>(indexes.size())} {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glBufferData(GL_ARRAY_BUFFER, verticies.size_bytes(), verticies.data(),
-      GL_STATIC_DRAW);
+               GL_STATIC_DRAW);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size_bytes(), indexes.data(),
-      GL_STATIC_DRAW);
+               GL_STATIC_DRAW);
 }
 
 void mesh::draw() {
@@ -94,8 +94,8 @@ void mesh::draw() {
 renderer::renderer()
     : shader_prog_{shaders::main_vert, shaders::main_frag},
       cube_{shader_prog_.get_attrib<glm::vec3>("position"),
-          shader_prog_.get_attrib<glm::vec3>("normal"), cube_vertices,
-          cube_idxs} {
+            shader_prog_.get_attrib<glm::vec3>("normal"), cube_vertices,
+            cube_idxs} {
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
   shader_prog_.get_uniform<float>("light.ambient").set_value(0.3);
@@ -106,13 +106,13 @@ renderer::renderer()
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
 
-  camera_ = glm::lookAt(
-      glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0}, glm::vec3{.1, .0, 0.});
+  camera_ = glm::lookAt(glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0},
+                        glm::vec3{.1, .0, 0.});
 
   landscape land{centimeters{20}, 30, 20};
   landscape_ = mesh{shader_prog_.get_attrib<glm::vec3>("position"),
-      shader_prog_.get_attrib<glm::vec3>("normal"), land.verticies(),
-      land.indexes()};
+                    shader_prog_.get_attrib<glm::vec3>("normal"),
+                    land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
@@ -140,18 +140,19 @@ void renderer::draw(clock::time_point ts) {
   const GLfloat angle = 2 * M_PI * spin_phase;
 
   glm::mat4 model =
-      glm::translate(glm::mat4{1.}, glm::vec3{4 + 2 * std::cos(3 * spot_angle),
-                                        2.5 - 0.6 * std::sin(5 * spot_angle),
-                                        1.5 + std::cos(spot_angle)}) *
+      glm::translate(glm::mat4{1.},
+                     glm::vec3{4 + 2 * std::cos(3 * spot_angle),
+                               2.5 - 0.6 * std::sin(5 * spot_angle),
+                               1.5 + std::cos(spot_angle)}) *
       glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  apply_model_world_transformation(
-      model, model_world_uniform_, norm_world_uniform_);
+  apply_model_world_transformation(model, model_world_uniform_,
+                                   norm_world_uniform_);
   cube_.draw();
-  apply_model_world_transformation(
-      glm::mat4{1.}, model_world_uniform_, norm_world_uniform_);
+  apply_model_world_transformation(glm::mat4{1.}, model_world_uniform_,
+                                   norm_world_uniform_);
   landscape_.draw();
   glFlush();
 }

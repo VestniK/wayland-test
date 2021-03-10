@@ -1,8 +1,7 @@
 #pragma once
 
 #include <array>
-
-#include <gsl/span>
+#include <span>
 
 #include <wayland/gles2/mesh_data.hpp>
 #include <wayland/util/concat.hpp>
@@ -14,15 +13,15 @@ public:
 
   ~landscape() noexcept = default;
 
-  landscape(const landscape&) = delete;
-  landscape& operator=(const landscape&) = delete;
-  landscape(landscape&&) = delete;
-  landscape& operator=(landscape&&) = delete;
+  landscape(const landscape &) = delete;
+  landscape &operator=(const landscape &) = delete;
+  landscape(landscape &&) = delete;
+  landscape &operator=(landscape &&) = delete;
 
-  [[nodiscard]] gsl::span<const vertex> verticies() const noexcept {
+  [[nodiscard]] std::span<const vertex> verticies() const noexcept {
     return verticies_;
   }
-  [[nodiscard]] gsl::span<const GLuint> indexes() const noexcept {
+  [[nodiscard]] std::span<const GLuint> indexes() const noexcept {
     return as_concated(as_concated(hexagons_));
   }
 

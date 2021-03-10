@@ -23,7 +23,7 @@ template <size_t N>
 std::array<glm::vec3, vertixies_in_triangle * N>
 get_triangles(const landscape &land, size_t start_offset) noexcept {
   std::array<glm::vec3, vertixies_in_triangle * N> triangles_set;
-  const auto indexes = gsl::span<const GLuint>{land.indexes()}.subspan(
+  const auto indexes = std::span<const GLuint>{land.indexes()}.subspan(
       start_offset, vertixies_in_triangle * N);
   std::transform(
       indexes.begin(), indexes.end(), triangles_set.begin(),
@@ -72,7 +72,7 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
   landscape land{radius, columns, rows};
 
   SECTION("covers flat rectangular area") {
-    gsl::span<const vertex> vert = land.verticies();
+    std::span<const vertex> vert = land.verticies();
     const box landscape_bounds = bounding_box(vert.begin(), vert.end());
     SECTION("mesh is flat") {
       CHECK_THAT(landscape_bounds.height(),
@@ -103,7 +103,7 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
           land.indexes().size())) {
         for (size_t triangle_offset = 0; triangle_offset < triangles_set.size();
              triangle_offset += vertixies_in_triangle) {
-          gsl::span<const glm::vec3, vertixies_in_triangle> triangle{
+          std::span<const glm::vec3, vertixies_in_triangle> triangle{
               triangles_set.data() + triangle_offset, vertixies_in_triangle};
 
           SECTION("triangle {} is equilateral"_format(triangle_offset /

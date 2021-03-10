@@ -1,10 +1,10 @@
 #include <wayland/gles2/gl_resource.hpp>
 
 shader compile(shader_type type, gsl::czstring<> src) {
-  return compile(type, gsl::span<gsl::czstring<>>{&src, 1});
+  return compile(type, std::span<gsl::czstring<>>{&src, 1});
 }
 
-shader compile(shader_type type, gsl::span<const gsl::czstring<>> srcs) {
+shader compile(shader_type type, std::span<const gsl::czstring<>> srcs) {
   shader res{glCreateShader(static_cast<GLenum>(type))};
   if (!res)
     throw std::runtime_error{"Failed to create shader"};
@@ -26,8 +26,8 @@ shader compile(shader_type type, gsl::span<const gsl::czstring<>> srcs) {
   return res;
 }
 
-gl_resource<program_deleter> link(
-    const shader& vertex_shader, const shader& fragment_shader) {
+gl_resource<program_deleter> link(const shader &vertex_shader,
+                                  const shader &fragment_shader) {
   gl_resource<program_deleter> res{glCreateProgram()};
   if (!res)
     throw std::runtime_error{"Failed to create GLSL program"};
@@ -53,8 +53,9 @@ gl_resource<program_deleter> link(
 }
 
 shader_program::shader_program(gsl::czstring<> vertex_shader_sources,
-    gsl::czstring<> fragment_shader_sources)
-    : program_handle_{link(compile(shader_type::vertex, vertex_shader_sources),
-          compile(shader_type::fragment, fragment_shader_sources))} {}
+                               gsl::czstring<> fragment_shader_sources)
+    : program_handle_{
+          link(compile(shader_type::vertex, vertex_shader_sources),
+               compile(shader_type::fragment, fragment_shader_sources))} {}
 
 void shader_program::use() { glUseProgram(program_handle_.get()); }

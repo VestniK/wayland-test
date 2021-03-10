@@ -13,7 +13,7 @@ target_sources(gles2 PRIVATE
   triangular_net.hpp
 )
 target_include_directories(gles2 PUBLIC ${PROJECT_SOURCE_DIR})
-target_compile_features(gles2 PUBLIC cxx_std_17)
+target_compile_features(gles2 PUBLIC cxx_std_20)
 target_link_libraries(gles2 PUBLIC
   util
   shaders

@@ -2,8 +2,8 @@
 
 #include <cassert>
 #include <chrono>
+#include <span>
 
-#include <gsl/span>
 #include <gsl/string_span>
 
 #include <glm/ext.hpp>
@@ -18,7 +18,8 @@ class mesh {
 public:
   constexpr mesh() noexcept = default;
   explicit mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
-      gsl::span<const vertex> verticies, gsl::span<const GLuint> indexes);
+                std::span<const vertex> verticies,
+                std::span<const GLuint> indexes);
 
   void draw();
 
