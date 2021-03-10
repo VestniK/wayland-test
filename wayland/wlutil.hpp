@@ -4,9 +4,9 @@
 #include <string_view>
 #include <type_traits>
 
+#include <ivi-application.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
-#include <xdg-shell.h>
 
 #include <wayland/util/geom.hpp>
 
@@ -15,66 +15,61 @@ namespace wl {
 using std::literals::operator"" sv;
 
 struct deleter {
-  void operator()(wl_buffer* ptr) noexcept { wl_buffer_destroy(ptr); }
-  void operator()(wl_callback* ptr) noexcept { wl_callback_destroy(ptr); }
-  void operator()(wl_compositor* ptr) noexcept { wl_compositor_destroy(ptr); }
-  void operator()(wl_display* ptr) noexcept { wl_display_disconnect(ptr); }
-  void operator()(wl_egl_window* ptr) noexcept { wl_egl_window_destroy(ptr); }
-  void operator()(wl_event_queue* ptr) noexcept { wl_event_queue_destroy(ptr); }
-  void operator()(wl_keyboard* ptr) noexcept { wl_keyboard_destroy(ptr); }
-  void operator()(wl_output* ptr) noexcept { wl_output_destroy(ptr); }
-  void operator()(wl_pointer* ptr) noexcept { wl_pointer_destroy(ptr); }
-  void operator()(wl_registry* ptr) noexcept { wl_registry_destroy(ptr); }
-  void operator()(wl_seat* ptr) noexcept { wl_seat_destroy(ptr); }
-  void operator()(wl_shell* ptr) noexcept { wl_shell_destroy(ptr); }
-  void operator()(wl_shell_surface* ptr) noexcept {
+  void operator()(wl_buffer *ptr) noexcept { wl_buffer_destroy(ptr); }
+  void operator()(wl_callback *ptr) noexcept { wl_callback_destroy(ptr); }
+  void operator()(wl_compositor *ptr) noexcept { wl_compositor_destroy(ptr); }
+  void operator()(wl_display *ptr) noexcept { wl_display_disconnect(ptr); }
+  void operator()(wl_egl_window *ptr) noexcept { wl_egl_window_destroy(ptr); }
+  void operator()(wl_event_queue *ptr) noexcept { wl_event_queue_destroy(ptr); }
+  void operator()(wl_keyboard *ptr) noexcept { wl_keyboard_destroy(ptr); }
+  void operator()(wl_output *ptr) noexcept { wl_output_destroy(ptr); }
+  void operator()(wl_pointer *ptr) noexcept { wl_pointer_destroy(ptr); }
+  void operator()(wl_registry *ptr) noexcept { wl_registry_destroy(ptr); }
+  void operator()(wl_seat *ptr) noexcept { wl_seat_destroy(ptr); }
+  void operator()(wl_shell *ptr) noexcept { wl_shell_destroy(ptr); }
+  void operator()(wl_shell_surface *ptr) noexcept {
     wl_shell_surface_destroy(ptr);
   }
-  void operator()(wl_shm* ptr) noexcept { wl_shm_destroy(ptr); }
-  void operator()(wl_shm_pool* ptr) noexcept { wl_shm_pool_destroy(ptr); }
-  void operator()(wl_subcompositor* ptr) noexcept {
+  void operator()(wl_shm *ptr) noexcept { wl_shm_destroy(ptr); }
+  void operator()(wl_shm_pool *ptr) noexcept { wl_shm_pool_destroy(ptr); }
+  void operator()(wl_subcompositor *ptr) noexcept {
     wl_subcompositor_destroy(ptr);
   }
-  void operator()(wl_subsurface* ptr) noexcept { wl_subsurface_destroy(ptr); }
-  void operator()(wl_surface* ptr) noexcept { wl_surface_destroy(ptr); }
+  void operator()(wl_subsurface *ptr) noexcept { wl_subsurface_destroy(ptr); }
+  void operator()(wl_surface *ptr) noexcept { wl_surface_destroy(ptr); }
 
-  void operator()(xdg_wm_base* ptr) noexcept { xdg_wm_base_destroy(ptr); }
-  void operator()(xdg_surface* ptr) noexcept { xdg_surface_destroy(ptr); }
-  void operator()(xdg_toplevel* ptr) noexcept { xdg_toplevel_destroy(ptr); }
+  void operator()(ivi_application *ptr) noexcept {
+    ivi_application_destroy(ptr);
+  }
+  void operator()(ivi_surface *ptr) noexcept { ivi_surface_destroy(ptr); }
 };
-template <typename T>
-using unique_ptr = std::unique_ptr<T, deleter>;
+template <typename T> using unique_ptr = std::unique_ptr<T, deleter>;
 
-template <typename Service>
-struct service_trait;
+template <typename Service> struct service_trait;
 
-template <>
-struct service_trait<wl_compositor> {
+template <> struct service_trait<wl_compositor> {
   static constexpr auto name = "wl_compositor"sv;
-  static constexpr const wl_interface* iface = &wl_compositor_interface;
+  static constexpr const wl_interface *iface = &wl_compositor_interface;
 };
 
-template <>
-struct service_trait<wl_shell> {
+template <> struct service_trait<wl_shell> {
   static constexpr auto name = "wl_shell"sv;
-  static constexpr const wl_interface* iface = &wl_shell_interface;
+  static constexpr const wl_interface *iface = &wl_shell_interface;
 };
 
-template <>
-struct service_trait<wl_output> {
+template <> struct service_trait<wl_output> {
   static constexpr auto name = "wl_output"sv;
-  static constexpr const wl_interface* iface = &wl_output_interface;
+  static constexpr const wl_interface *iface = &wl_output_interface;
 };
 
-template <>
-struct service_trait<xdg_wm_base> {
-  static constexpr auto name = "xdg_wm_base"sv;
-  static constexpr const wl_interface* iface = &xdg_wm_base_interface;
+template <> struct service_trait<ivi_application> {
+  static constexpr auto name = "ivi_application"sv;
+  static constexpr const wl_interface *iface = &ivi_application_interface;
 };
 
 template <typename Service>
-auto bind(wl_registry* reg, uint32_t id, uint32_t ver) {
-  return unique_ptr<Service>{reinterpret_cast<Service*>(
+auto bind(wl_registry *reg, uint32_t id, uint32_t ver) {
+  return unique_ptr<Service>{reinterpret_cast<Service *>(
       wl_registry_bind(reg, id, service_trait<Service>::iface, ver))};
 }
 

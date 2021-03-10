@@ -18,9 +18,8 @@ int main(int argc, char **argv) {
   }
 
   event_loop eloop{get_option(argc, argv, "-d")};
-  gles_window wnd{eloop};
+  gles_window wnd{eloop, 1337};
 
-  wnd.maximize();
   while (!wnd.is_closed() && !wnd.is_initialized())
     eloop.dispatch();
 

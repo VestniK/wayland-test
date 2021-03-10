@@ -6,7 +6,7 @@
 
 namespace {
 
-egl::context make_egl_context(wl_display& display) {
+egl::context make_egl_context(wl_display &display) {
   egl::display egl_display{display};
   egl_display.bind_api(EGL_OPENGL_ES_API);
   EGLint count;
@@ -32,9 +32,9 @@ egl::context make_egl_context(wl_display& display) {
 
 } // namespace
 
-gles_window::gles_window(event_loop& eloop)
-    : toplevel_window(*eloop.get_compositor(), *eloop.get_wm()), eloop_{eloop},
-      egl_surface_(make_egl_context(eloop.get_display())) {}
+gles_window::gles_window(event_loop &eloop, uint32_t ivi_id)
+    : ivi_window(*eloop.get_compositor(), *eloop.get_ivi(), ivi_id),
+      eloop_{eloop}, egl_surface_(make_egl_context(eloop.get_display())) {}
 
 gles_window::~gles_window() noexcept {
   if (egl_surface_)
@@ -76,7 +76,7 @@ void gles_window::resize(size sz) {
   renderer_->resize(sz);
 }
 
-void gles_window::display(wl_output& disp [[maybe_unused]]) {}
+void gles_window::display(wl_output &disp [[maybe_unused]]) {}
 
 std::error_code gles_window::draw_frame() {
   if (is_closed())
@@ -102,7 +102,7 @@ std::error_code gles_window::draw_for(std::chrono::milliseconds duration) {
   return ec;
 }
 
-void gles_window::camera_look_at(
-    float ex, float ey, float ez, float cx, float cy, float cz) {
+void gles_window::camera_look_at(float ex, float ey, float ez, float cx,
+                                 float cy, float cz) {
   renderer_->camera_look_at({ex, ey, ez}, {cx, cy, cz});
 }

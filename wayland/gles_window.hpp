@@ -9,9 +9,9 @@
 #include <wayland/util/geom.hpp>
 #include <wayland/window.hpp>
 
-class gles_window final : public toplevel_window, public script_window {
+class gles_window final : public ivi_window, public script_window {
 public:
-  gles_window(event_loop& eloop);
+  gles_window(event_loop &eloop, uint32_t ivi_id);
   ~gles_window() noexcept override;
 
   [[nodiscard]] bool is_closed() const noexcept { return closed; }
@@ -23,17 +23,17 @@ public:
   // script_window
   std::error_code draw_frame() override;
   std::error_code draw_for(std::chrono::milliseconds duration) override;
-  void camera_look_at(
-      float ex, float ey, float ez, float cx, float cy, float cz) override;
+  void camera_look_at(float ex, float ey, float ez, float cx, float cy,
+                      float cz) override;
 
 protected:
   // toplevel_window
   void resize(size sz) override;
   void close() override { closed = true; }
-  void display(wl_output& disp) override;
+  void display(wl_output &disp) override;
 
 private:
-  event_loop& eloop_;
+  event_loop &eloop_;
   egl::surface egl_surface_;
   wl::unique_ptr<wl_egl_window> egl_wnd_;
   std::optional<renderer> renderer_;

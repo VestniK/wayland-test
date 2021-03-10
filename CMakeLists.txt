@@ -19,9 +19,7 @@ option(WAYLAND_TEST_WERROR OFF "Treat warnings as errors")
 find_package(Wayland REQUIRED)
 find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
 
-# wayland related deps
-find_package(PkgConfig)
-pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+set(WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
 
 include(cmake/add_catch_tests.cmake)
 add_subdirectory(wayland)
