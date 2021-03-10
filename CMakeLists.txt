@@ -32,7 +32,7 @@ add_executable(wayland
   scripts/wayland.chai
   wayland/main.cpp
 )
-target_link_libraries(wayland PRIVATE wayland.obj util gles2)
+target_link_libraries(wayland PRIVATE wayland.obj util gles2 CONAN_PKG::fmt)
 add_custom_command(TARGET wayland POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland>
