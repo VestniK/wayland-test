@@ -9,12 +9,11 @@
 #include <wayland/util/geom.hpp>
 #include <wayland/window.hpp>
 
-class gles_window final : public ivi_window, public script_window {
+class gles_window final : public ivi::window, public script_window {
 public:
   gles_window(event_loop &eloop, uint32_t ivi_id);
   ~gles_window() noexcept override;
 
-  [[nodiscard]] bool is_closed() const noexcept { return closed; }
   [[nodiscard]] bool is_initialized() const noexcept;
   bool paint();
 
@@ -29,13 +28,10 @@ public:
 protected:
   // toplevel_window
   void resize(size sz) override;
-  void close() override { closed = true; }
-  void display(wl_output &disp) override;
 
 private:
   event_loop &eloop_;
   egl::surface egl_surface_;
   wl::unique_ptr<wl_egl_window> egl_wnd_;
   std::optional<renderer> renderer_;
-  bool closed = false;
 };

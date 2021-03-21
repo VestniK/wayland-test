@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
   event_loop eloop{get_option(argc, argv, "-d")};
   gles_window wnd{eloop, 1337};
 
-  while (!wnd.is_closed() && !wnd.is_initialized())
+  while (!wnd.is_initialized())
     eloop.dispatch();
 
   play_script(get_option(argc, argv, "-s", xdg::find_config("wayland.chai")),

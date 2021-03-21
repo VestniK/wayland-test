@@ -33,7 +33,7 @@ egl::context make_egl_context(wl_display &display) {
 } // namespace
 
 gles_window::gles_window(event_loop &eloop, uint32_t ivi_id)
-    : ivi_window(*eloop.get_compositor(), *eloop.get_ivi(), ivi_id),
+    : ivi::window(*eloop.get_compositor(), *eloop.get_ivi(), ivi_id),
       eloop_{eloop}, egl_surface_(make_egl_context(eloop.get_display())) {}
 
 gles_window::~gles_window() noexcept {
@@ -65,7 +65,7 @@ void gles_window::resize(size sz) {
     return;
   if (!egl_wnd_) {
     egl_wnd_ = wl::unique_ptr<wl_egl_window>{
-        wl_egl_window_create(get_surface(), sz.width, sz.height)};
+        wl_egl_window_create(&get_surface(), sz.width, sz.height)};
     egl_surface_.set_window(*egl_wnd_);
   } else
     wl_egl_window_resize(egl_wnd_.get(), sz.width, sz.height, 0, 0);
@@ -76,11 +76,7 @@ void gles_window::resize(size sz) {
   renderer_->resize(sz);
 }
 
-void gles_window::display(wl_output &disp [[maybe_unused]]) {}
-
 std::error_code gles_window::draw_frame() {
-  if (is_closed())
-    return ui_errc::window_closed;
   paint();
   std::error_code ec;
   eloop_.dispatch_pending(ec);
@@ -92,8 +88,6 @@ std::error_code gles_window::draw_for(std::chrono::milliseconds duration) {
   const auto end = now + duration;
   std::error_code ec;
   for (; now < end; now = std::chrono::steady_clock::now()) {
-    if (is_closed())
-      return ui_errc::window_closed;
     paint();
     eloop_.dispatch_pending(ec);
     if (ec)
