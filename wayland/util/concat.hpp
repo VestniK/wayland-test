@@ -1,12 +1,16 @@
 #include <array>
+#include <concepts>
+#include <ranges>
 #include <span>
 
 template <template <class...> class C, typename T, size_t N>
+requires std::ranges::contiguous_range<C<std::array<T, N>>>
 constexpr std::span<T> as_concated(C<std::array<T, N>> &chunked) noexcept {
   return std::span<T>{chunked.data()->data(), N * chunked.size()};
 }
 
 template <template <class...> class C, typename T, size_t N>
+requires std::ranges::contiguous_range<C<std::array<T, N>>>
 constexpr std::span<const T>
 as_concated(const C<std::array<T, N>> &chunked) noexcept {
   return std::span<const T>{chunked.data()->data(), N * chunked.size()};
