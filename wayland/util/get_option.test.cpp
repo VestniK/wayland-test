@@ -39,7 +39,7 @@ TEST_CASE("get_option") {
     arg_views maps;
     while (const char *map = get_option(argc, argv, "-m"))
       maps.push_back(map);
-    REQUIRE(maps == arg_views{{"nsk", "msk"}});
+    REQUIRE(maps == arg_views{{"nsk"sv, "msk"sv}});
   }
 }
 
