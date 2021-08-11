@@ -43,7 +43,13 @@ target_link_libraries(wayland.obj
   Wayland::client Wayland::egl
   OpenGL::EGL
   CONAN_PKG::gsl_microsoft
+  CONAN_PKG::asio
   CONAN_PKG::chaiscript ${CMAKE_DL_LIBS}
 )
 target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
-target_compile_definitions(wayland.obj PUBLIC CHAISCRIPT_NO_THREADS)
+target_compile_definitions(wayland.obj PUBLIC
+    CHAISCRIPT_NO_THREADS
+    # FIXME: For QtCreator clang based code completion only
+    ASIO_HAS_CO_AWAIT
+    ASIO_HAS_STD_COROUTINE
+)
