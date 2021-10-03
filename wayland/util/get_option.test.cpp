@@ -20,24 +20,23 @@ TEST_CASE("get_option") {
   char arg4[] = "wayland-1";
   char arg5[] = "-m";
   char arg6[] = "msk";
-  std::vector<char *> args = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
-  char **argv = args.data();
-  int argc = static_cast<int>(args.size());
+  char *args_arr[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
+  std::span<char *> args = args_arr;
 
   SECTION("returns nullptr when there is no requested option") {
-    REQUIRE(get_option(argc, argv, "-s") == nullptr);
+    REQUIRE(get_option(args, "-s") == nullptr);
   }
   SECTION("returns requested option value") {
-    REQUIRE(get_option(argc, argv, "-d") == "wayland-1"sv);
+    REQUIRE(get_option(args, "-d") == "wayland-1"sv);
   }
   SECTION("removes found option") {
-    get_option(argc, argv, "-d");
-    REQUIRE(arg_views{argv, argv + argc} ==
+    get_option(args, "-d");
+    REQUIRE(arg_views{args.begin(), args.end()} ==
             arg_views{"prog", "-m", "nsk", "-m", "msk"});
   }
   SECTION("returns repeating options preserving order") {
     arg_views maps;
-    while (const char *map = get_option(argc, argv, "-m"))
+    while (const char *map = get_option(args, "-m"))
       maps.push_back(map);
     REQUIRE(maps == arg_views{{"nsk"sv, "msk"sv}});
   }

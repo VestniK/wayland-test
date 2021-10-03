@@ -3,27 +3,27 @@
 
 #include <wayland/util/get_option.hpp>
 
-bool get_flag(int& argc, char** argv, std::string_view flag) noexcept {
-  assert(argc > 0);
-  char** first = argv + 1;
-  char** last = argv + argc;
-  char** fres = std::remove(first, last, flag);
-  argc -= std::distance(fres, last);
+bool get_flag(std::span<char *> &args, std::string_view flag) noexcept {
+  assert(!args.empty());
+  auto first = std::next(args.begin());
+  auto last = args.end();
+  auto fres = std::remove(first, last, flag);
+  args = args.subspan(0, args.size() - std::distance(fres, last));
   return fres != last;
 }
 
-gsl::czstring<> get_option(
-    int& argc, char** argv, std::string_view option) noexcept {
-  assert(argc > 0);
-  char** first = argv + 1;
-  char** last = argv + argc;
-  char** fres = std::adjacent_find(
-      first, last, [&](gsl::czstring<> opt, gsl::czstring<> val) {
-        return opt == option && val[0] != '-';
-      });
+gsl::czstring<> get_option(std::span<char *> &args,
+                           std::string_view option) noexcept {
+  assert(!args.empty());
+  auto first = std::next(args.begin());
+  auto last = args.end();
+  auto fres = std::adjacent_find(first, last,
+                                 [&](gsl::czstring<> opt, gsl::czstring<> val) {
+                                   return opt == option && val[0] != '-';
+                                 });
   if (fres == last)
     return nullptr;
   fres = std::rotate(fres, std::next(fres, 2), last);
-  argc -= 2;
+  args = args.subspan(0, args.size() - 2);
   return *std::next(fres);
 }
