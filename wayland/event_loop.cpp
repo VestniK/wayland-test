@@ -1,3 +1,6 @@
+#include <asio/posix/stream_descriptor.hpp>
+#include <asio/use_awaitable.hpp>
+
 #include <wayland/event_loop.hpp>
 #include <wayland/ui_category.hpp>
 
@@ -45,6 +48,23 @@ void event_loop::dispatch_pending() {
   dispatch_pending(ec);
   if (ec)
     throw std::system_error{ec, "event_loop::dispatch_pending"};
+}
+
+asio::awaitable<void>
+event_loop::dispatch(asio::io_context::executor_type exec) {
+  if (wl_display_prepare_read(&get_display()) != 0) {
+    dispatch_pending();
+    co_return;
+  }
+  wl_display_flush(&get_display());
+  asio::posix::stream_descriptor conn{exec, wl_display_get_fd(&get_display())};
+  co_await conn.async_wait(asio::posix::stream_descriptor::wait_read,
+                           asio::use_awaitable);
+  conn.release();
+  wl_display_read_events(&get_display());
+  // TODO `wl_display_cancel_read(display);` on wait failure!!!
+  dispatch_pending();
+  co_return;
 }
 
 void event_loop::global(void *data, wl_registry *reg, uint32_t id,

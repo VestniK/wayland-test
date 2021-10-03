@@ -4,6 +4,9 @@
 
 #include <gsl/string_span>
 
+#include <asio/awaitable.hpp>
+#include <asio/io_context.hpp>
+
 #include <wayland/wayland-client.hpp>
 
 template <typename Service> struct identified {
@@ -27,6 +30,8 @@ public:
   void dispatch();
   void dispatch_pending(std::error_code &ec) noexcept;
   void dispatch_pending();
+
+  asio::awaitable<void> dispatch(asio::io_context::executor_type exec);
 
 private:
   std::error_code check() noexcept;
