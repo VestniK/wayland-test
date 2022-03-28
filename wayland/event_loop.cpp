@@ -4,7 +4,7 @@
 #include <wayland/event_loop.hpp>
 #include <wayland/ui_category.hpp>
 
-event_loop::event_loop(gsl::czstring<> display)
+event_loop::event_loop(const char *display)
     : display_{wl_display_connect(display)} {
   if (!display_)
     throw std::system_error{errno, std::system_category(),

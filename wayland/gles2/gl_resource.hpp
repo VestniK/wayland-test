@@ -5,8 +5,6 @@
 
 #include <GLES2/gl2.h>
 
-#include <gsl/string_span>
-
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 
@@ -50,8 +48,8 @@ enum class shader_type : GLenum {
   vertex = GL_VERTEX_SHADER,
   fragment = GL_FRAGMENT_SHADER
 };
-shader compile(shader_type type, gsl::czstring<> src);
-shader compile(shader_type type, std::span<const gsl::czstring<>> srcs);
+shader compile(shader_type type, const char *src);
+shader compile(shader_type type, std::span<const char *> srcs);
 
 // Buffers
 struct buffer_deleter {
@@ -128,18 +126,18 @@ gl_resource<program_deleter> link(const shader &vertex, const shader &fragment);
 
 class shader_program {
 public:
-  explicit shader_program(gsl::czstring<> vertex_shader_sources,
-                          gsl::czstring<> fragment_shader_sources);
+  explicit shader_program(const char *vertex_shader_sources,
+                          const char *fragment_shader_sources);
 
   void use();
 
-  template <typename T> uniform_location<T> get_uniform(gsl::czstring<> name) {
+  template <typename T> uniform_location<T> get_uniform(const char *name) {
     return uniform_location<T>{
         glGetUniformLocation(program_handle_.get(), name)};
   }
 
   template <typename T>
-  attrib_location<T> get_attrib(gsl::czstring<> name) noexcept {
+  attrib_location<T> get_attrib(const char *name) noexcept {
     return attrib_location<T>{glGetAttribLocation(program_handle_.get(), name)};
   }
 

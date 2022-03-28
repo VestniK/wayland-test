@@ -4,8 +4,6 @@
 #include <chrono>
 #include <span>
 
-#include <gsl/string_span>
-
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 

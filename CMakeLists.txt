@@ -22,6 +22,7 @@ find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
 set(WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
 
 include(cmake/add_catch_tests.cmake)
+add_subdirectory(local_catch_main)
 add_subdirectory(wayland)
 
 add_executable(wayland

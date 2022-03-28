@@ -15,7 +15,6 @@ target_include_directories(util PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(util
 PUBLIC
   stdc++fs
-  CONAN_PKG::gsl_microsoft
 )
 if (WAYLAND_TEST_WERROR)
   target_compile_options(util PUBLIC -Werror=all)

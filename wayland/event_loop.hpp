@@ -2,8 +2,6 @@
 
 #include <system_error>
 
-#include <gsl/string_span>
-
 #include <asio/awaitable.hpp>
 #include <asio/io_context.hpp>
 
@@ -16,7 +14,7 @@ template <typename Service> struct identified {
 
 class event_loop {
 public:
-  event_loop(gsl::czstring<> display);
+  event_loop(const char *display);
 
   [[nodiscard]] wl_display &get_display() const noexcept { return *display_; }
   [[nodiscard]] wl_compositor *get_compositor() const noexcept {

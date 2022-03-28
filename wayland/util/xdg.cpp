@@ -1,7 +1,5 @@
 #include <cstdlib>
 
-#include <gsl/string_span>
-
 #include <wayland/util/xdg.hpp>
 
 namespace fs = std::filesystem;
@@ -9,7 +7,7 @@ namespace fs = std::filesystem;
 namespace xdg {
 
 fs::path config_home() {
-  gsl::czstring<> env = ::getenv("XDG_CONFIG_HOME");
+  const char *env = ::getenv("XDG_CONFIG_HOME");
   if (env && *env != 0)
     return env;
 
@@ -27,11 +25,11 @@ fs::path find_config(fs::path relative) {
   if (fs::exists(user_cfg))
     return user_cfg;
 
-  gsl::czstring<> env = ::getenv("XDG_CONFIG_DIRS");
+  const char *env = ::getenv("XDG_CONFIG_DIRS");
   if (!env || *env == 0)
     env = "/etc/xdg";
 
-  for (const char* p = env; *p != 0; ++p) {
+  for (const char *p = env; *p != 0; ++p) {
     if (*p != ':')
       continue;
     const auto candidate = fs::path{env, p} / relative;
@@ -45,7 +43,7 @@ fs::path find_config(fs::path relative) {
 
 // TODO: уменьшить копипасту
 fs::path data_home() {
-  gsl::czstring<> env = ::getenv("XDG_DATA_HOME");
+  const char *env = ::getenv("XDG_DATA_HOME");
   if (env && *env != 0)
     return env;
 
@@ -64,11 +62,11 @@ fs::path find_data(fs::path relative) {
   if (fs::exists(user_cfg))
     return user_cfg;
 
-  gsl::czstring<> env = ::getenv("XDG_DATA_DIRS");
+  const char *env = ::getenv("XDG_DATA_DIRS");
   if (!env || *env == 0)
     env = "/usr/local/share/:/usr/share/";
 
-  for (const char* p = env; *p != 0; ++p) {
+  for (const char *p = env; *p != 0; ++p) {
     if (*p != ':')
       continue;
     const auto candidate = fs::path{env, p} / relative;

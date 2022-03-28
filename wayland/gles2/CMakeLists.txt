@@ -19,7 +19,6 @@ target_link_libraries(gles2 PUBLIC
   shaders
   OpenGL::OpenGL
   CONAN_PKG::glm
-  CONAN_PKG::gsl_microsoft
 )
 
 add_catch_test(

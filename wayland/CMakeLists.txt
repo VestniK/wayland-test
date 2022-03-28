@@ -43,7 +43,6 @@ target_link_libraries(wayland.obj
   stdc++fs
   Wayland::client Wayland::egl
   OpenGL::EGL
-  CONAN_PKG::gsl_microsoft
   CONAN_PKG::asio
   CONAN_PKG::chaiscript ${CMAKE_DL_LIBS}
 )

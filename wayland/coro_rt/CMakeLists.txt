@@ -7,7 +7,6 @@ target_include_directories(coro-rt PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(coro-rt
 PUBLIC
   stdc++fs
-  CONAN_PKG::gsl_microsoft
   CONAN_PKG::asio
   CONAN_PKG::fmt
 )

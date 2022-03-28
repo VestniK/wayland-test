@@ -1,10 +1,12 @@
+#include <stdexcept>
+
 #include <wayland/gles2/gl_resource.hpp>
 
-shader compile(shader_type type, gsl::czstring<> src) {
-  return compile(type, std::span<gsl::czstring<>>{&src, 1});
+shader compile(shader_type type, const char *src) {
+  return compile(type, std::span<const char *>{&src, 1});
 }
 
-shader compile(shader_type type, std::span<const gsl::czstring<>> srcs) {
+shader compile(shader_type type, std::span<const char *> srcs) {
   shader res{glCreateShader(static_cast<GLenum>(type))};
   if (!res)
     throw std::runtime_error{"Failed to create shader"};
@@ -52,8 +54,8 @@ gl_resource<program_deleter> link(const shader &vertex_shader,
   return res;
 }
 
-shader_program::shader_program(gsl::czstring<> vertex_shader_sources,
-                               gsl::czstring<> fragment_shader_sources)
+shader_program::shader_program(const char *vertex_shader_sources,
+                               const char *fragment_shader_sources)
     : program_handle_{
           link(compile(shader_type::vertex, vertex_shader_sources),
                compile(shader_type::fragment, fragment_shader_sources))} {}

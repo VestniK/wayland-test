@@ -9,7 +9,7 @@ function(add_catch_test)
   add_executable(${CATCH_TEST_NAME} ${CATCH_TEST_SOURCES})
   target_link_libraries(${CATCH_TEST_NAME}
   PRIVATE
-    CONAN_PKG::catch2
+    local_catch_main
   )
   add_test(NAME ${CATCH_TEST_NAME} COMMAND ${CATCH_TEST_NAME} --order rand)
 endfunction()
