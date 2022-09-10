@@ -7,8 +7,8 @@ target_include_directories(coro-rt PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(coro-rt
 PUBLIC
   stdc++fs
-  CONAN_PKG::asio
-  CONAN_PKG::fmt
+  asio::asio
+  fmt::fmt
 )
 target_compile_definitions(coro-rt PUBLIC
   # FIXME: For QtCreator clang based code completion only

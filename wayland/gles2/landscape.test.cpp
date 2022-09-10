@@ -1,6 +1,11 @@
+#include <algorithm>
 #include <array>
+#include <numeric>
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_approx.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators_range.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <fmt/format.h>
 
@@ -78,12 +83,12 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
     }
     SECTION("mesh has proper x dimensions") {
       CHECK(landscape_bounds.length() ==
-            Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) *
-                   radius.count()));
+            Catch::Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) *
+                          radius.count()));
     }
     SECTION("mesh has proper y dimensions") {
       CHECK(landscape_bounds.width() ==
-            Approx(rows * 2 * radius.count() * std::sin(M_PI / 3)));
+            Catch::Approx(rows * 2 * radius.count() * std::sin(M_PI / 3)));
     }
   }
 
@@ -91,7 +96,7 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
 
     REQUIRE(land.indexes().size() % vertixies_in_hexagon == 0);
 
-    for (int index_set_start = 0; index_set_start < land.indexes().size();
+    for (size_t index_set_start = 0; index_set_start < land.indexes().size();
          index_set_start += vertixies_in_hexagon) {
       std::array<glm::vec3, vertixies_in_hexagon> triangles_set =
           get_triangles<triangles_in_hexagon>(land, index_set_start);
@@ -108,13 +113,13 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
                               triangle_offset / triangles_in_hexagon)) {
             CHECK(glm::dot(triangle[1] - triangle[0],
                            triangle[2] - triangle[0]) ==
-                  Approx(0.5 * radius.count() * radius.count()));
+                  Catch::Approx(0.5 * radius.count() * radius.count()));
             CHECK(glm::dot(triangle[0] - triangle[1],
                            triangle[2] - triangle[1]) ==
-                  Approx(0.5 * radius.count() * radius.count()));
+                  Catch::Approx(0.5 * radius.count() * radius.count()));
             CHECK(glm::dot(triangle[0] - triangle[2],
                            triangle[1] - triangle[2]) ==
-                  Approx(0.5 * radius.count() * radius.count()));
+                  Catch::Approx(0.5 * radius.count() * radius.count()));
           }
 
           SECTION("there are 7 unique points (center and hexagon perimeter)") {

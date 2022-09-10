@@ -2,8 +2,7 @@
 
 #include <ratio>
 
-template <auto Unit, typename Rep, typename Per>
-class unit;
+template <auto Unit, typename Rep, typename Per> class unit;
 
 template <auto Unit, typename Rep, std::intmax_t Num, std::intmax_t Denum>
 class unit<Unit, Rep, std::ratio<Num, Denum>> {
@@ -30,26 +29,26 @@ private:
 };
 
 template <auto Unit, typename Rep, typename Per>
-constexpr bool operator==(
-    unit<Unit, Rep, Per> l, unit<Unit, Rep, Per> r) noexcept {
+constexpr bool operator==(unit<Unit, Rep, Per> l,
+                          unit<Unit, Rep, Per> r) noexcept {
   return l.count() == r.count();
 }
 
 template <auto Unit, typename Rep, typename Per>
-constexpr bool operator!=(
-    unit<Unit, Rep, Per> l, unit<Unit, Rep, Per> r) noexcept {
+constexpr bool operator!=(unit<Unit, Rep, Per> l,
+                          unit<Unit, Rep, Per> r) noexcept {
   return l.count() != r.count();
 }
 
 template <auto Unit, typename Rep, typename Per>
-constexpr auto operator+(
-    unit<Unit, Rep, Per> l, unit<Unit, Rep, Per> r) noexcept {
+constexpr auto operator+(unit<Unit, Rep, Per> l,
+                         unit<Unit, Rep, Per> r) noexcept {
   return unit<Unit, Rep, Per>{l.count() + r.count()};
 }
 
 template <auto Unit, typename Rep, typename Per>
-constexpr auto operator-(
-    unit<Unit, Rep, Per> l, unit<Unit, Rep, Per> r) noexcept {
+constexpr auto operator-(unit<Unit, Rep, Per> l,
+                         unit<Unit, Rep, Per> r) noexcept {
   return unit<Unit, Rep, Per>{l.count() - r.count()};
 }
 
@@ -69,8 +68,8 @@ constexpr auto operator/(unit<Unit, Rep, Per> l, Num r) noexcept {
 }
 
 template <auto Unit, typename Rep, typename Per>
-constexpr auto operator/(
-    unit<Unit, Rep, Per> l, unit<Unit, Rep, Per> r) noexcept {
+constexpr auto operator/(unit<Unit, Rep, Per> l,
+                         unit<Unit, Rep, Per> r) noexcept {
   return l.count() / r.count();
 }
 

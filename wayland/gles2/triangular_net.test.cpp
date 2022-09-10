@@ -1,5 +1,12 @@
-#include <catch2/catch.hpp>
 #include <iostream>
+
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
+#include <catch2/generators/catch_generators_adapters.hpp>
+#include <catch2/generators/catch_generators_random.hpp>
+#include <catch2/generators/catch_generators_range.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <fmt/format.h>
 
@@ -12,7 +19,7 @@ namespace Catch {
 
 template <> struct StringMaker<triangular::point> {
   static std::string convert(triangular::point pt) {
-    return "{{x: {}, y: {}}}"_format(pt.x, pt.y);
+    return fmt::format("{{x: {}, y: {}}}", pt.x, pt.y);
   }
 };
 

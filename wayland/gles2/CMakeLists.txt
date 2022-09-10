@@ -18,7 +18,7 @@ target_link_libraries(gles2 PUBLIC
   util
   shaders
   OpenGL::OpenGL
-  CONAN_PKG::glm
+  glm::glm
 )
 
 add_catch_test(
@@ -29,4 +29,4 @@ SOURCES
   landscape.test.cpp
   triangular_net.test.cpp
 )
-target_link_libraries(gles2.test PRIVATE gles2 CONAN_PKG::fmt)
+target_link_libraries(gles2.test PRIVATE gles2 fmt::fmt)

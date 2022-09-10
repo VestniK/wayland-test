@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <fmt/format.h>
 
@@ -27,7 +27,7 @@ namespace Catch {
 template <typename Rep, typename Per>
 struct StringMaker<unit<units::length, Rep, Per>> {
   static std::string convert(unit<units::length, Rep, Per> val) {
-    return "{}{}meters"_format(val.count(), prefix_v<Per>);
+    return fmt::format("{}{}meters", val.count(), prefix_v<Per>);
   }
 };
 

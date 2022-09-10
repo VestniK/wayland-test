@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.14)
 project(wayland)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR})
 include(cmake/conan.cmake)
 conan_cmake_run(CONANFILE conanfile.txt
   BASIC_SETUP CMAKE_TARGETS
@@ -18,11 +20,15 @@ option(WAYLAND_TEST_WERROR OFF "Treat warnings as errors")
 
 find_package(Wayland REQUIRED)
 find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
+find_package(Catch2 REQUIRED)
+find_package(fmt REQUIRED)
+find_package(asio REQUIRED)
+find_package(chaiscript REQUIRED)
+find_package(glm REQUIRED)
 
 set(WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
 
 include(cmake/add_catch_tests.cmake)
-add_subdirectory(local_catch_main)
 add_subdirectory(wayland)
 
 add_executable(wayland
@@ -31,7 +37,7 @@ add_executable(wayland
   scripts/wayland.chai
   wayland/main.cpp
 )
-target_link_libraries(wayland PRIVATE wayland.obj util gles2 coro-rt CONAN_PKG::fmt)
+target_link_libraries(wayland PRIVATE wayland.obj util gles2 coro-rt fmt::fmt)
 add_custom_command(TARGET wayland POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland>

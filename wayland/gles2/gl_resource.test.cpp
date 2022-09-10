@@ -1,6 +1,6 @@
 #include <deque>
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <wayland/gles2/gl_resource.hpp>
 
