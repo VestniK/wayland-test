@@ -7,6 +7,7 @@
 #include <ivi-application.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
+#include <xdg-shell.h>
 
 #include <wayland/util/geom.hpp>
 
@@ -42,6 +43,9 @@ struct deleter {
     ivi_application_destroy(ptr);
   }
   void operator()(ivi_surface *ptr) noexcept { ivi_surface_destroy(ptr); }
+  void operator()(xdg_wm_base *ptr) noexcept { xdg_wm_base_destroy(ptr); }
+  void operator()(xdg_surface *ptr) noexcept { xdg_surface_destroy(ptr); }
+  void operator()(xdg_toplevel *ptr) noexcept { xdg_toplevel_destroy(ptr); }
 };
 template <typename T> using unique_ptr = std::unique_ptr<T, deleter>;
 
@@ -65,6 +69,11 @@ template <> struct service_trait<wl_output> {
 template <> struct service_trait<ivi_application> {
   static constexpr auto name = "ivi_application"sv;
   static constexpr const wl_interface *iface = &ivi_application_interface;
+};
+
+template <> struct service_trait<xdg_wm_base> {
+  static constexpr auto name = "xdg_wm_base"sv;
+  static constexpr const wl_interface *iface = &xdg_wm_base_interface;
 };
 
 template <typename Service>

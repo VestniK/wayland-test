@@ -1,6 +1,6 @@
 #pragma once
 
-#include <wayland/util/geom.hpp>
+#include <wayland/window_delegate.hpp>
 #include <wayland/wlutil.hpp>
 
 struct wl_compositor;
@@ -9,22 +9,22 @@ struct ivi_application;
 
 namespace ivi {
 
+using delegate = basic_delegate;
+
 class window {
 public:
   window() = delete;
   window(const window &) = delete;
   window &operator=(const window &) = delete;
-  window(window &&rhs) = delete;
-  window &operator=(window &&rhs) = delete;
 
-  virtual ~window() noexcept = default;
+  window(window &&) noexcept = default;
+  window &operator=(window &&rhs) noexcept = default;
 
-  window(wl_compositor &compositor, ivi_application &shell, uint32_t ivi_id);
+  window(wl_compositor &compositor, ivi_application &shell, uint32_t ivi_id,
+         delegate *delegate = nullptr);
 
   wl_surface &get_surface() { return *surface_; }
-
-protected:
-  virtual void resize(size sz) = 0;
+  void set_delegate(delegate *delegate) noexcept;
 
 private:
   static void configure(void *data, ivi_surface *ivi_surface, int32_t width,

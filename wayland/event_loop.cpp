@@ -17,9 +17,9 @@ event_loop::event_loop(const char *display)
 }
 
 std::error_code event_loop::check() noexcept {
-  if (!compositor.service)
+  if (!compositor_.service)
     return ui_errc::compositor_lost;
-  if (!ivi.service)
+  if (!ivi_.service && !xdg_wm_.service)
     return ui_errc::shell_lost;
   return {};
 }
@@ -71,15 +71,19 @@ void event_loop::global(void *data, wl_registry *reg, uint32_t id,
                         const char *name, uint32_t ver) {
   event_loop *self = reinterpret_cast<event_loop *>(data);
   if (name == wl::service_trait<wl_compositor>::name)
-    self->compositor = {wl::bind<wl_compositor>(reg, id, ver), id};
+    self->compositor_ = {wl::bind<wl_compositor>(reg, id, ver), id};
   if (name == wl::service_trait<ivi_application>::name)
-    self->ivi = {wl::bind<ivi_application>(reg, id, ver), id};
+    self->ivi_ = {wl::bind<ivi_application>(reg, id, ver), id};
+  if (name == wl::service_trait<xdg_wm_base>::name)
+    self->xdg_wm_ = {wl::bind<xdg_wm_base>(reg, id, ver), id};
 }
 
 void event_loop::global_remove(void *data, wl_registry *, uint32_t id) {
   event_loop *self = reinterpret_cast<event_loop *>(data);
-  if (id == self->compositor.id)
-    self->compositor = {{}, {}};
-  if (id == self->ivi.id)
-    self->ivi = {{}, {}};
+  if (id == self->compositor_.id)
+    self->compositor_ = {{}, {}};
+  if (id == self->ivi_.id)
+    self->ivi_ = {{}, {}};
+  if (id == self->xdg_wm_.id)
+    self->xdg_wm_ = {{}, {}};
 }

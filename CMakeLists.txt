@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 project(wayland)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -26,7 +26,10 @@ find_package(asio REQUIRED)
 find_package(chaiscript REQUIRED)
 find_package(glm REQUIRED)
 
-set(WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
+# wayland related deps
+find_package(PkgConfig)
+pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+set(LOCAL_WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
 
 include(cmake/add_catch_tests.cmake)
 add_subdirectory(wayland)

@@ -7,14 +7,13 @@
 #include <wayland/gles2/renderer.hpp>
 #include <wayland/script_player.hpp>
 #include <wayland/util/geom.hpp>
-#include <wayland/window.hpp>
+#include <wayland/xdg_window.hpp>
 
-class gles_window final : public ivi::window, public script_window {
+class gles_delegate final : public xdg::delegate, public script_window {
 public:
-  gles_window(event_loop &eloop, uint32_t ivi_id);
-  ~gles_window() noexcept override;
+  gles_delegate(event_loop &eloop, wl_surface &surf, size sz);
+  ~gles_delegate() noexcept override;
 
-  [[nodiscard]] bool is_initialized() const noexcept;
   bool paint();
 
   [[nodiscard]] size get_size() const noexcept;
@@ -25,9 +24,9 @@ public:
   void camera_look_at(float ex, float ey, float ez, float cx, float cy,
                       float cz) override;
 
-protected:
   // toplevel_window
   void resize(size sz) override;
+  void close() override {}
 
 private:
   event_loop &eloop_;

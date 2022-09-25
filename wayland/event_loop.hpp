@@ -18,10 +18,13 @@ public:
 
   [[nodiscard]] wl_display &get_display() const noexcept { return *display_; }
   [[nodiscard]] wl_compositor *get_compositor() const noexcept {
-    return compositor.service.get();
+    return compositor_.service.get();
   }
   [[nodiscard]] ivi_application *get_ivi() const noexcept {
-    return ivi.service.get();
+    return ivi_.service.get();
+  }
+  [[nodiscard]] xdg_wm_base *get_xdg_wm() const noexcept {
+    return xdg_wm_.service.get();
   }
 
   void dispatch(std::error_code &ec) noexcept;
@@ -42,6 +45,7 @@ private:
   wl::unique_ptr<wl_display> display_;
   wl::unique_ptr<wl_registry> registry_;
   wl_registry_listener listener_ = {&global, &global_remove};
-  identified<wl_compositor> compositor;
-  identified<ivi_application> ivi;
+  identified<wl_compositor> compositor_;
+  identified<ivi_application> ivi_;
+  identified<xdg_wm_base> xdg_wm_;
 };
