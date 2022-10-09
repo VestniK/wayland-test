@@ -32,8 +32,8 @@ egl::context make_egl_context(wl_display &display) {
 
 } // namespace
 
-gles_delegate::gles_delegate(event_loop &eloop, wl_surface &surf, size sz)
-    : eloop_{eloop}, egl_surface_(make_egl_context(eloop.get_display())),
+gles_delegate::gles_delegate(const event_loop &eloop, wl_surface &surf, size sz)
+    : egl_surface_(make_egl_context(eloop.get_display())),
       egl_wnd_{wl_egl_window_create(&surf, sz.width, sz.height)} {
   egl_surface_.set_window(*egl_wnd_);
   egl_surface_.make_current();
@@ -65,29 +65,4 @@ void gles_delegate::resize(size sz) {
   wl_egl_window_resize(egl_wnd_.get(), sz.width, sz.height, 0, 0);
   egl_surface_.make_current();
   renderer_->resize(sz);
-}
-
-std::error_code gles_delegate::draw_frame() {
-  paint();
-  std::error_code ec;
-  eloop_.dispatch_pending(ec);
-  return ec;
-}
-
-std::error_code gles_delegate::draw_for(std::chrono::milliseconds duration) {
-  auto now = std::chrono::steady_clock::now();
-  const auto end = now + duration;
-  std::error_code ec;
-  for (; now < end; now = std::chrono::steady_clock::now()) {
-    paint();
-    eloop_.dispatch_pending(ec);
-    if (ec)
-      return ec;
-  }
-  return ec;
-}
-
-void gles_delegate::camera_look_at(float ex, float ey, float ez, float cx,
-                                 float cy, float cz) {
-  renderer_->camera_look_at({ex, ey, ez}, {cx, cy, cz});
 }

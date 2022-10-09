@@ -8,7 +8,6 @@
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/ivi_window.hpp>
-#include <wayland/script_player.hpp>
 #include <wayland/util/get_option.hpp>
 #include <wayland/util/xdg.hpp>
 #include <wayland/xdg_window.hpp>
@@ -60,8 +59,11 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
                  wnd),
       *szdelegate.wnd_size};
   std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
-  gl_delegate.camera_look_at(7, 10, 18, 3, 1, 0);
-  gl_delegate.draw_for(25s);
+
+  while (!gl_delegate.is_closed()) {
+    gl_delegate.paint();
+    eloop.dispatch_pending();
+  }
 
   co_return EXIT_SUCCESS;
 }

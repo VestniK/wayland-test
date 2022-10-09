@@ -40,8 +40,6 @@ public:
   void resize(size sz);
   void draw(clock::time_point ts);
 
-  void camera_look_at(glm::vec3 eye, glm::vec3 center);
-
 private:
   shader_program shader_prog_;
   uniform_location<glm::mat4> camera_uniform_;

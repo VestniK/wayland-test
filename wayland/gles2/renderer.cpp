@@ -106,8 +106,8 @@ renderer::renderer()
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
 
-  camera_ = glm::lookAt(glm::vec3{.0, .0, 20.}, glm::vec3{0., 0, .0},
-                        glm::vec3{.1, .0, 0.});
+  camera_ = camera_ = glm::lookAt(glm::vec3{7, 10, 18}, glm::vec3{3, 1, 0},
+                                  glm::vec3{.0, .0, 1.});
 
   landscape land{centimeters{20}, 30, 20};
   landscape_ = mesh{shader_prog_.get_attrib<glm::vec3>("position"),
@@ -155,9 +155,4 @@ void renderer::draw(clock::time_point ts) {
                                    norm_world_uniform_);
   landscape_.draw();
   glFlush();
-}
-
-void renderer::camera_look_at(glm::vec3 eye, glm::vec3 center) {
-  camera_ = glm::lookAt(eye, center, glm::vec3{.0, .0, 1.});
-  camera_uniform_.set_value(projection_ * camera_);
 }

@@ -30,8 +30,6 @@ add_library(wayland.obj OBJECT
   egl.hpp
   event_loop.cpp
   event_loop.hpp
-  script_player.cpp
-  script_player.hpp
   ui_category.cpp
   ui_category.hpp
   wayland-client.hpp
@@ -60,7 +58,7 @@ target_link_libraries(wayland.obj
   Wayland::client Wayland::egl
   OpenGL::EGL
   asio::asio
-  chaiscript::chaiscript ${CMAKE_DL_LIBS}
+  ${CMAKE_DL_LIBS}
 )
 target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
 target_compile_definitions(wayland.obj PUBLIC
