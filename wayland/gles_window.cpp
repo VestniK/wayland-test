@@ -27,6 +27,7 @@ egl::context make_egl_context(wl_display &display) {
       EGL_FALSE)
     throw std::system_error{eglGetError(), egl::category(), "eglChooseConfig"};
 
+  eglSwapInterval(egl_display.native_handle(), 0);
   return egl::context{std::move(egl_display), cfg};
 }
 

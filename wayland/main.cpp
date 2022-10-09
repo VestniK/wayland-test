@@ -53,16 +53,22 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
   if (szdelegate.closed)
     co_return EXIT_SUCCESS;
 
-  gles_delegate gl_delegate{
-      eloop,
-      std::visit([](auto &wnd) -> wl_surface & { return wnd.get_surface(); },
-                 wnd),
-      *szdelegate.wnd_size};
+  wl_surface &surf = std::visit(
+      [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd);
+  gles_delegate gl_delegate{eloop, surf, *szdelegate.wnd_size};
   std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
 
   while (!gl_delegate.is_closed()) {
+    wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
     gl_delegate.paint();
-    eloop.dispatch_pending();
+    std::optional<uint32_t> next_frame;
+    wl_callback_listener listener = {
+        .done = [](void *data, wl_callback *, uint32_t ts) {
+          *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
+        }};
+    wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
+    while (!next_frame && !gl_delegate.is_closed())
+      co_await eloop.dispatch(exec);
   }
 
   co_return EXIT_SUCCESS;
