@@ -24,7 +24,9 @@ public:
          delegate *delegate = nullptr);
 
   wl_surface &get_surface() { return *surface_; }
+  ivi_surface &get_ivi_surface() noexcept { return *ivi_surface_; }
   void set_delegate(delegate *delegate) noexcept;
+  void set_delegate_queue(wl_event_queue &queue) noexcept;
 
 private:
   static void configure(void *data, ivi_surface *ivi_surface, int32_t width,

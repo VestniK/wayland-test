@@ -29,6 +29,7 @@ public:
 
   void maximize() { xdg_toplevel_set_maximized(toplevel_.get()); }
   void set_delegate(delegate *delegate) noexcept;
+  void set_delegate_queue(wl_event_queue &queue) noexcept;
 
 private:
   static void configure_surface(void *, xdg_surface *surf, uint32_t serial);

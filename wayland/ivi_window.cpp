@@ -21,6 +21,10 @@ void window::set_delegate(delegate *delegate) noexcept {
                          delegate);
 }
 
+void window::set_delegate_queue(wl_event_queue &queue) noexcept {
+  wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(ivi_surface_.get()), &queue);
+}
+
 ivi_surface_listener window::ivi_listener = {
     .configure = window::configure,
 };

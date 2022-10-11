@@ -1,4 +1,5 @@
 #include <span>
+#include <thread>
 #include <variant>
 
 #include <fmt/format.h>
@@ -53,23 +54,34 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
   if (szdelegate.closed)
     co_return EXIT_SUCCESS;
 
+  std::atomic_flag closed;
+  wl::unique_ptr<wl_event_queue> queue{
+      wl_display_create_queue(&eloop.get_display())};
   wl_surface &surf = std::visit(
       [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd);
-  gles_delegate gl_delegate{eloop, surf, *szdelegate.wnd_size};
-  std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
+  std::visit([&](auto &wnd) { wnd.set_delegate_queue(*queue); }, wnd);
+  wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf), queue.get());
+  std::jthread render_thread{[&, queue = std::move(queue)] {
+    gles_delegate gl_delegate{eloop, surf, *szdelegate.wnd_size};
+    std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
 
-  while (!gl_delegate.is_closed()) {
-    wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
-    gl_delegate.paint();
-    std::optional<uint32_t> next_frame;
-    wl_callback_listener listener = {
-        .done = [](void *data, wl_callback *, uint32_t ts) {
-          *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
-        }};
-    wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
-    while (!next_frame && !gl_delegate.is_closed())
-      co_await eloop.dispatch(exec);
-  }
+    while (!gl_delegate.is_closed()) {
+      wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
+      gl_delegate.paint();
+      std::optional<uint32_t> next_frame;
+      wl_callback_listener listener = {
+          .done = [](void *data, wl_callback *, uint32_t ts) {
+            *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
+          }};
+      wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
+      while (!next_frame && !gl_delegate.is_closed())
+        wl_display_dispatch_queue(&eloop.get_display(), queue.get());
+    }
+    closed.test_and_set();
+  }};
+
+  while (!closed.test())
+    co_await eloop.dispatch(exec);
 
   co_return EXIT_SUCCESS;
 }

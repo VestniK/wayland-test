@@ -23,6 +23,10 @@ void toplevel_window::set_delegate(delegate *delegate) noexcept {
                          delegate);
 }
 
+void toplevel_window::set_delegate_queue(wl_event_queue &queue) noexcept {
+  wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(toplevel_.get()), &queue);
+}
+
 xdg_toplevel_listener toplevel_window::toplevel_listener = {
     .configure = toplevel_window::configure_toplevel,
     .close = toplevel_window::close,
