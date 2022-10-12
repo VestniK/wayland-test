@@ -1,6 +1,7 @@
 #include <numeric>
 
 #include <wayland/egl.hpp>
+#include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/ui_category.hpp>
 
@@ -33,37 +34,42 @@ egl::context make_egl_context(wl_display &display) {
 
 } // namespace
 
-gles_delegate::gles_delegate(const event_loop &eloop, wl_surface &surf, size sz)
+gles_context::gles_context(const event_loop &eloop, wl_surface &surf, size sz)
     : egl_surface_(make_egl_context(eloop.get_display())),
       egl_wnd_{wl_egl_window_create(&surf, sz.width, sz.height)} {
   egl_surface_.set_window(*egl_wnd_);
   egl_surface_.make_current();
-  renderer_.emplace();
-  renderer_->resize(sz);
 }
 
-gles_delegate::~gles_delegate() noexcept {
-  if (egl_surface_)
-    egl_surface_.release_thread();
-}
+gles_context::~gles_context() noexcept { egl_surface_.release_thread(); }
 
-bool gles_delegate::paint() {
-  renderer_->draw(std::chrono::steady_clock::now());
-  egl_surface_.swap_buffers();
-  return true;
-}
-
-size gles_delegate::get_size() const noexcept {
+[[nodiscard]] size gles_context::get_size() const noexcept {
   size sz;
   wl_egl_window_get_attached_size(egl_wnd_.get(), &sz.width, &sz.height);
   return sz;
 }
 
-void gles_delegate::resize(size sz) {
+bool gles_context::resize(size sz) {
   if (egl_wnd_ && get_size() == sz)
-    return;
+    return false;
 
   wl_egl_window_resize(egl_wnd_.get(), sz.width, sz.height, 0, 0);
   egl_surface_.make_current();
-  renderer_->resize(sz);
+  return true;
+}
+
+gles_delegate::gles_delegate(const event_loop &eloop, wl_surface &surf, size sz)
+    : ctx_(eloop, surf, sz) {
+  renderer_.resize(sz);
+}
+
+bool gles_delegate::paint() {
+  renderer_.draw(std::chrono::steady_clock::now());
+  ctx_.egl_surface().swap_buffers();
+  return true;
+}
+
+void gles_delegate::resize(size sz) {
+  if (ctx_.resize(sz))
+    renderer_.resize(sz);
 }

@@ -1,3 +1,5 @@
+#include <atomic>
+#include <optional>
 #include <span>
 #include <thread>
 #include <variant>
