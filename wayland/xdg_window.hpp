@@ -15,10 +15,10 @@ struct delegate : basic_delegate {
 
 class toplevel_window {
 public:
-  toplevel_window() = delete;
   toplevel_window(const toplevel_window &) = delete;
   toplevel_window &operator=(const toplevel_window &) = delete;
 
+  toplevel_window() noexcept = default;
   toplevel_window(toplevel_window &&rhs) noexcept = default;
   toplevel_window &operator=(toplevel_window &&rhs) noexcept = default;
 

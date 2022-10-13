@@ -1,5 +1,13 @@
+#include <atomic>
+#include <thread>
+#include <variant>
+
+#include <asio/awaitable.hpp>
+#include <asio/io_context.hpp>
+
 #include <wayland/egl.hpp>
 #include <wayland/gles2/renderer.hpp>
+#include <wayland/ivi_window.hpp>
 #include <wayland/util/geom.hpp>
 #include <wayland/xdg_window.hpp>
 
@@ -40,4 +48,22 @@ private:
   gles_context ctx_;
   renderer renderer_;
   bool closed_ = false;
+};
+
+class gles_window {
+public:
+  using any_window = std::variant<xdg::toplevel_window, ivi::window>;
+  gles_window() noexcept = default;
+  gles_window(event_loop &eloop, any_window wnd, size initial_size);
+
+  static asio::awaitable<gles_window>
+  create(event_loop &eloop, asio::io_context::executor_type exec);
+
+  [[nodiscard]] bool is_closed() const noexcept {
+    return !closed_ || closed_->test();
+  }
+
+private:
+  std::jthread render_thread_;
+  std::unique_ptr<std::atomic_flag> closed_;
 };

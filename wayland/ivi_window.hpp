@@ -13,10 +13,10 @@ using delegate = basic_delegate;
 
 class window {
 public:
-  window() = delete;
   window(const window &) = delete;
   window &operator=(const window &) = delete;
 
+  window() noexcept = default;
   window(window &&) noexcept = default;
   window &operator=(window &&rhs) noexcept = default;
 
