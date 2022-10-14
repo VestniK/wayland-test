@@ -45,6 +45,7 @@ private:
   uniform_location<glm::mat4> camera_uniform_;
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;
+  uniform_location<glm::vec3> color_uniform_;
   mesh cube_;
   mesh landscape_;
   glm::mat4 projection_{};
