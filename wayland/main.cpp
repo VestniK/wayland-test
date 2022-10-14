@@ -10,6 +10,10 @@
 
 using namespace std::literals;
 
+namespace ludev {
+void list_gamepads();
+}
+
 asio::awaitable<int> co_main(asio::io_context::executor_type exec,
                              std::span<char *> args) {
   if (get_flag(args, "-h")) {
@@ -19,6 +23,7 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
                args[0]);
     co_return EXIT_SUCCESS;
   }
+  ludev::list_gamepads();
 
   event_loop eloop{get_option(args, "-d")};
 

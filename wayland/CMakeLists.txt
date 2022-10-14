@@ -1,6 +1,7 @@
 add_subdirectory(coro_rt)
 add_subdirectory(util)
 add_subdirectory(gles2)
+add_subdirectory(gamepad)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
   COMMAND Wayland::scanner client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
@@ -62,7 +63,6 @@ target_link_libraries(wayland.obj
 )
 target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
 target_compile_definitions(wayland.obj PUBLIC
-    CHAISCRIPT_NO_THREADS CHAISCRIPT_NO_THREADS_WARNING
     # FIXME: For QtCreator clang based code completion only
     ASIO_HAS_CO_AWAIT
     ASIO_HAS_STD_COROUTINE
