@@ -13,4 +13,5 @@ pkg_check_modules(UDEV REQUIRED IMPORTED_TARGET libudev)
 target_link_libraries(gamepad PUBLIC
   PkgConfig::UDEV
   fmt::fmt
+  spdlog::spdlog
 )

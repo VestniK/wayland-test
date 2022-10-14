@@ -3,7 +3,7 @@
 
 #include <libudev.h>
 
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace ludev {
 
@@ -30,8 +30,8 @@ void list_gamepads() {
     unique_ptr<udev_device> dev{
         udev_device_new_from_syspath(udev.get(), syspath)};
     const char *devnode = udev_device_get_devnode(dev.get());
-    fmt::print("---> found gamepad:\n\t{}\n\t{}\n", syspath,
-               devnode ? devnode : "nullptr");
+    spdlog::info("found gamepad:\n\t{}\n\t{}", syspath,
+                 devnode ? devnode : "nullptr");
   }
 }
 

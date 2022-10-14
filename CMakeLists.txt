@@ -23,8 +23,8 @@ find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(asio REQUIRED)
-find_package(chaiscript REQUIRED)
 find_package(glm REQUIRED)
+find_package(spdlog REQUIRED)
 
 # wayland related deps
 find_package(PkgConfig)
@@ -39,7 +39,7 @@ add_executable(wayland
   .clang-format
   wayland/main.cpp
 )
-target_link_libraries(wayland PRIVATE wayland.obj util gles2 coro-rt gamepad fmt::fmt)
+target_link_libraries(wayland PRIVATE spdlog::spdlog wayland.obj util gles2 coro-rt gamepad fmt::fmt)
 add_custom_command(TARGET wayland POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland>
