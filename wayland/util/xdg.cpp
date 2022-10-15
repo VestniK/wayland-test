@@ -42,6 +42,24 @@ fs::path find_config(fs::path relative) {
 }
 
 // TODO: уменьшить копипасту
+fs::path cache_home() {
+  const char *env = ::getenv("XDG_CACHE_HOME");
+  if (env && *env != 0)
+    return env;
+
+  env = ::getenv("HOME");
+  if (!env || *env == 0)
+    throw std::runtime_error{"environment variable ${HOME} is not set"};
+  return fs::path{env} / ".cache";
+}
+
+fs::path find_cache(fs::path relative) {
+  if (relative.is_absolute())
+    return relative;
+
+  return cache_home() / relative;
+}
+
 fs::path data_home() {
   const char *env = ::getenv("XDG_DATA_HOME");
   if (env && *env != 0)
