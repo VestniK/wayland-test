@@ -5,6 +5,7 @@
 #include <asio/awaitable.hpp>
 
 #include <wayland/event_loop.hpp>
+#include <wayland/gamepad/udev_gamepads.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/util/get_option.hpp>
 
@@ -23,7 +24,9 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
                args[0]);
     co_return EXIT_SUCCESS;
   }
-  ludev::list_gamepads();
+  udev_gamepads gamepads;
+  gamepads.watch(exec);
+  gamepads.list();
 
   event_loop eloop{get_option(args, "-d")};
 
