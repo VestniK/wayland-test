@@ -1,6 +1,10 @@
 #include <span>
 
 #include <fmt/format.h>
+#include <spdlog/cfg/env.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/systemd_sink.h>
+#include <spdlog/spdlog.h>
 
 #include <asio/awaitable.hpp>
 
@@ -11,9 +15,24 @@
 
 using namespace std::literals;
 
-namespace ludev {
-void list_gamepads();
+namespace {
+
+void setup_logger() {
+  auto journald =
+      std::make_shared<spdlog::sinks::systemd_sink_mt>("wayland-test", true);
+#if !defined(NDEBUG)
+  auto term = std::make_shared<spdlog::sinks::stderr_color_sink_mt>(
+      spdlog::color_mode::automatic);
+  spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+      "default", spdlog::sinks_init_list{term, journald}));
+#else
+  spdlog::set_default_logger(
+      std::make_shared<spdlog::logger>("default", journald));
+#endif
+  spdlog::cfg::load_env_levels();
 }
+
+} // namespace
 
 asio::awaitable<int> co_main(asio::io_context::executor_type exec,
                              std::span<char *> args) {
@@ -24,6 +43,8 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
                args[0]);
     co_return EXIT_SUCCESS;
   }
+  setup_logger();
+
   udev_gamepads gamepads;
   gamepads.watch(exec);
   gamepads.list();

@@ -31,6 +31,8 @@ find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 set(LOCAL_WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
 
+pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
+
 include(cmake/add_catch_tests.cmake)
 add_subdirectory(wayland)
 
@@ -39,7 +41,16 @@ add_executable(wayland
   .clang-format
   wayland/main.cpp
 )
-target_link_libraries(wayland PRIVATE spdlog::spdlog wayland.obj util gles2 coro-rt gamepad fmt::fmt)
+target_link_libraries(wayland PRIVATE
+  spdlog::spdlog
+  PkgConfig::SYSTEMD
+  wayland.obj
+  util
+  gles2
+  coro-rt
+  gamepad
+  fmt::fmt
+)
 add_custom_command(TARGET wayland POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland> $<TARGET_FILE:wayland>.dbg
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland>
