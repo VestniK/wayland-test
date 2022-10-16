@@ -20,14 +20,11 @@ namespace {
 void setup_logger() {
   auto journald =
       std::make_shared<spdlog::sinks::systemd_sink_mt>("wayland-test", true);
+  spdlog::default_logger()->sinks() = {journald};
 #if !defined(NDEBUG)
   auto term = std::make_shared<spdlog::sinks::stderr_color_sink_mt>(
       spdlog::color_mode::automatic);
-  spdlog::set_default_logger(std::make_shared<spdlog::logger>(
-      "default", spdlog::sinks_init_list{term, journald}));
-#else
-  spdlog::set_default_logger(
-      std::make_shared<spdlog::logger>("default", journald));
+  spdlog::default_logger()->sinks().push_back(term);
 #endif
   spdlog::cfg::load_env_levels();
 }
