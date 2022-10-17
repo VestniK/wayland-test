@@ -51,7 +51,7 @@ void event_loop::dispatch_pending() {
 }
 
 asio::awaitable<void>
-event_loop::dispatch(asio::io_context::executor_type exec) {
+event_loop::dispatch_once(asio::io_context::executor_type exec) {
   if (wl_display_prepare_read(&get_display()) != 0) {
     dispatch_pending();
     co_return;

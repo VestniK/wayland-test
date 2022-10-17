@@ -101,7 +101,7 @@ gles_window::create(event_loop &eloop, asio::io_context::executor_type exec) {
   if (auto *xdg_wnd = std::get_if<xdg::toplevel_window>(&wnd))
     xdg_wnd->maximize();
   while (!szdelegate.wnd_size && !szdelegate.closed)
-    co_await eloop.dispatch(exec);
+    co_await eloop.dispatch_once(exec);
 
   co_return szdelegate.closed
       ? gles_window{}

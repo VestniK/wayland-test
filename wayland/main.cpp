@@ -1,12 +1,15 @@
 #include <span>
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/systemd_sink.h>
 #include <spdlog/spdlog.h>
 
 #include <asio/awaitable.hpp>
+#include <asio/experimental/awaitable_operators.hpp>
+#include <asio/static_thread_pool.hpp>
 
 #include <wayland/event_loop.hpp>
 #include <wayland/gamepad/udev_gamepads.hpp>
@@ -29,9 +32,20 @@ void setup_logger() {
   spdlog::cfg::load_env_levels();
 }
 
+template <typename Pred>
+asio::awaitable<void> dispatch_while(asio::io_context::executor_type exec,
+                                     event_loop &eloop, Pred &&pred) {
+  while (pred())
+    co_await eloop.dispatch_once(exec);
+  co_return;
+}
+
 } // namespace
 
-asio::awaitable<int> co_main(asio::io_context::executor_type exec,
+unsigned min_threads = 3;
+
+asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
+                             asio::thread_pool::executor_type pool_exec,
                              std::span<char *> args) {
   if (get_flag(args, "-h")) {
     fmt::print("Usage: {} [-d DISPLAY]\n"
@@ -42,15 +56,16 @@ asio::awaitable<int> co_main(asio::io_context::executor_type exec,
   }
   setup_logger();
 
-  udev_gamepads gamepads;
-  gamepads.watch(exec);
-  gamepads.list();
-
   event_loop eloop{get_option(args, "-d")};
 
-  auto wnd = co_await gles_window::create(eloop, exec);
-  while (!wnd.is_closed())
-    co_await eloop.dispatch(exec);
+  auto wnd = co_await gles_window::create(eloop, io_exec);
+
+  udev_gamepads gamepads;
+  gamepads.list();
+
+  using namespace asio::experimental::awaitable_operators;
+  co_await (dispatch_while(io_exec, eloop, [&] { return !wnd.is_closed(); }) ||
+            gamepads.watch(io_exec));
 
   co_return EXIT_SUCCESS;
 }

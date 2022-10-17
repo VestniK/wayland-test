@@ -5,6 +5,7 @@
 #include <libudev.h>
 #include <memory>
 
+#include <asio/awaitable.hpp>
 #include <asio/io_context.hpp>
 
 namespace detail::udev {
@@ -66,11 +67,15 @@ public:
     detail::udev::unique_ptr<udev_enumerate> enumerator_;
   };
 
+  udev_gamepads();
+
   connected_gamepads connected() { return {*udev_}; }
-  void watch(asio::io_context::executor_type exec);
+  asio::awaitable<void> watch(asio::io_context::executor_type exec);
   void list();
   udev &native_handle() const noexcept { return *udev_; }
 
 private:
   detail::udev::unique_ptr<udev> udev_{udev_new()};
+  detail::udev::unique_ptr<udev_monitor> monitor_{
+      udev_monitor_new_from_netlink(udev_.get(), "udev")};
 };

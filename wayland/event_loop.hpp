@@ -32,7 +32,7 @@ public:
   void dispatch_pending(std::error_code &ec) noexcept;
   void dispatch_pending();
 
-  asio::awaitable<void> dispatch(asio::io_context::executor_type exec);
+  asio::awaitable<void> dispatch_once(asio::io_context::executor_type exec);
 
 private:
   std::error_code check() noexcept;

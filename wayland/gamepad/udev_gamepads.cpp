@@ -7,7 +7,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
 #include <asio/posix/stream_descriptor.hpp>
 #include <asio/use_awaitable.hpp>
@@ -18,17 +17,31 @@ using namespace std::literals;
 
 namespace {
 
+struct non_owning_stream_descriptor : asio::posix::stream_descriptor {
+  using asio::posix::stream_descriptor::stream_descriptor;
+  ~non_owning_stream_descriptor() noexcept { this->release(); }
+};
+
+} // namespace
+
+udev_gamepads::connected_gamepads::connected_gamepads(udev &udev)
+    : enumerator_{udev_enumerate_new(&udev)} {
+  udev_enumerate_add_match_subsystem(enumerator_.get(), "input");
+  udev_enumerate_add_match_property(enumerator_.get(), "ID_INPUT_JOYSTICK",
+                                    "1");
+  if (int ret = udev_enumerate_scan_devices(enumerator_.get()); ret < 0)
+    throw std::system_error{-ret, std::system_category(),
+                            "udev_enumerate_scan_devices"};
+}
+
 asio::awaitable<void>
-monitor_loop(asio::io_context::executor_type exec,
-             detail::udev::unique_ptr<udev_monitor> monitor) {
+udev_gamepads::watch(asio::io_context::executor_type exec) {
+  non_owning_stream_descriptor conn{exec, udev_monitor_get_fd(monitor_.get())};
   while (true) {
-    asio::posix::stream_descriptor conn{exec,
-                                        udev_monitor_get_fd(monitor.get())};
     co_await conn.async_wait(asio::posix::stream_descriptor::wait_read,
                              asio::use_awaitable);
-    conn.release();
     detail::udev::unique_ptr<udev_device> dev{
-        udev_monitor_receive_device(monitor.get())};
+        udev_monitor_receive_device(monitor_.get())};
     if (!dev) {
       continue;
     }
@@ -52,34 +65,9 @@ monitor_loop(asio::io_context::executor_type exec,
   co_return;
 }
 
-} // namespace
-
-udev_gamepads::connected_gamepads::connected_gamepads(udev &udev)
-    : enumerator_{udev_enumerate_new(&udev)} {
-  udev_enumerate_add_match_subsystem(enumerator_.get(), "input");
-  udev_enumerate_add_match_property(enumerator_.get(), "ID_INPUT_JOYSTICK",
-                                    "1");
-  if (int ret = udev_enumerate_scan_devices(enumerator_.get()); ret < 0)
-    throw std::system_error{-ret, std::system_category(),
-                            "udev_enumerate_scan_devices"};
-}
-
-void udev_gamepads::watch(asio::io_context::executor_type exec) {
-  detail::udev::unique_ptr<udev_monitor> monitor{
-      udev_monitor_new_from_netlink(udev_.get(), "udev")};
-  udev_monitor_filter_add_match_subsystem_devtype(monitor.get(), "input", 0);
-  udev_monitor_enable_receiving(monitor.get());
-
-  asio::co_spawn(
-      exec, monitor_loop(exec, std::move(monitor)), [](std::exception_ptr err) {
-        if (err) {
-          try {
-            std::rethrow_exception(err);
-          } catch (const std::exception &err) {
-            spdlog::error("Gamepads monitoring failure: {}", err.what());
-          }
-        }
-      });
+udev_gamepads::udev_gamepads() {
+  udev_monitor_filter_add_match_subsystem_devtype(monitor_.get(), "input", 0);
+  udev_monitor_enable_receiving(monitor_.get());
 }
 
 void udev_gamepads::list() {
