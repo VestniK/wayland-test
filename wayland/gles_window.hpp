@@ -1,9 +1,10 @@
 #include <atomic>
-#include <thread>
+#include <stop_token>
 #include <variant>
 
 #include <asio/awaitable.hpp>
 #include <asio/io_context.hpp>
+#include <asio/static_thread_pool.hpp>
 
 #include <wayland/egl.hpp>
 #include <wayland/gles2/renderer.hpp>
@@ -54,16 +55,26 @@ class gles_window {
 public:
   using any_window = std::variant<xdg::toplevel_window, ivi::window>;
   gles_window() noexcept = default;
-  gles_window(event_loop &eloop, any_window wnd, size initial_size);
+  gles_window(event_loop &eloop, asio::thread_pool::executor_type pool_exec,
+              any_window wnd, size initial_size);
+
+  gles_window(const gles_window &) = delete;
+  gles_window &operator=(const gles_window &) = delete;
+
+  gles_window(gles_window &&) noexcept = default;
+  gles_window &operator=(gles_window &&) noexcept = default;
+
+  ~gles_window() noexcept;
 
   static asio::awaitable<gles_window>
-  create(event_loop &eloop, asio::io_context::executor_type exec);
+  create(event_loop &eloop, asio::io_context::executor_type io_exec,
+         asio::thread_pool::executor_type pool_exec);
 
   [[nodiscard]] bool is_closed() const noexcept {
     return !closed_ || closed_->test();
   }
 
 private:
-  std::jthread render_thread_;
+  std::stop_source stop_;
   std::unique_ptr<std::atomic_flag> closed_;
 };

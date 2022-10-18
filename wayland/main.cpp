@@ -58,7 +58,7 @@ asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
 
   event_loop eloop{get_option(args, "-d")};
 
-  auto wnd = co_await gles_window::create(eloop, io_exec);
+  auto wnd = co_await gles_window::create(eloop, io_exec, pool_exec);
 
   udev_gamepads gamepads;
   gamepads.list();
