@@ -12,10 +12,7 @@ target_sources(util PRIVATE
 )
 target_compile_features(util PUBLIC cxx_std_20)
 target_include_directories(util PUBLIC ${PROJECT_SOURCE_DIR})
-target_link_libraries(util
-PUBLIC
-  stdc++fs
-)
+
 if (WAYLAND_TEST_WERROR)
   target_compile_options(util PUBLIC -Werror=all)
 endif()

@@ -6,7 +6,6 @@ target_compile_features(coro-rt PUBLIC cxx_std_20)
 target_include_directories(coro-rt PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(coro-rt
 PUBLIC
-  stdc++fs
   asio::asio
   fmt::fmt
 )

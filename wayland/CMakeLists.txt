@@ -55,7 +55,6 @@ endif()
 target_link_libraries(wayland.obj
   util
   gles2
-  stdc++fs
   Wayland::client Wayland::egl
   OpenGL::EGL
   asio::asio
