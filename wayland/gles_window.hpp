@@ -10,6 +10,7 @@
 #include <wayland/gles2/renderer.hpp>
 #include <wayland/ivi_window.hpp>
 #include <wayland/util/geom.hpp>
+#include <wayland/util/task_guard.hpp>
 #include <wayland/xdg_window.hpp>
 
 class event_loop;
@@ -64,17 +65,14 @@ public:
   gles_window(gles_window &&) noexcept = default;
   gles_window &operator=(gles_window &&) noexcept = default;
 
-  ~gles_window() noexcept;
-
   static asio::awaitable<gles_window>
   create(event_loop &eloop, asio::io_context::executor_type io_exec,
          asio::thread_pool::executor_type pool_exec);
 
   [[nodiscard]] bool is_closed() const noexcept {
-    return !closed_ || closed_->test();
+    return !renderer_task_ || renderer_task_->is_finished();
   }
 
 private:
-  std::stop_source stop_;
-  std::unique_ptr<std::atomic_flag> closed_;
+  std::unique_ptr<task_guard> renderer_task_;
 };

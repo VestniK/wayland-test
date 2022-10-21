@@ -1,7 +1,6 @@
 #include <span>
 
 #include <fmt/format.h>
-#include <fmt/ostream.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/systemd_sink.h>

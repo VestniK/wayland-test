@@ -111,40 +111,31 @@ gles_window::create(event_loop &eloop, asio::io_context::executor_type io_exec,
 
 gles_window::gles_window(event_loop &eloop,
                          asio::thread_pool::executor_type pool_exec,
-                         any_window wnd, size initial_size)
-    : closed_{std::make_unique<std::atomic_flag>()} {
+                         any_window wnd, size initial_size) {
   wl::unique_ptr<wl_event_queue> queue{
       wl_display_create_queue(&eloop.get_display())};
   wl_surface &surf = std::visit(
       [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd);
   std::visit([&](auto &wnd) { wnd.set_delegate_queue(*queue); }, wnd);
   wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf), queue.get());
-  asio::post(pool_exec, [&eloop, &surf, initial_size, &closed = *closed_,
-                         wnd = std::move(wnd), queue = std::move(queue),
-                         stop = stop_.get_token()]() mutable {
-    gles_delegate gl_delegate{eloop, surf, initial_size};
-    std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
+  renderer_task_ = std::make_unique<task_guard>(
+      pool_exec, [&eloop, &surf, initial_size, wnd = std::move(wnd),
+                  queue = std::move(queue)](std::stop_token stop) mutable {
+        gles_delegate gl_delegate{eloop, surf, initial_size};
+        std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
 
-    while (!gl_delegate.is_closed() && !stop.stop_requested()) {
-      wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
-      gl_delegate.paint();
-      std::optional<uint32_t> next_frame;
-      wl_callback_listener listener = {
-          .done = [](void *data, wl_callback *, uint32_t ts) {
-            *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
-          }};
-      wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
-      while (!next_frame && !gl_delegate.is_closed() && !stop.stop_requested())
-        wl_display_dispatch_queue(&eloop.get_display(), queue.get());
-    }
-    closed.test_and_set();
-  });
-}
-
-gles_window::~gles_window() noexcept {
-  if (closed_ == nullptr)
-    return;
-
-  stop_.request_stop();
-  closed_->wait(false);
+        while (!gl_delegate.is_closed() && !stop.stop_requested()) {
+          wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
+          gl_delegate.paint();
+          std::optional<uint32_t> next_frame;
+          wl_callback_listener listener = {
+              .done = [](void *data, wl_callback *, uint32_t ts) {
+                *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
+              }};
+          wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
+          while (!next_frame && !gl_delegate.is_closed() &&
+                 !stop.stop_requested())
+            wl_display_dispatch_queue(&eloop.get_display(), queue.get());
+        }
+      });
 }

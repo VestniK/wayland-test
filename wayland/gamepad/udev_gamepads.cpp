@@ -1,6 +1,6 @@
 #include <memory>
 #include <ranges>
-#include <string_view>>
+#include <string_view>
 #include <system_error>
 
 #include <libudev.h>
