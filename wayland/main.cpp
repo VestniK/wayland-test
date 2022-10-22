@@ -31,14 +31,6 @@ void setup_logger() {
   spdlog::cfg::load_env_levels();
 }
 
-template <typename Pred>
-asio::awaitable<void> dispatch_while(asio::io_context::executor_type exec,
-                                     event_loop &eloop, Pred &&pred) {
-  while (pred())
-    co_await eloop.dispatch_once(exec);
-  co_return;
-}
-
 } // namespace
 
 unsigned min_threads = 3;
@@ -63,7 +55,7 @@ asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
   gamepads.list();
 
   using namespace asio::experimental::awaitable_operators;
-  co_await (dispatch_while(io_exec, eloop, [&] { return !wnd.is_closed(); }) ||
+  co_await (eloop.dispatch_while(io_exec, [&] { return !wnd.is_closed(); }) ||
             gamepads.watch(io_exec));
 
   co_return EXIT_SUCCESS;

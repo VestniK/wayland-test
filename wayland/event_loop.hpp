@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <system_error>
 
 #include <asio/awaitable.hpp>
@@ -33,6 +34,13 @@ public:
   void dispatch_pending();
 
   asio::awaitable<void> dispatch_once(asio::io_context::executor_type exec);
+  template <std::predicate Pred>
+  asio::awaitable<void> dispatch_while(asio::io_context::executor_type exec,
+                                       Pred &&pred) {
+    while (pred())
+      co_await dispatch_once(exec);
+    co_return;
+  }
 
 private:
   std::error_code check() noexcept;
