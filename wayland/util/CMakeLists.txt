@@ -28,6 +28,7 @@ add_catch_test(
 NAME
   util.test
 SOURCES
+  channel.test.cpp
   executors_environment.test.cpp
   executors_environment.test.hpp
   get_option.test.cpp
