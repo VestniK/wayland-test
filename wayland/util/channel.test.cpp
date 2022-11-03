@@ -1,17 +1,19 @@
-#include <concepts>
 #include <latch>
-#include <optional>
 #include <random>
 #include <stop_token>
 #include <utility>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <asio/post.hpp>
 
+#include "channel.hpp"
 #include "executors_environment.test.hpp"
 #include "geom.hpp"
+
+namespace {
 
 template <std::regular T> class mutex_value_update_channel {
 public:
@@ -29,43 +31,6 @@ private:
   T prev_;
 };
 
-template <std::regular T> class atomic_value_update_channel {
-private:
-  struct box {
-    alignas(std::hardware_destructive_interference_size) T val;
-  };
-
-public:
-  std::optional<T> get_update() {
-    const T val = buf_[consumer_ & ~seen_mask].val;
-    consumer_ = cur_.exchange(consumer_);
-    if (consumer_ & seen_mask)
-      return std::nullopt;
-    consumer_ = consumer_ | seen_mask;
-    if (val == buf_[consumer_ & ~seen_mask].val)
-      return std::nullopt;
-    return buf_[consumer_ & ~seen_mask].val;
-  }
-  void update(const T &t) {
-    buf_[producer_].val = t;
-    producer_ = cur_.exchange(producer_) & ~seen_mask;
-  }
-
-private:
-  static constexpr size_t seen_mask = (1 << 3);
-
-private:
-  std::array<box, 3> buf_;
-  std::atomic<size_t> cur_ = 0;
-  size_t producer_ = 1;
-  size_t consumer_ = 2 | seen_mask;
-};
-
-template <std::regular T>
-using value_update_channel = atomic_value_update_channel<T>;
-
-namespace {
-
 std::vector<int> make_some_nums(size_t count) {
   std::mt19937 gen;
   std::uniform_int_distribution<int> dist{100, 100500};
@@ -78,9 +43,10 @@ std::vector<int> make_some_nums(size_t count) {
 
 } // namespace
 
-SCENARIO("value update channel") {
+TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
+                   value_update_channel<size>) {
   GIVEN("some channel") {
-    value_update_channel<size> channel;
+    TestType channel;
     WHEN("nothing updated") {
       THEN("no value is returned from get_update") {
         REQUIRE(channel.get_update() == std::nullopt);
@@ -132,27 +98,28 @@ SCENARIO("value update channel") {
   }
 }
 
-TEST_CASE("value_update_channel consumer API benchmarks") {
+TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks", "[bench]",
+                   mutex_value_update_channel<int>, value_update_channel<int>) {
   BENCHMARK_ADVANCED("check for empty update without thread contention")
   (Catch::Benchmark::Chronometer meter) {
-    value_update_channel<int> channel;
+    TestType channel;
     meter.measure([&] { return channel.get_update(); });
   };
 
   BENCHMARK_ADVANCED("check for update from another thread")
   (Catch::Benchmark::Chronometer meter) {
-    value_update_channel<int> channel;
+    TestType channel;
 
     std::stop_source stop;
     std::latch start{2};
     asio::post(executors_environment::pool_executor(),
-               [&channel, vals = make_some_nums(4096), &start,
+               [&channel, vals = make_some_nums(0xffff), &start,
                 stop = stop.get_token()] {
                  start.arrive_and_wait();
-                 while (!stop.stop_requested()) {
+                 do {
                    for (int v : vals)
                      channel.update(v);
-                 }
+                 } while (!stop.stop_requested());
                });
 
     start.arrive_and_wait();

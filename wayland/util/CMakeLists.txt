@@ -1,6 +1,7 @@
 add_library(util OBJECT)
 target_sources(util PRIVATE
   concat.hpp
+  channel.hpp
   geom.hpp
   get_option.cpp
   get_option.hpp
