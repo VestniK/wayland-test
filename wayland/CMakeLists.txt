@@ -58,6 +58,7 @@ target_link_libraries(wayland.obj
   Wayland::client Wayland::egl
   OpenGL::EGL
   asio::asio
+  spdlog::spdlog
   ${CMAKE_DL_LIBS}
 )
 target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})

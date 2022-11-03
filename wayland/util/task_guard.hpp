@@ -25,6 +25,7 @@ public:
   }
 
   bool is_finished() const noexcept { return done_flag_.try_wait(); }
+  void stop() { stop_sorce_.request_stop(); }
 
 private:
   std::stop_source stop_sorce_;

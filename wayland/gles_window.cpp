@@ -1,10 +1,14 @@
 #include <numeric>
 #include <optional>
 
+#include <spdlog/spdlog.h>
+
 #include <wayland/egl.hpp>
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/ui_category.hpp>
+#include <wayland/util/channel.hpp>
+#include <wayland/util/task_guard.hpp>
 
 namespace {
 
@@ -59,27 +63,59 @@ bool gles_context::resize(size sz) {
   return true;
 }
 
-gles_delegate::gles_delegate(const event_loop &eloop, wl_surface &surf, size sz)
-    : ctx_(eloop, surf, sz) {
-  renderer_.resize(sz);
-}
-
-bool gles_delegate::paint() {
-  renderer_.draw(std::chrono::steady_clock::now());
-  ctx_.egl_surface().swap_buffers();
-  return true;
-}
-
-void gles_delegate::resize(size sz) {
-  if (ctx_.resize(sz))
-    renderer_.resize(sz);
-}
-
 namespace {
 
 constexpr uint32_t ivi_main_glapp_id = 1337;
 
 } // namespace
+
+struct gles_window::impl : public xdg::delegate {
+  impl(asio::static_thread_pool::executor_type exec, event_loop &eloop,
+       wl_surface &surf, size initial_size,
+       wl::unique_ptr<wl_event_queue> queue)
+      : render_task_guard{
+            exec,
+            [&eloop, &surf, &resize_channel = resize_channel, initial_size,
+             queue = std::move(queue)](std::stop_token stop) mutable {
+              gles_context ctx{eloop, surf, initial_size};
+              spdlog::debug("OpenGL ES2 context created");
+
+              renderer render;
+              render.resize(initial_size);
+
+              spdlog::debug("Renderer initialized. Starting render loop");
+              while (!stop.stop_requested()) {
+
+                wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
+
+                if (const auto sz = resize_channel.get_update())
+                  render.resize(sz.value());
+
+                render.draw(std::chrono::steady_clock::now());
+                ctx.egl_surface().swap_buffers();
+
+                std::optional<uint32_t> next_frame;
+                wl_callback_listener listener = {
+                    .done = [](void *data, wl_callback *, uint32_t ts) {
+                      *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
+                    }};
+                wl_callback_add_listener(frame_cb.get(), &listener,
+                                         &next_frame);
+                while (!next_frame && !stop.stop_requested())
+                  wl_display_dispatch_queue(&eloop.get_display(), queue.get());
+              }
+              spdlog::debug("rendering finished");
+            }} {}
+
+  void resize(size sz) override { resize_channel.update(sz); }
+  void close() override {
+    spdlog::debug("Window close event received");
+    render_task_guard.stop();
+  }
+
+  value_update_channel<size> resize_channel;
+  task_guard render_task_guard;
+};
 
 asio::awaitable<gles_window>
 gles_window::create(event_loop &eloop, asio::io_context::executor_type io_exec,
@@ -111,31 +147,23 @@ gles_window::create(event_loop &eloop, asio::io_context::executor_type io_exec,
 
 gles_window::gles_window(event_loop &eloop,
                          asio::thread_pool::executor_type pool_exec,
-                         any_window wnd, size initial_size) {
+                         any_window wnd, size initial_size)
+    : wnd_{std::move(wnd)} {
   wl::unique_ptr<wl_event_queue> queue{
       wl_display_create_queue(&eloop.get_display())};
   wl_surface &surf = std::visit(
-      [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd);
-  std::visit([&](auto &wnd) { wnd.set_delegate_queue(*queue); }, wnd);
+      [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd_);
   wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf), queue.get());
-  renderer_task_ = std::make_unique<task_guard>(
-      pool_exec, [&eloop, &surf, initial_size, wnd = std::move(wnd),
-                  queue = std::move(queue)](std::stop_token stop) mutable {
-        gles_delegate gl_delegate{eloop, surf, initial_size};
-        std::visit([&](auto &wnd) { wnd.set_delegate(&gl_delegate); }, wnd);
+  impl_ = std::make_unique<impl>(pool_exec, eloop, surf, initial_size,
+                                 std::move(queue));
+  std::visit([this](auto &wnd) { wnd.set_delegate(impl_.get()); }, wnd_);
+}
 
-        while (!gl_delegate.is_closed() && !stop.stop_requested()) {
-          wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
-          gl_delegate.paint();
-          std::optional<uint32_t> next_frame;
-          wl_callback_listener listener = {
-              .done = [](void *data, wl_callback *, uint32_t ts) {
-                *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
-              }};
-          wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
-          while (!next_frame && !gl_delegate.is_closed() &&
-                 !stop.stop_requested())
-            wl_display_dispatch_queue(&eloop.get_display(), queue.get());
-        }
-      });
+gles_window::gles_window(gles_window &&) noexcept = default;
+gles_window &gles_window::operator=(gles_window &&) noexcept = default;
+
+gles_window::~gles_window() noexcept = default;
+
+[[nodiscard]] bool gles_window::is_closed() const noexcept {
+  return !impl_ || impl_->render_task_guard.is_finished();
 }

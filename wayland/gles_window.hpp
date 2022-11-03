@@ -1,5 +1,3 @@
-#include <atomic>
-#include <stop_token>
 #include <variant>
 
 #include <asio/awaitable.hpp>
@@ -10,7 +8,6 @@
 #include <wayland/gles2/renderer.hpp>
 #include <wayland/ivi_window.hpp>
 #include <wayland/util/geom.hpp>
-#include <wayland/util/task_guard.hpp>
 #include <wayland/xdg_window.hpp>
 
 class event_loop;
@@ -34,24 +31,6 @@ private:
   wl::unique_ptr<wl_egl_window> egl_wnd_;
 };
 
-class gles_delegate final : public xdg::delegate {
-public:
-  gles_delegate(const event_loop &eloop, wl_surface &surf, size sz);
-
-  bool paint();
-
-  [[nodiscard]] bool is_closed() const noexcept { return closed_; }
-
-  // toplevel_window
-  void resize(size sz) override;
-  void close() override { closed_ = true; }
-
-private:
-  gles_context ctx_;
-  renderer renderer_;
-  bool closed_ = false;
-};
-
 class gles_window {
 public:
   using any_window = std::variant<xdg::toplevel_window, ivi::window>;
@@ -62,17 +41,21 @@ public:
   gles_window(const gles_window &) = delete;
   gles_window &operator=(const gles_window &) = delete;
 
-  gles_window(gles_window &&) noexcept = default;
-  gles_window &operator=(gles_window &&) noexcept = default;
+  gles_window(gles_window &&) noexcept;
+  gles_window &operator=(gles_window &&) noexcept;
+
+  ~gles_window() noexcept;
 
   static asio::awaitable<gles_window>
   create(event_loop &eloop, asio::io_context::executor_type io_exec,
          asio::thread_pool::executor_type pool_exec);
 
-  [[nodiscard]] bool is_closed() const noexcept {
-    return !renderer_task_ || renderer_task_->is_finished();
-  }
+  [[nodiscard]] bool is_closed() const noexcept;
 
 private:
-  std::unique_ptr<task_guard> renderer_task_;
+  struct impl;
+
+private:
+  any_window wnd_;
+  std::unique_ptr<impl> impl_;
 };

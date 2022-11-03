@@ -58,5 +58,6 @@ asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
   co_await (eloop.dispatch_while(io_exec, [&] { return !wnd.is_closed(); }) ||
             gamepads.watch(io_exec));
 
+  spdlog::debug("window is closed exit the app");
   co_return EXIT_SUCCESS;
 }
