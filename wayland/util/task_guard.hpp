@@ -25,6 +25,7 @@ public:
   }
 
   bool is_finished() const noexcept { return done_flag_.try_wait(); }
+  bool is_finishing() const noexcept { return stop_sorce_.stop_requested(); }
   void stop() { stop_sorce_.request_stop(); }
 
 private:

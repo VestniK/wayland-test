@@ -165,5 +165,6 @@ gles_window &gles_window::operator=(gles_window &&) noexcept = default;
 gles_window::~gles_window() noexcept = default;
 
 [[nodiscard]] bool gles_window::is_closed() const noexcept {
-  return !impl_ || impl_->render_task_guard.is_finished();
+  return !impl_ || impl_->render_task_guard.is_finished() ||
+         impl_->render_task_guard.is_finishing();
 }
