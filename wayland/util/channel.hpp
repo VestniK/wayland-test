@@ -5,10 +5,16 @@
 #include <concepts>
 #include <optional>
 
+#if defined(__cpp_lib_hardware_interference_size)
+using std::hardware_destructive_interference_size;
+#else
+inline constexpr size_t hardware_destructive_interference_size = 64;
+#endif
+
 template <std::regular T> class value_update_channel {
 private:
   struct box {
-    alignas(std::hardware_destructive_interference_size) T val;
+    alignas(hardware_destructive_interference_size) T val;
   };
 
 public:
