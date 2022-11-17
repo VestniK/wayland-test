@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 
 #include <wayland/gles2/gl_resource.hpp>
+#include <wayland/util/clock.hpp>
 #include <wayland/util/geom.hpp>
 
 struct vertex;
@@ -32,7 +33,7 @@ private:
 };
 
 class renderer {
-  using clock = std::chrono::steady_clock;
+  using clock = frames_clock;
 
 public:
   renderer();

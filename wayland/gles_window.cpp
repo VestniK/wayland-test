@@ -1,3 +1,4 @@
+#include <iterator>
 #include <numeric>
 #include <optional>
 
@@ -8,6 +9,7 @@
 #include <wayland/gles_window.hpp>
 #include <wayland/ui_category.hpp>
 #include <wayland/util/channel.hpp>
+#include <wayland/util/clock.hpp>
 #include <wayland/util/task_guard.hpp>
 
 namespace {
@@ -67,6 +69,72 @@ namespace {
 
 constexpr uint32_t ivi_main_glapp_id = 1337;
 
+struct vsync_frames {
+  struct iterator;
+  struct sentinel {};
+  using value_type = frames_clock::time_point;
+
+  vsync_frames(wl_display &display, wl_event_queue &queue, wl_surface &surf)
+      : display{display}, queue{queue}, surf{surf}, frame_cb{wl_surface_frame(
+                                                        &surf)} {}
+
+  iterator begin();
+  sentinel end() const { return {}; }
+
+  value_type wait() {
+    std::optional<uint32_t> next_frame;
+    wl_callback_listener listener = {
+        .done = [](void *data, wl_callback *, uint32_t ts) {
+          *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
+        }};
+    wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
+    while (!next_frame)
+      wl_display_dispatch_queue(&display, &queue);
+    frame_cb = wl::unique_ptr<wl_callback>{wl_surface_frame(&surf)};
+    return value_type{frames_clock::duration{next_frame.value()}};
+  }
+
+  wl_display &display;
+  wl_event_queue &queue;
+  wl_surface &surf;
+  wl::unique_ptr<wl_callback> frame_cb;
+};
+
+struct vsync_frames::iterator {
+  using value_type = vsync_frames::value_type;
+  using iterator_category = std::input_iterator_tag;
+  using reference = const value_type &;
+  using pointer = const value_type *;
+  using difference_type = std::ptrdiff_t;
+
+  reference operator*() const noexcept { return current; }
+  iterator &operator++() {
+    current = vsync->wait();
+    return *this;
+  }
+  iterator operator++(int) {
+    auto res = *this;
+    ++(*this);
+    return res;
+  }
+
+  vsync_frames *vsync = nullptr;
+  value_type current;
+};
+
+inline vsync_frames::iterator vsync_frames::begin() {
+  return iterator{.vsync = this, .current = wait()};
+}
+
+inline constexpr bool operator==(const vsync_frames::iterator &it,
+                                 vsync_frames::sentinel) noexcept {
+  return it.vsync == nullptr;
+}
+
+static_assert(std::input_iterator<vsync_frames::iterator>);
+static_assert(
+    std::sentinel_for<vsync_frames::sentinel, vsync_frames::iterator>);
+
 } // namespace
 
 struct gles_window::impl : public xdg::delegate {
@@ -77,6 +145,8 @@ struct gles_window::impl : public xdg::delegate {
             exec,
             [&eloop, &surf, &resize_channel = resize_channel, initial_size,
              queue = std::move(queue)](std::stop_token stop) mutable {
+              wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf),
+                                 queue.get());
               gles_context ctx{eloop, surf, initial_size};
               spdlog::debug("OpenGL ES2 context created");
 
@@ -84,25 +154,17 @@ struct gles_window::impl : public xdg::delegate {
               render.resize(initial_size);
 
               spdlog::debug("Renderer initialized. Starting render loop");
-              while (!stop.stop_requested()) {
+              vsync_frames frames{eloop.get_display(), *queue, surf};
+              ctx.egl_surface().swap_buffers();
 
-                wl::unique_ptr<wl_callback> frame_cb{wl_surface_frame(&surf)};
-
+              for (auto frame_time : frames) {
+                if (stop.stop_requested())
+                  break;
                 if (const auto sz = resize_channel.get_update())
                   render.resize(sz.value());
 
-                render.draw(std::chrono::steady_clock::now());
+                render.draw(frame_time);
                 ctx.egl_surface().swap_buffers();
-
-                std::optional<uint32_t> next_frame;
-                wl_callback_listener listener = {
-                    .done = [](void *data, wl_callback *, uint32_t ts) {
-                      *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
-                    }};
-                wl_callback_add_listener(frame_cb.get(), &listener,
-                                         &next_frame);
-                while (!next_frame && !stop.stop_requested())
-                  wl_display_dispatch_queue(&eloop.get_display(), queue.get());
               }
               spdlog::debug("rendering finished");
             }} {}
