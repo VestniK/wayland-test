@@ -170,8 +170,10 @@ struct gles_window::impl : public xdg::delegate {
               ctx.egl_surface().swap_buffers();
 
               for (auto frame_time : frames) {
-                if (const auto sz = resize_channel.get_update())
+                if (const auto sz = resize_channel.get_update()) {
+                  ctx.resize(sz.value());
                   render.resize(sz.value());
+                }
 
                 render.draw(frame_time);
                 ctx.egl_surface().swap_buffers();
