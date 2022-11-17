@@ -12,6 +12,7 @@
 
 #include <wayland/event_loop.hpp>
 #include <wayland/gamepad/udev_gamepads.hpp>
+#include <wayland/gles2/renderer.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/util/get_option.hpp>
 
@@ -49,7 +50,23 @@ asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
 
   event_loop eloop{get_option(args, "-d")};
 
-  auto wnd = co_await gles_window::create(eloop, io_exec, pool_exec);
+  auto wnd = co_await gles_window::create_maximized(
+      eloop, io_exec, pool_exec,
+      [](gles_context &ctx, vsync_frames &frames,
+         value_update_channel<size> &resize_channel) {
+        renderer render;
+        render.resize(ctx.get_size());
+
+        for (auto frame_time : frames) {
+          if (const auto sz = resize_channel.get_update()) {
+            ctx.resize(sz.value());
+            render.resize(sz.value());
+          }
+
+          render.draw(frame_time);
+          ctx.egl_surface().swap_buffers();
+        }
+      });
 
   udev_gamepads gamepads;
   gamepads.list();

@@ -8,7 +8,6 @@
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/ui_category.hpp>
-#include <wayland/util/channel.hpp>
 #include <wayland/util/clock.hpp>
 #include <wayland/util/task_guard.hpp>
 
@@ -69,115 +68,51 @@ namespace {
 
 constexpr uint32_t ivi_main_glapp_id = 1337;
 
-struct vsync_frames {
-  struct iterator;
-  struct sentinel {};
-  using value_type = frames_clock::time_point;
-
-  vsync_frames(wl_display &display, wl_event_queue &queue, wl_surface &surf,
-               std::stop_token &stop)
-      : display{display}, queue{queue}, surf{surf},
-        frame_cb{wl_surface_frame(&surf)}, stop{stop} {}
-
-  iterator begin();
-  sentinel end() const { return {}; }
-
-  std::optional<value_type> wait() {
-    std::optional<uint32_t> next_frame;
-    wl_callback_listener listener = {
-        .done = [](void *data, wl_callback *, uint32_t ts) {
-          *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
-        }};
-    wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
-    while (!next_frame) {
-      if (stop.stop_requested())
-        return std::nullopt;
-      wl_display_dispatch_queue(&display, &queue);
-    }
-    frame_cb = wl::unique_ptr<wl_callback>{wl_surface_frame(&surf)};
-    return value_type{frames_clock::duration{next_frame.value()}};
-  }
-
-  wl_display &display;
-  wl_event_queue &queue;
-  wl_surface &surf;
-  wl::unique_ptr<wl_callback> frame_cb;
-  std::stop_token &stop;
-};
-
-struct vsync_frames::iterator {
-  using value_type = vsync_frames::value_type;
-  using iterator_category = std::input_iterator_tag;
-  using reference = const value_type &;
-  using pointer = const value_type *;
-  using difference_type = std::ptrdiff_t;
-
-  reference operator*() const noexcept { return current; }
-  iterator &operator++() {
-    if (auto next = vsync->wait())
-      current = next.value();
-    else
-      vsync = nullptr;
-
-    return *this;
-  }
-  iterator operator++(int) {
-    auto res = *this;
-    ++(*this);
-    return res;
-  }
-
-  vsync_frames *vsync = nullptr;
-  value_type current;
-};
-
-inline vsync_frames::iterator vsync_frames::begin() {
-  if (auto first = wait())
-    return iterator{.vsync = this, .current = first.value()};
-  else
-    return iterator{.vsync = nullptr, .current = {}};
 }
 
-inline constexpr bool operator==(const vsync_frames::iterator &it,
-                                 vsync_frames::sentinel) noexcept {
-  return it.vsync == nullptr;
+vsync_frames::vsync_frames(wl_display &display, wl_event_queue &queue,
+                           wl_surface &surf, std::stop_token &stop)
+    : display_{display}, queue_{queue}, surf_{surf},
+      frame_cb_{wl_surface_frame(&surf)}, stop_{stop} {}
+
+std::optional<vsync_frames::value_type> vsync_frames::wait() {
+  std::optional<uint32_t> next_frame;
+  wl_callback_listener listener = {
+      .done = [](void *data, wl_callback *, uint32_t ts) {
+        *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
+      }};
+  wl_callback_add_listener(frame_cb_.get(), &listener, &next_frame);
+  while (!next_frame) {
+    if (stop_.stop_requested())
+      return std::nullopt;
+    wl_display_dispatch_queue(&display_, &queue_);
+  }
+  frame_cb_ = wl::unique_ptr<wl_callback>{wl_surface_frame(&surf_)};
+  return value_type{frames_clock::duration{next_frame.value()}};
 }
 
 static_assert(std::input_iterator<vsync_frames::iterator>);
 static_assert(
     std::sentinel_for<vsync_frames::sentinel, vsync_frames::iterator>);
 
-} // namespace
-
 struct gles_window::impl : public xdg::delegate {
   impl(asio::static_thread_pool::executor_type exec, event_loop &eloop,
        wl_surface &surf, size initial_size,
-       wl::unique_ptr<wl_event_queue> queue)
+       wl::unique_ptr<wl_event_queue> queue, render_function render_func)
       : render_task_guard{
-            exec,
-            [&eloop, &surf, &resize_channel = resize_channel, initial_size,
-             queue = std::move(queue)](std::stop_token stop) mutable {
+            exec, [&eloop, &surf, &resize_channel = resize_channel,
+                   initial_size, queue = std::move(queue),
+                   render_func =
+                       std::move(render_func)](std::stop_token stop) mutable {
               wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf),
                                  queue.get());
               gles_context ctx{eloop, surf, initial_size};
               spdlog::debug("OpenGL ES2 context created");
 
-              renderer render;
-              render.resize(initial_size);
-
-              spdlog::debug("Renderer initialized. Starting render loop");
               vsync_frames frames{eloop.get_display(), *queue, surf, stop};
               ctx.egl_surface().swap_buffers();
 
-              for (auto frame_time : frames) {
-                if (const auto sz = resize_channel.get_update()) {
-                  ctx.resize(sz.value());
-                  render.resize(sz.value());
-                }
-
-                render.draw(frame_time);
-                ctx.egl_surface().swap_buffers();
-              }
+              render_func(ctx, frames, resize_channel);
               spdlog::debug("rendering finished");
             }} {}
 
@@ -191,9 +126,9 @@ struct gles_window::impl : public xdg::delegate {
   task_guard render_task_guard;
 };
 
-asio::awaitable<gles_window>
-gles_window::create(event_loop &eloop, asio::io_context::executor_type io_exec,
-                    asio::thread_pool::executor_type pool_exec) {
+asio::awaitable<gles_window> gles_window::create_maximized(
+    event_loop &eloop, asio::io_context::executor_type io_exec,
+    asio::thread_pool::executor_type pool_exec, render_function render_func) {
   struct : xdg::delegate {
     void resize(size sz) override { wnd_size = sz; }
     void close() override { closed = true; }
@@ -216,12 +151,14 @@ gles_window::create(event_loop &eloop, asio::io_context::executor_type io_exec,
 
   co_return szdelegate.closed
       ? gles_window{}
-      : gles_window{eloop, pool_exec, std::move(wnd), *szdelegate.wnd_size};
+      : gles_window{eloop, pool_exec, std::move(wnd), *szdelegate.wnd_size,
+                    std::move(render_func)};
 }
 
 gles_window::gles_window(event_loop &eloop,
                          asio::thread_pool::executor_type pool_exec,
-                         any_window wnd, size initial_size)
+                         any_window wnd, size initial_size,
+                         render_function render_func)
     : wnd_{std::move(wnd)} {
   wl::unique_ptr<wl_event_queue> queue{
       wl_display_create_queue(&eloop.get_display())};
@@ -229,7 +166,7 @@ gles_window::gles_window(event_loop &eloop,
       [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd_);
   wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf), queue.get());
   impl_ = std::make_unique<impl>(pool_exec, eloop, surf, initial_size,
-                                 std::move(queue));
+                                 std::move(queue), std::move(render_func));
   std::visit([this](auto &wnd) { wnd.set_delegate(impl_.get()); }, wnd_);
 }
 
