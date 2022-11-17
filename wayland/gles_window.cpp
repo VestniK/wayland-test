@@ -74,22 +74,26 @@ struct vsync_frames {
   struct sentinel {};
   using value_type = frames_clock::time_point;
 
-  vsync_frames(wl_display &display, wl_event_queue &queue, wl_surface &surf)
-      : display{display}, queue{queue}, surf{surf}, frame_cb{wl_surface_frame(
-                                                        &surf)} {}
+  vsync_frames(wl_display &display, wl_event_queue &queue, wl_surface &surf,
+               std::stop_token &stop)
+      : display{display}, queue{queue}, surf{surf},
+        frame_cb{wl_surface_frame(&surf)}, stop{stop} {}
 
   iterator begin();
   sentinel end() const { return {}; }
 
-  value_type wait() {
+  std::optional<value_type> wait() {
     std::optional<uint32_t> next_frame;
     wl_callback_listener listener = {
         .done = [](void *data, wl_callback *, uint32_t ts) {
           *reinterpret_cast<std::optional<uint32_t> *>(data) = ts;
         }};
     wl_callback_add_listener(frame_cb.get(), &listener, &next_frame);
-    while (!next_frame)
+    while (!next_frame) {
+      if (stop.stop_requested())
+        return std::nullopt;
       wl_display_dispatch_queue(&display, &queue);
+    }
     frame_cb = wl::unique_ptr<wl_callback>{wl_surface_frame(&surf)};
     return value_type{frames_clock::duration{next_frame.value()}};
   }
@@ -98,6 +102,7 @@ struct vsync_frames {
   wl_event_queue &queue;
   wl_surface &surf;
   wl::unique_ptr<wl_callback> frame_cb;
+  std::stop_token &stop;
 };
 
 struct vsync_frames::iterator {
@@ -109,7 +114,11 @@ struct vsync_frames::iterator {
 
   reference operator*() const noexcept { return current; }
   iterator &operator++() {
-    current = vsync->wait();
+    if (auto next = vsync->wait())
+      current = next.value();
+    else
+      vsync = nullptr;
+
     return *this;
   }
   iterator operator++(int) {
@@ -123,7 +132,10 @@ struct vsync_frames::iterator {
 };
 
 inline vsync_frames::iterator vsync_frames::begin() {
-  return iterator{.vsync = this, .current = wait()};
+  if (auto first = wait())
+    return iterator{.vsync = this, .current = first.value()};
+  else
+    return iterator{.vsync = nullptr, .current = {}};
 }
 
 inline constexpr bool operator==(const vsync_frames::iterator &it,
@@ -154,12 +166,10 @@ struct gles_window::impl : public xdg::delegate {
               render.resize(initial_size);
 
               spdlog::debug("Renderer initialized. Starting render loop");
-              vsync_frames frames{eloop.get_display(), *queue, surf};
+              vsync_frames frames{eloop.get_display(), *queue, surf, stop};
               ctx.egl_surface().swap_buffers();
 
               for (auto frame_time : frames) {
-                if (stop.stop_requested())
-                  break;
                 if (const auto sz = resize_channel.get_update())
                   render.resize(sz.value());
 
