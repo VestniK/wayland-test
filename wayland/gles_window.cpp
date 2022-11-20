@@ -104,8 +104,6 @@ struct gles_window::impl : public xdg::delegate {
                    initial_size, queue = std::move(queue),
                    render_func =
                        std::move(render_func)](std::stop_token stop) mutable {
-              wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf),
-                                 queue.get());
               gles_context ctx{eloop, surf, initial_size};
               spdlog::debug("OpenGL ES2 context created");
 
