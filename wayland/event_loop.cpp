@@ -62,6 +62,7 @@ event_loop::dispatch_once(asio::io_context::executor_type exec) {
                            asio::use_awaitable);
   conn.release();
   wl_display_read_events(&get_display());
+  notify_queues();
   // TODO `wl_display_cancel_read(display);` on wait failure!!!
   dispatch_pending();
   co_return;

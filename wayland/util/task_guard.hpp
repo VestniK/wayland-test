@@ -27,6 +27,7 @@ public:
   bool is_finished() const noexcept { return done_flag_.try_wait(); }
   bool is_finishing() const noexcept { return stop_sorce_.stop_requested(); }
   void stop() { stop_sorce_.request_stop(); }
+  std::stop_token stop_token() { return stop_sorce_.get_token(); }
 
 private:
   std::stop_source stop_sorce_;

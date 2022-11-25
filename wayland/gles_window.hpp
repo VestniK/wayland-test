@@ -10,15 +10,16 @@
 #include <wayland/egl.hpp>
 #include <wayland/ivi_window.hpp>
 #include <wayland/util/channel.hpp>
-#include <wayland/util/clock.hpp>>
+#include <wayland/util/clock.hpp>
 #include <wayland/util/geom.hpp>
 #include <wayland/xdg_window.hpp>
 
+class event_queue;
 class event_loop;
 
 class gles_context {
 public:
-  gles_context(const event_loop &eloop, wl_surface &surf, size sz);
+  gles_context(wl_display &display, wl_surface &surf, size sz);
   ~gles_context() noexcept;
 
   gles_context(const gles_context &) = delete;
@@ -41,8 +42,7 @@ public:
   struct sentinel {};
   using value_type = frames_clock::time_point;
 
-  vsync_frames(wl_display &display, wl_event_queue &queue, wl_surface &surf,
-               std::stop_token &stop);
+  vsync_frames(event_queue &queue, wl_surface &surf, std::stop_token &stop);
 
   iterator begin();
   sentinel end() const { return {}; }
@@ -51,8 +51,7 @@ private:
   std::optional<value_type> wait();
 
 private:
-  wl_display &display_;
-  wl_event_queue &queue_;
+  event_queue &queue_;
   wl_surface &surf_;
   wl::unique_ptr<wl_callback> frame_cb_;
   std::stop_token &stop_;
