@@ -32,11 +32,11 @@ private:
   unsigned triangles_count_ = 0;
 };
 
-class renderer {
+class scene_renderer {
   using clock = frames_clock;
 
 public:
-  renderer();
+  scene_renderer();
 
   void resize(size sz);
   void draw(clock::time_point ts);

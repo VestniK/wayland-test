@@ -1,3 +1,4 @@
+#include <concepts>
 #include <functional>
 #include <optional>
 #include <variant>
@@ -65,3 +66,30 @@ private:
   any_window wnd_;
   std::unique_ptr<impl> impl_;
 };
+
+template <typename T>
+concept renderer = requires(T &t, size sz, frames_clock::time_point tp) {
+  {t.resize(sz)};
+  {t.draw(tp)};
+};
+
+template <renderer Renderer, typename... A>
+requires std::constructible_from<Renderer, A...> gles_window::render_function
+make_render_func(A &&...a) {
+  return [... args =
+              std::forward<A>(a)](gles_context &ctx, vsync_frames &frames,
+                                  value_update_channel<size> &resize_channel) {
+    Renderer render{std::move(args)...};
+    render.resize(ctx.get_size());
+
+    for (auto frame_time : frames) {
+      if (const auto sz = resize_channel.get_update()) {
+        ctx.resize(sz.value());
+        render.resize(sz.value());
+      }
+
+      render.draw(frame_time);
+      ctx.egl_surface().swap_buffers();
+    }
+  };
+}

@@ -91,7 +91,7 @@ void mesh::draw() {
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
 
-renderer::renderer()
+scene_renderer::scene_renderer()
     : shader_prog_{shaders::main_vert, shaders::main_frag},
       cube_{shader_prog_.get_attrib<glm::vec3>("position"),
             shader_prog_.get_attrib<glm::vec3>("normal"), cube_vertices,
@@ -120,7 +120,7 @@ renderer::renderer()
   glClearColor(0, 0, 0, .75);
 }
 
-void renderer::resize(size sz) {
+void scene_renderer::resize(size sz) {
   glViewport(0, 0, sz.width, sz.height);
   projection_ =
       glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f);
@@ -128,7 +128,7 @@ void renderer::resize(size sz) {
   camera_uniform_.set_value(projection_ * camera_);
 }
 
-void renderer::draw(clock::time_point ts) {
+void scene_renderer::draw(clock::time_point ts) {
   constexpr auto period = 3s;
   constexpr auto spot_period = 27s;
 
