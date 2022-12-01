@@ -36,6 +36,8 @@ add_library(wayland.obj OBJECT
   wayland-client.hpp
   ivi_window.cpp
   ivi_window.hpp
+  vsync_frames.cpp
+  vsync_frames.hpp
   xdg_window.cpp
   xdg_window.hpp
   window_delegate.hpp
