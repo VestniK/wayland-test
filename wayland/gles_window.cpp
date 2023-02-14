@@ -100,7 +100,7 @@ struct gles_window::impl : public xdg::delegate {
 };
 
 asio::awaitable<gles_window> gles_window::create_maximized(
-    event_loop &eloop, asio::io_context::executor_type io_exec,
+    event_loop &eloop, registry &reg, asio::io_context::executor_type io_exec,
     asio::thread_pool::executor_type pool_exec, render_function render_func) {
   struct : xdg::delegate {
     void resize(size sz) override { wnd_size = sz; }
@@ -111,12 +111,11 @@ asio::awaitable<gles_window> gles_window::create_maximized(
   } szdelegate;
 
   any_window wnd =
-      eloop.get_ivi()
-          ? any_window{std::in_place_type<ivi::window>, *eloop.get_compositor(),
-                       *eloop.get_ivi(), ivi_main_glapp_id, &szdelegate}
+      reg.get_ivi()
+          ? any_window{std::in_place_type<ivi::window>, *reg.get_compositor(),
+                       *reg.get_ivi(), ivi_main_glapp_id, &szdelegate}
           : any_window{std::in_place_type<xdg::toplevel_window>,
-                       *eloop.get_compositor(), *eloop.get_xdg_wm(),
-                       &szdelegate};
+                       *reg.get_compositor(), *reg.get_xdg_wm(), &szdelegate};
   if (auto *xdg_wnd = std::get_if<xdg::toplevel_window>(&wnd))
     xdg_wnd->maximize();
   while (!szdelegate.wnd_size && !szdelegate.closed)

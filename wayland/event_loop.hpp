@@ -47,20 +47,9 @@ public:
   event_loop(const char *display);
 
   [[nodiscard]] wl_display &get_display() const noexcept { return *display_; }
-  [[nodiscard]] wl_compositor *get_compositor() const noexcept {
-    return compositor_.service.get();
-  }
-  [[nodiscard]] ivi_application *get_ivi() const noexcept {
-    return ivi_.service.get();
-  }
-  [[nodiscard]] xdg_wm_base *get_xdg_wm() const noexcept {
-    return xdg_wm_.service.get();
-  }
 
-  void dispatch(std::error_code &ec) noexcept;
-  void dispatch();
-  void dispatch_pending(std::error_code &ec) noexcept;
-  void dispatch_pending();
+  void dispatch() noexcept;
+  void dispatch_pending() noexcept;
 
   event_queue make_queue() noexcept { return event_queue{*this}; }
 
@@ -81,20 +70,9 @@ public:
 private:
   friend class event_queue;
 
-  std::error_code check() noexcept;
-
-  static void global(void *data, wl_registry *reg, uint32_t id,
-                     const char *name, uint32_t ver);
-  static void global_remove(void *data, wl_registry *, uint32_t id);
-
 private:
   wl::unique_ptr<wl_display> display_;
   std::atomic<unsigned> read_count_ = 0;
-  wl::unique_ptr<wl_registry> registry_;
-  wl_registry_listener listener_ = {&global, &global_remove};
-  identified<wl_compositor> compositor_;
-  identified<ivi_application> ivi_;
-  identified<xdg_wm_base> xdg_wm_;
 };
 
 inline event_queue::event_queue(event_loop &eloop) noexcept
@@ -117,3 +95,32 @@ inline wl_display &event_queue::display() const noexcept {
 inline void queues_notify_callback::operator()() noexcept {
   eloop_.get().notify_queues();
 }
+
+class registry {
+public:
+  registry(event_loop &eloop);
+
+  [[nodiscard]] wl_compositor *get_compositor() const noexcept {
+    return compositor_.service.get();
+  }
+  [[nodiscard]] ivi_application *get_ivi() const noexcept {
+    return ivi_.service.get();
+  }
+  [[nodiscard]] xdg_wm_base *get_xdg_wm() const noexcept {
+    return xdg_wm_.service.get();
+  }
+
+  std::error_code check() noexcept;
+
+private:
+  static void global(void *data, wl_registry *reg, uint32_t id,
+                     const char *name, uint32_t ver);
+  static void global_remove(void *data, wl_registry *, uint32_t id);
+
+private:
+  wl::unique_ptr<wl_registry> registry_;
+  wl_registry_listener listener_ = {&global, &global_remove};
+  identified<wl_compositor> compositor_;
+  identified<ivi_application> ivi_;
+  identified<xdg_wm_base> xdg_wm_;
+};

@@ -52,10 +52,9 @@ public:
 
   ~gles_window() noexcept;
 
-  static asio::awaitable<gles_window>
-  create_maximized(event_loop &eloop, asio::io_context::executor_type io_exec,
-                   asio::thread_pool::executor_type pool_exec,
-                   render_function render_func);
+  static asio::awaitable<gles_window> create_maximized(
+      event_loop &eloop, registry &reg, asio::io_context::executor_type io_exec,
+      asio::thread_pool::executor_type pool_exec, render_function render_func);
 
   [[nodiscard]] bool is_closed() const noexcept;
 
@@ -69,13 +68,13 @@ private:
 
 template <typename T>
 concept renderer = requires(T &t, size sz, frames_clock::time_point tp) {
-  {t.resize(sz)};
-  {t.draw(tp)};
-};
+                     { t.resize(sz) };
+                     { t.draw(tp) };
+                   };
 
 template <renderer Renderer, typename... A>
-requires std::constructible_from<Renderer, A...> gles_window::render_function
-make_render_func(A &&...a) {
+  requires std::constructible_from<Renderer, A...>
+gles_window::render_function make_render_func(A &&...a) {
   return [... args =
               std::forward<A>(a)](gles_context &ctx, vsync_frames &frames,
                                   value_update_channel<size> &resize_channel) {
