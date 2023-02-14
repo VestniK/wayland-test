@@ -34,11 +34,13 @@ void setup_logger() {
 
 } // namespace
 
+namespace co {
+
 unsigned min_threads = 3;
 
-asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
-                             asio::thread_pool::executor_type pool_exec,
-                             std::span<char *> args) {
+asio::awaitable<int> main(asio::io_context::executor_type io_exec,
+                          asio::thread_pool::executor_type pool_exec,
+                          std::span<char *> args) {
   if (get_flag(args, "-h")) {
     fmt::print("Usage: {} [-d DISPLAY]\n"
                "\t-d DISPLAY\tSpecify wayland display. Current session default "
@@ -63,3 +65,5 @@ asio::awaitable<int> co_main(asio::io_context::executor_type io_exec,
   spdlog::debug("window is closed exit the app");
   co_return EXIT_SUCCESS;
 }
+
+} // namespace co
