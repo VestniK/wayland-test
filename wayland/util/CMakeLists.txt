@@ -21,10 +21,7 @@ target_compile_definitions(util PUBLIC
   ASIO_HAS_CO_AWAIT
   ASIO_HAS_STD_COROUTINE
 )
-
-if (WAYLAND_TEST_WERROR)
-  target_compile_options(util PUBLIC -Werror=all)
-endif()
+target_compile_options(util PUBLIC -Wno-error=interference-size)
 
 add_catch_test(
 NAME

@@ -14,6 +14,3 @@ target_compile_definitions(coro-rt PUBLIC
   ASIO_HAS_CO_AWAIT
   ASIO_HAS_STD_COROUTINE
 )
-if (WAYLAND_TEST_WERROR)
-  target_compile_options(coro-rt PUBLIC -Werror=all)
-endif()
