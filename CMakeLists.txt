@@ -18,6 +18,7 @@ conan_cmake_run(CONANFILE conanfile.txt
 enable_testing()
 
 option(CMAKE_COMPILE_WARNING_AS_ERROR OFF "Treat warnings as errors")
+option(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE On "Enable LTO in release builds")
 
 find_package(Wayland REQUIRED)
 find_package(OpenGL REQUIRED COMPONENTS EGL OpenGL)
