@@ -102,11 +102,11 @@ inline event_queue::event_queue(event_loop &eloop) noexcept
 
 inline void event_queue::dispatch() {
   eloop_.get().read_count_.wait(last_read_processed_);
+  last_read_processed_ = eloop_.get().read_count_.load();
   dispatch_pending();
 }
 
 inline void event_queue::dispatch_pending() {
-  last_read_processed_ = eloop_.get().read_count_.load();
   wl_display_dispatch_queue_pending(&display(), queue_.get());
 }
 
