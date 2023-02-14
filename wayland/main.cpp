@@ -52,11 +52,17 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
 
   event_loop eloop{get_option(args, "-d")};
 
-  auto wnd = co_await gles_window::create_maximized(
-      eloop, io_exec, pool_exec, make_render_func<scene_renderer>());
+  xdg_wm_base_listener xdg_listener{
+      .ping = [](void *, xdg_wm_base *wm, uint32_t serial) {
+        xdg_wm_base_pong(wm, serial);
+      }};
+  xdg_wm_base_add_listener(eloop.get_xdg_wm(), &xdg_listener, nullptr);
 
   udev_gamepads gamepads;
   gamepads.list();
+
+  auto wnd = co_await gles_window::create_maximized(
+      eloop, io_exec, pool_exec, make_render_func<scene_renderer>());
 
   using namespace asio::experimental::awaitable_operators;
   co_await (eloop.dispatch_while(io_exec, [&] { return !wnd.is_closed(); }) ||
