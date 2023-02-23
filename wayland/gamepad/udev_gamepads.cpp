@@ -86,3 +86,7 @@ void udev_gamepads::list() {
                  syspath, devnode, sysname, sysnum);
   }
 }
+
+static_assert(std::input_iterator<detail::udev::list_iterator>);
+static_assert(std::sentinel_for<detail::udev::list_iterator,
+                                detail::udev::list_iterator>);
