@@ -12,31 +12,16 @@
 #include <wayland/util/geom.hpp>
 
 struct vertex;
-
-class mesh {
-public:
-  constexpr mesh() noexcept = default;
-  explicit mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
-                std::span<const vertex> verticies,
-                std::span<const GLuint> indexes);
-
-  void draw();
-
-  constexpr explicit operator bool() const noexcept { return vbo_ && ibo_; };
-
-private:
-  attrib_location<glm::vec3> pos_;
-  attrib_location<glm::vec3> norm_;
-  buffer ibo_;
-  buffer vbo_;
-  unsigned triangles_count_ = 0;
-};
+class mesh;
 
 class shader_pipeline {
 public:
-  shader_pipeline();
+  struct attributes {
+    attrib_location<glm::vec3> position;
+    attrib_location<glm::vec3> normal;
+  };
 
-  shader_program &get_program() noexcept { return shader_prog_; }
+  shader_pipeline();
 
   void start_rendering(glm::mat4 camera);
   void draw(glm::mat4 model, glm::vec3 color, mesh &mesh);
@@ -47,6 +32,23 @@ private:
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;
   uniform_location<glm::vec3> color_uniform_;
+  attributes attributes_;
+};
+
+class mesh {
+public:
+  constexpr mesh() noexcept = default;
+  explicit mesh(std::span<const vertex> verticies,
+                std::span<const GLuint> indexes);
+
+  void draw(shader_pipeline::attributes attrs);
+
+  constexpr explicit operator bool() const noexcept { return vbo_ && ibo_; };
+
+private:
+  buffer ibo_;
+  buffer vbo_;
+  unsigned triangles_count_ = 0;
 };
 
 class scene_renderer {

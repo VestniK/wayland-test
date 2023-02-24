@@ -70,9 +70,8 @@ void apply_model_world_transformation(
 
 } // namespace
 
-mesh::mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
-           std::span<const vertex> verticies, std::span<const GLuint> indexes)
-    : pos_{pos}, norm_{norm}, ibo_{gen_buffer()}, vbo_{gen_buffer()},
+mesh::mesh(std::span<const vertex> verticies, std::span<const GLuint> indexes)
+    : ibo_{gen_buffer()}, vbo_{gen_buffer()},
       triangles_count_{static_cast<unsigned>(indexes.size())} {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glBufferData(GL_ARRAY_BUFFER, verticies.size_bytes(), verticies.data(),
@@ -83,16 +82,18 @@ mesh::mesh(attrib_location<glm::vec3> pos, attrib_location<glm::vec3> norm,
                GL_STATIC_DRAW);
 }
 
-void mesh::draw() {
+void mesh::draw(shader_pipeline::attributes attrs) {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
-  pos_.set_pointer(&vertex::position);
-  norm_.set_pointer(&vertex::normal);
+  attrs.position.set_pointer(&vertex::position);
+  attrs.normal.set_pointer(&vertex::normal);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
 
 shader_pipeline::shader_pipeline()
-    : shader_prog_{shaders::main_vert, shaders::main_frag} {
+    : shader_prog_{shaders::main_vert, shaders::main_frag},
+      attributes_{.position = shader_prog_.get_attrib<glm::vec3>("position"),
+                  .normal = shader_prog_.get_attrib<glm::vec3>("normal")} {
   model_world_uniform_ = shader_prog_.get_uniform<glm::mat4>("model");
   norm_world_uniform_ = shader_prog_.get_uniform<glm::mat3>("norm_rotation");
 
@@ -115,18 +116,13 @@ void shader_pipeline::draw(glm::mat4 model, glm::vec3 color, mesh &mesh) {
   apply_model_world_transformation(model, model_world_uniform_,
                                    norm_world_uniform_);
   color_uniform_.set_value(color);
-  mesh.draw();
+  mesh.draw(attributes_);
 }
 
-scene_renderer::scene_renderer()
-    : cube_{pipeline_.get_program().get_attrib<glm::vec3>("position"),
-            pipeline_.get_program().get_attrib<glm::vec3>("normal"),
-            cube_vertices, cube_idxs} {
+scene_renderer::scene_renderer() : cube_{cube_vertices, cube_idxs} {
 
   landscape land{centimeters{5}, 120, 80};
-  landscape_ = mesh{pipeline_.get_program().get_attrib<glm::vec3>("position"),
-                    pipeline_.get_program().get_attrib<glm::vec3>("normal"),
-                    land.verticies(), land.indexes()};
+  landscape_ = mesh{land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
