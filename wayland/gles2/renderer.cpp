@@ -91,28 +91,41 @@ void mesh::draw() {
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
 
-scene_renderer::scene_renderer()
-    : shader_prog_{shaders::main_vert, shaders::main_frag},
-      cube_{shader_prog_.get_attrib<glm::vec3>("position"),
-            shader_prog_.get_attrib<glm::vec3>("normal"), cube_vertices,
-            cube_idxs} {
-  shader_prog_.use();
-  shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
-  shader_prog_.get_uniform<float>("light.ambient").set_value(0.4);
-  shader_prog_.get_uniform<float>("light.attenuation").set_value(0.01);
-  shader_prog_.get_uniform<glm::vec3>("light.pos").set_value({2., 5., 15.});
+shader_pipeline::shader_pipeline()
+    : shader_prog_{shaders::main_vert, shaders::main_frag} {
   model_world_uniform_ = shader_prog_.get_uniform<glm::mat4>("model");
   norm_world_uniform_ = shader_prog_.get_uniform<glm::mat3>("norm_rotation");
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
   color_uniform_ = shader_prog_.get_uniform<glm::vec3>("color");
 
-  camera_ = glm::lookAt(glm::vec3{7, 10, 18}, glm::vec3{3, 1, 0},
-                        glm::vec3{.0, .0, 1.});
+  shader_prog_.use();
+  shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
+  shader_prog_.get_uniform<float>("light.ambient").set_value(0.4);
+  shader_prog_.get_uniform<float>("light.attenuation").set_value(0.01);
+  shader_prog_.get_uniform<glm::vec3>("light.pos").set_value({2., 5., 15.});
+};
 
-  landscape land{centimeters{20}, 30, 20};
-  landscape_ = mesh{shader_prog_.get_attrib<glm::vec3>("position"),
-                    shader_prog_.get_attrib<glm::vec3>("normal"),
+void shader_pipeline::start_rendering(glm::mat4 camera) {
+  shader_prog_.use();
+  camera_uniform_.set_value(camera);
+}
+
+void shader_pipeline::draw(glm::mat4 model, glm::vec3 color, mesh &mesh) {
+  apply_model_world_transformation(model, model_world_uniform_,
+                                   norm_world_uniform_);
+  color_uniform_.set_value(color);
+  mesh.draw();
+}
+
+scene_renderer::scene_renderer()
+    : cube_{pipeline_.get_program().get_attrib<glm::vec3>("position"),
+            pipeline_.get_program().get_attrib<glm::vec3>("normal"),
+            cube_vertices, cube_idxs} {
+
+  landscape land{centimeters{5}, 120, 80};
+  landscape_ = mesh{pipeline_.get_program().get_attrib<glm::vec3>("position"),
+                    pipeline_.get_program().get_attrib<glm::vec3>("normal"),
                     land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
@@ -124,8 +137,6 @@ void scene_renderer::resize(size sz) {
   glViewport(0, 0, sz.width, sz.height);
   projection_ =
       glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f);
-
-  camera_uniform_.set_value(projection_ * camera_);
 }
 
 void scene_renderer::draw(clock::time_point ts) {
@@ -140,13 +151,13 @@ void scene_renderer::draw(clock::time_point ts) {
   const GLfloat spot_angle = 2 * M_PI * flyght_phase;
   const GLfloat angle = 2 * M_PI * spin_phase;
 
-  camera_ = glm::lookAt(glm::vec3{7, 10, 18},
-                        glm::vec3{3 + 2 * std::cos(6 * M_PI * flyght_phase),
-                                  1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
-                        glm::vec3{.0, .0, 1.});
-  camera_uniform_.set_value(projection_ * camera_);
+  const glm::mat4 camera =
+      glm::lookAt(glm::vec3{7, 10, 18},
+                  glm::vec3{3 + 2 * std::cos(6 * M_PI * flyght_phase),
+                            1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
+                  glm::vec3{.0, .0, 1.});
 
-  glm::mat4 model =
+  const glm::mat4 model =
       glm::translate(glm::mat4{1.},
                      glm::vec3{4 + 2 * std::cos(3 * spot_angle),
                                2.5 - 0.6 * std::sin(5 * spot_angle),
@@ -155,15 +166,10 @@ void scene_renderer::draw(clock::time_point ts) {
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  apply_model_world_transformation(model, model_world_uniform_,
-                                   norm_world_uniform_);
 
-  color_uniform_.set_value({.9, 0.7, 0.7});
-  cube_.draw();
-  apply_model_world_transformation(glm::mat4{1.}, model_world_uniform_,
-                                   norm_world_uniform_);
+  pipeline_.start_rendering(projection_ * camera);
+  pipeline_.draw(model, {.9, 0.7, 0.7}, cube_);
+  pipeline_.draw(glm::mat4{1.}, {1., 1., 0.4}, landscape_);
 
-  color_uniform_.set_value({1., 1., 0.4});
-  landscape_.draw();
   glFlush();
 }

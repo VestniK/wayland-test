@@ -70,6 +70,6 @@ function(add_shaders_lib)
     # Shader sources
     ${_dependencies}
   )
-  target_compile_features(${SHADER_LIB_NAME} PRIVATE cxx_std_17)
+  target_compile_features(${SHADER_LIB_NAME} PRIVATE cxx_std_20)
   target_include_directories(${SHADER_LIB_NAME} PUBLIC ${PROJECT_BINARY_DIR})
 endfunction()

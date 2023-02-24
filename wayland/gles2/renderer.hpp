@@ -32,6 +32,23 @@ private:
   unsigned triangles_count_ = 0;
 };
 
+class shader_pipeline {
+public:
+  shader_pipeline();
+
+  shader_program &get_program() noexcept { return shader_prog_; }
+
+  void start_rendering(glm::mat4 camera);
+  void draw(glm::mat4 model, glm::vec3 color, mesh &mesh);
+
+private:
+  shader_program shader_prog_;
+  uniform_location<glm::mat4> camera_uniform_;
+  uniform_location<glm::mat4> model_world_uniform_;
+  uniform_location<glm::mat3> norm_world_uniform_;
+  uniform_location<glm::vec3> color_uniform_;
+};
+
 class scene_renderer {
   using clock = frames_clock;
 
@@ -42,13 +59,8 @@ public:
   void draw(clock::time_point ts);
 
 private:
-  shader_program shader_prog_;
-  uniform_location<glm::mat4> camera_uniform_;
-  uniform_location<glm::mat4> model_world_uniform_;
-  uniform_location<glm::mat3> norm_world_uniform_;
-  uniform_location<glm::vec3> color_uniform_;
+  shader_pipeline pipeline_;
   mesh cube_;
   mesh landscape_;
   glm::mat4 projection_{};
-  glm::mat4 camera_{};
 };
