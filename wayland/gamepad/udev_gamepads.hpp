@@ -48,6 +48,12 @@ private:
   udev_list_entry *head_ = nullptr;
 };
 
+struct list_range {
+  udev_list_entry *head;
+};
+inline list_iterator begin(list_range &list) noexcept { return {list.head}; }
+inline list_iterator end(list_range &) noexcept { return {}; }
+
 } // namespace detail::udev
 
 class udev_gamepads {

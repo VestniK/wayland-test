@@ -22,6 +22,34 @@ struct non_owning_stream_descriptor : asio::posix::stream_descriptor {
   ~non_owning_stream_descriptor() noexcept { this->release(); }
 };
 
+constexpr auto nullsv = "nullptr"sv;
+std::string_view as_sv(const char *badcstr) noexcept {
+  return badcstr ? std::string_view{badcstr} : nullsv;
+}
+
+void log_gamepad_info(std::string_view action, std::string_view devnode,
+                      udev_device &dev) {
+  const char *sysname = udev_device_get_sysname(&dev);
+  const char *sysnum = udev_device_get_sysnum(&dev);
+  const char *syspath = udev_device_get_syspath(&dev);
+
+  using detail::udev::list_range;
+  spdlog::debug(
+      "{} gamepad:\n\t{}\n\t{}\n  sysname: {}\n  sysnum: {}\n  "
+      "devpath: {}\n  subsystem: {}\n  devtype: {}\n  props:\n\t{}",
+      action, syspath, devnode, sysname, sysnum,
+      as_sv(udev_device_get_devpath(&dev)),
+      as_sv(udev_device_get_subsystem(&dev)),
+      as_sv(udev_device_get_devtype(&dev)),
+      fmt::join(list_range{udev_device_get_properties_list_entry(&dev)} |
+                    std::views::transform([](udev_list_entry &entry) {
+                      return fmt::format(
+                          "{} = {}", as_sv(udev_list_entry_get_name(&entry)),
+                          as_sv(udev_list_entry_get_value(&entry)));
+                    }),
+                "\n\t"));
+}
+
 } // namespace
 
 udev_gamepads::connected_gamepads::connected_gamepads(udev &udev)
@@ -55,12 +83,7 @@ udev_gamepads::watch(asio::io_context::executor_type exec) {
     if (!joy_prop || "1"sv != joy_prop)
       continue;
 
-    const char *sysname = udev_device_get_sysname(dev.get());
-    const char *sysnum = udev_device_get_sysnum(dev.get());
-    const char *syspath = udev_device_get_syspath(dev.get());
-
-    spdlog::info("{} gamepad:\n\t{}\n\t{}\n  sysname: {}\n  sysnum: {}", action,
-                 syspath, devnode, sysname, sysnum);
+    log_gamepad_info(action, devnode, *dev);
   }
   co_return;
 }
@@ -79,14 +102,12 @@ void udev_gamepads::list() {
     if (devnode == nullptr)
       continue;
 
-    const char *sysname = udev_device_get_sysname(dev.get());
-    const char *sysnum = udev_device_get_sysnum(dev.get());
-
-    spdlog::info("found gamepad:\n\t{}\n\t{}\n  sysname: {}\n  sysnum: {}",
-                 syspath, devnode, sysname, sysnum);
+    log_gamepad_info("found", devnode, *dev);
   }
 }
 
 static_assert(std::input_iterator<detail::udev::list_iterator>);
 static_assert(std::sentinel_for<detail::udev::list_iterator,
                                 detail::udev::list_iterator>);
+static_assert(std::ranges::input_range<udev_gamepads::connected_gamepads>);
+static_assert(std::ranges::input_range<detail::udev::list_range>);
