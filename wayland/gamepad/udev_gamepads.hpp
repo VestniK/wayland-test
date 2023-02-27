@@ -77,7 +77,6 @@ public:
 
   connected_gamepads connected() { return {*udev_}; }
   asio::awaitable<void> watch(asio::io_context::executor_type exec);
-  void list();
   udev &native_handle() const noexcept { return *udev_; }
 
 private:

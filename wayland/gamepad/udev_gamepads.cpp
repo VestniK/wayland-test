@@ -29,16 +29,14 @@ std::string_view as_sv(const char *badcstr) noexcept {
 
 void log_gamepad_info(std::string_view action, std::string_view devnode,
                       udev_device &dev) {
-  const char *sysname = udev_device_get_sysname(&dev);
   const char *sysnum = udev_device_get_sysnum(&dev);
   const char *syspath = udev_device_get_syspath(&dev);
 
   using detail::udev::list_range;
   spdlog::debug(
-      "{} gamepad:\n\t{}\n\t{}\n  sysname: {}\n  sysnum: {}\n  "
+      "{} gamepad:\n\t{}\n\t{}\n  sysnum: {}\n  "
       "devpath: {}\n  subsystem: {}\n  devtype: {}\n  props:\n\t{}",
-      action, syspath, devnode, sysname, sysnum,
-      as_sv(udev_device_get_devpath(&dev)),
+      action, syspath, devnode, sysnum, as_sv(udev_device_get_devpath(&dev)),
       as_sv(udev_device_get_subsystem(&dev)),
       as_sv(udev_device_get_devtype(&dev)),
       fmt::join(list_range{udev_device_get_properties_list_entry(&dev)} |
@@ -48,6 +46,11 @@ void log_gamepad_info(std::string_view action, std::string_view devnode,
                           as_sv(udev_list_entry_get_value(&entry)));
                     }),
                 "\n\t"));
+}
+
+bool is_evdev_devnode(const char *devnode, udev_device &dev) noexcept {
+  const auto sysname = as_sv(udev_device_get_sysname(&dev));
+  return devnode && std::string_view{sysname}.starts_with("event");
 }
 
 } // namespace
@@ -64,6 +67,20 @@ udev_gamepads::connected_gamepads::connected_gamepads(udev &udev)
 
 asio::awaitable<void>
 udev_gamepads::watch(asio::io_context::executor_type exec) {
+  for (auto [devnode, dev] :
+       connected() | std::views::transform([&](udev_list_entry &entry) {
+         const char *syspath = udev_list_entry_get_name(&entry);
+         detail::udev::unique_ptr<udev_device> dev{
+             udev_device_new_from_syspath(&native_handle(), syspath)};
+         const char *devnode = udev_device_get_devnode(dev.get());
+         return std::tuple{devnode, std::move(dev)};
+       }) | std::views::filter([](const auto &devinfo) {
+         const auto &[devnode, dev] = devinfo;
+         return is_evdev_devnode(devnode, *dev);
+       })) {
+    log_gamepad_info("found", devnode, *dev);
+  }
+
   non_owning_stream_descriptor conn{exec, udev_monitor_get_fd(monitor_.get())};
   while (true) {
     co_await conn.async_wait(asio::posix::stream_descriptor::wait_read,
@@ -75,7 +92,7 @@ udev_gamepads::watch(asio::io_context::executor_type exec) {
     }
     const char *action = udev_device_get_action(dev.get());
     const char *devnode = udev_device_get_devnode(dev.get());
-    if (devnode == nullptr)
+    if (!is_evdev_devnode(devnode, *dev))
       continue;
 
     const char *joy_prop =
@@ -91,19 +108,6 @@ udev_gamepads::watch(asio::io_context::executor_type exec) {
 udev_gamepads::udev_gamepads() {
   udev_monitor_filter_add_match_subsystem_devtype(monitor_.get(), "input", 0);
   udev_monitor_enable_receiving(monitor_.get());
-}
-
-void udev_gamepads::list() {
-  for (auto &entry : connected()) {
-    const char *syspath = udev_list_entry_get_name(&entry);
-    detail::udev::unique_ptr<udev_device> dev{
-        udev_device_new_from_syspath(&native_handle(), syspath)};
-    const char *devnode = udev_device_get_devnode(dev.get());
-    if (devnode == nullptr)
-      continue;
-
-    log_gamepad_info("found", devnode, *dev);
-  }
 }
 
 static_assert(std::input_iterator<detail::udev::list_iterator>);

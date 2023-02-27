@@ -60,7 +60,7 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   xdg_wm_base_add_listener(reg.get_xdg_wm(), &xdg_listener, nullptr);
 
   udev_gamepads gamepads;
-  gamepads.list();
+  auto gamepads_watch_result = gamepads.watch(io_exec);
 
   auto wnd = co_await gles_window::create_maximized(
       eloop, reg, io_exec, pool_exec, make_render_func<scene_renderer>());
@@ -72,7 +72,7 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
       return true;
     }
     return !wnd.is_closed();
-  }) || gamepads.watch(io_exec));
+  }) || std::move(gamepads_watch_result));
 
   spdlog::debug("window is closed exit the app");
   co_return EXIT_SUCCESS;
