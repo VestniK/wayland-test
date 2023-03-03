@@ -7,10 +7,11 @@
 #include <asio/io_context.hpp>
 #include <asio/static_thread_pool.hpp>
 
+#include <util/channel.hpp>
+#include <util/geom.hpp>
+
 #include <wayland/egl.hpp>
 #include <wayland/ivi_window.hpp>
-#include <wayland/util/channel.hpp>
-#include <wayland/util/geom.hpp>
 #include <wayland/vsync_frames.hpp>
 #include <wayland/xdg_window.hpp>
 

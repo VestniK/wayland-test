@@ -4,12 +4,13 @@
 
 #include <spdlog/spdlog.h>
 
+#include <util/clock.hpp>
+#include <util/task_guard.hpp>
+
 #include <wayland/egl.hpp>
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/ui_category.hpp>
-#include <wayland/util/clock.hpp>
-#include <wayland/util/task_guard.hpp>
 
 namespace {
 

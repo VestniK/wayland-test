@@ -3,9 +3,10 @@
 #include <array>
 #include <span>
 
+#include <util/concat.hpp>
+#include <util/unit.hpp>
+
 #include <wayland/gles2/mesh_data.hpp>
-#include <wayland/util/concat.hpp>
-#include <wayland/util/unit.hpp>
 
 class landscape {
 public:

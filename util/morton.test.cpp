@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <wayland/util/morton.hpp>
+#include <util/morton.hpp>
 
 TEST_CASE("morton::interleave_2", "[morton]") {
   SECTION("must interleave 2 adjancient bits") {

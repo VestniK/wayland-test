@@ -28,6 +28,9 @@ set(LOCAL_WAYLAND_PROTOCOLS ${CMAKE_CURRENT_SOURCE_DIR}/protocols)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 
 include(cmake/add_catch_tests.cmake)
+include(cmake/canonical_project.cmake)
+
+add_subdirectory(util)
 add_subdirectory(wayland)
 
 add_executable(wayland

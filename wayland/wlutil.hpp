@@ -9,7 +9,7 @@
 #include <wayland-egl.h>
 #include <xdg-shell.h>
 
-#include <wayland/util/geom.hpp>
+#include <util/geom.hpp>
 
 namespace wl {
 

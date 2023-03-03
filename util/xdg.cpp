@@ -1,6 +1,6 @@
 #include <cstdlib>
 
-#include <wayland/util/xdg.hpp>
+#include <util/xdg.hpp>
 
 namespace fs = std::filesystem;
 

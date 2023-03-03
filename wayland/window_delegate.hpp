@@ -1,6 +1,6 @@
 #pragma once
 
-#include <wayland/util/geom.hpp>
+#include <util/geom.hpp>
 
 struct basic_delegate {
   virtual ~basic_delegate() noexcept = default;

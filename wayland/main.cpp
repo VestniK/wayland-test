@@ -10,11 +10,12 @@
 #include <asio/experimental/awaitable_operators.hpp>
 #include <asio/static_thread_pool.hpp>
 
+#include <util/get_option.hpp>
+
 #include <wayland/event_loop.hpp>
 #include <wayland/gamepad/udev_gamepads.hpp>
 #include <wayland/gles2/renderer.hpp>
 #include <wayland/gles_window.hpp>
-#include <wayland/util/get_option.hpp>
 
 using namespace std::literals;
 

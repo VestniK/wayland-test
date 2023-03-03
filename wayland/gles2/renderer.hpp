@@ -7,9 +7,10 @@
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 
+#include <util/clock.hpp>
+#include <util/geom.hpp>
+
 #include <wayland/gles2/gl_resource.hpp>
-#include <wayland/util/clock.hpp>
-#include <wayland/util/geom.hpp>
 
 struct vertex;
 class mesh;

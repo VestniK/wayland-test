@@ -3,7 +3,7 @@
 #include <string_view>
 #include <vector>
 
-#include <wayland/util/get_option.hpp>
+#include <util/get_option.hpp>
 
 namespace test {
 

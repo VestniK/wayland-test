@@ -8,7 +8,7 @@
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 
-#include <wayland/util/member.hpp>
+#include <util/member.hpp>
 
 template <typename Deleter> class gl_resource : Deleter {
 public:
@@ -17,7 +17,7 @@ public:
 
   ~gl_resource() {
     if (handle_ != 0)
-      static_cast<Deleter &> (*this)(handle_);
+      static_cast<Deleter &>(*this)(handle_);
   }
 
   gl_resource(const gl_resource &) = delete;
