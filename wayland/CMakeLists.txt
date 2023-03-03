@@ -1,5 +1,4 @@
 add_subdirectory(gles2)
-add_subdirectory(gamepad)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
   COMMAND Wayland::scanner client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
