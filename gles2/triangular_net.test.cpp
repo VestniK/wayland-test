@@ -10,7 +10,7 @@
 
 #include <fmt/format.h>
 
-#include <wayland/gles2/triangular_net.hpp>
+#include <gles2/triangular_net.hpp>
 
 using Catch::Generators::random;
 using namespace fmt::literals;

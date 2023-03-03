@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <wayland/gles2/gl_resource.hpp>
+#include <gles2/gl_resource.hpp>
 
 namespace test {
 

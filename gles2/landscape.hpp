@@ -6,7 +6,7 @@
 #include <util/concat.hpp>
 #include <util/unit.hpp>
 
-#include <wayland/gles2/mesh_data.hpp>
+#include <gles2/mesh_data.hpp>
 
 class landscape {
 public:

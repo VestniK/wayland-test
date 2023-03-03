@@ -9,7 +9,7 @@
 
 #include <fmt/format.h>
 
-#include <wayland/gles2/landscape.hpp>
+#include <gles2/landscape.hpp>
 
 using namespace fmt::literals;
 

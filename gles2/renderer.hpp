@@ -10,7 +10,7 @@
 #include <util/clock.hpp>
 #include <util/geom.hpp>
 
-#include <wayland/gles2/gl_resource.hpp>
+#include <gles2/gl_resource.hpp>
 
 struct vertex;
 class mesh;

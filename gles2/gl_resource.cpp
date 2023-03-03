@@ -1,6 +1,6 @@
 #include <stdexcept>
 
-#include <wayland/gles2/gl_resource.hpp>
+#include <gles2/gl_resource.hpp>
 
 shader compile(shader_type type, const char *src) {
   return compile(type, std::span<const char *>{&src, 1});

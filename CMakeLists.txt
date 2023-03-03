@@ -33,6 +33,7 @@ include(cmake/canonical_project.cmake)
 add_subdirectory(corort)
 add_subdirectory(util)
 add_subdirectory(gamepad)
+add_subdirectory(gles2)
 add_subdirectory(wayland)
 
 add_executable(wayland

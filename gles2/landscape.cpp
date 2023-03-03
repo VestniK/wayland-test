@@ -5,8 +5,8 @@
 
 #include <util/morton.hpp>
 
-#include <wayland/gles2/landscape.hpp>
-#include <wayland/gles2/triangular_net.hpp>
+#include <gles2/landscape.hpp>
+#include <gles2/triangular_net.hpp>
 
 namespace {
 

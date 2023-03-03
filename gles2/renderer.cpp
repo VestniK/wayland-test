@@ -3,11 +3,10 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
-#include <wayland/gles2/landscape.hpp>
-#include <wayland/gles2/mesh_data.hpp>
-#include <wayland/gles2/renderer.hpp>
-
-#include <wayland/gles2/shaders/shaders.hpp>
+#include <gles2/landscape.hpp>
+#include <gles2/mesh_data.hpp>
+#include <gles2/renderer.hpp>
+#include <gles2/shaders/shaders.hpp>
 
 using namespace std::literals;
 

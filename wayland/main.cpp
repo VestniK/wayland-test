@@ -14,8 +14,9 @@
 
 #include <gamepad/udev_gamepads.hpp>
 
+#include <gles2/renderer.hpp>
+
 #include <wayland/event_loop.hpp>
-#include <wayland/gles2/renderer.hpp>
 #include <wayland/gles_window.hpp>
 
 using namespace std::literals;
