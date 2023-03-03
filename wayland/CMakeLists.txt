@@ -1,4 +1,3 @@
-add_subdirectory(coro_rt)
 add_subdirectory(gles2)
 add_subdirectory(gamepad)
 

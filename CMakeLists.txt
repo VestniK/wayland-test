@@ -31,6 +31,7 @@ include(cmake/add_catch_tests.cmake)
 include(cmake/canonical_project.cmake)
 
 add_subdirectory(util)
+add_subdirectory(corort)
 add_subdirectory(wayland)
 
 add_executable(wayland
@@ -44,7 +45,7 @@ target_link_libraries(wayland PRIVATE
   wayland.obj
   util
   gles2
-  coro-rt
+  corort
   gamepad
   fmt::fmt
 )
