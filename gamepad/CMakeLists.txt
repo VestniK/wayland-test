@@ -10,6 +10,7 @@ cpp_unit(
   NAME gamepad
   STD cxx_std_20
   LIBS
+    util
     PkgConfig::UDEV
     fmt::fmt
     spdlog::spdlog

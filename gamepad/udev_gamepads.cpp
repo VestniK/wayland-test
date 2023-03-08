@@ -17,6 +17,13 @@ using namespace std::literals;
 
 namespace {
 
+namespace notify {
+
+constexpr auto add = "add"sv;
+constexpr auto remove = "remove"sv;
+
+} // namespace notify
+
 struct non_owning_stream_descriptor : asio::posix::stream_descriptor {
   using asio::posix::stream_descriptor::stream_descriptor;
   ~non_owning_stream_descriptor() noexcept { this->release(); }
@@ -79,6 +86,7 @@ udev_gamepads::watch(asio::io_context::executor_type exec) {
          return is_evdev_devnode(devnode, *dev);
        })) {
     log_gamepad_info("found", devnode, *dev);
+    on_add(exec, devnode, *dev);
   }
 
   non_owning_stream_descriptor conn{exec, udev_monitor_get_fd(monitor_.get())};
@@ -101,6 +109,12 @@ udev_gamepads::watch(asio::io_context::executor_type exec) {
       continue;
 
     log_gamepad_info(action, devnode, *dev);
+    if (action == notify::add)
+      on_add(exec, devnode, *dev);
+    else if (action == notify::remove)
+      on_remove(devnode, *dev);
+    else
+      spdlog::error("Unknown device action {}", action);
   }
   co_return;
 }
@@ -108,6 +122,26 @@ udev_gamepads::watch(asio::io_context::executor_type exec) {
 udev_gamepads::udev_gamepads() {
   udev_monitor_filter_add_match_subsystem_devtype(monitor_.get(), "input", 0);
   udev_monitor_enable_receiving(monitor_.get());
+}
+
+void udev_gamepads::on_add(asio::io_context::executor_type exec,
+                           std::string_view devnode, udev_device &dev) {
+  auto [it, inserted] = gamepads_.try_emplace(devnode, exec, devnode);
+  if (!inserted) {
+    spdlog::warn("Gamepad for devnode {} is already connected while '{}' "
+                 "notification received",
+                 devnode, notify::add);
+  }
+}
+void udev_gamepads::on_remove(std::string_view devnode, udev_device &dev) {
+  auto it = gamepads_.find(devnode);
+  if (it == gamepads_.end()) {
+    spdlog::warn("Gamepad for devnode {} is not connected while '{}' "
+                 "notification received",
+                 devnode, notify::remove);
+    return;
+  }
+  gamepads_.erase(it);
 }
 
 static_assert(std::input_iterator<detail::udev::list_iterator>);

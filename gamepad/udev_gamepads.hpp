@@ -1,12 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <iterator>
-#include <libudev.h>
 #include <memory>
+#include <unordered_map>
+
+#include <libudev.h>
 
 #include <asio/awaitable.hpp>
 #include <asio/io_context.hpp>
+
+#include <gamepad/evdev_gamepad.hpp>
 
 namespace detail::udev {
 
@@ -80,7 +85,13 @@ public:
   udev &native_handle() const noexcept { return *udev_; }
 
 private:
+  void on_add(asio::io_context::executor_type exec, std::string_view devnode,
+              udev_device &dev);
+  void on_remove(std::string_view devnode, udev_device &dev);
+
+private:
   detail::udev::unique_ptr<udev> udev_{udev_new()};
   detail::udev::unique_ptr<udev_monitor> monitor_{
       udev_monitor_new_from_netlink(udev_.get(), "udev")};
+  std::unordered_map<std::filesystem::path, evdev_gamepad> gamepads_;
 };
