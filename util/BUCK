@@ -1,0 +1,17 @@
+cxx_library(
+  name = "util",
+  exported_headers = glob(["*.hpp"], exclude = ["*.test.hpp"]),
+  srcs = glob(["*.cpp"], exclude = ["*.test.cpp"]),
+  exported_deps = ["//.buck/conan:asio", "//.buck/conan:fmt"],
+  tests = [":ut"],
+  visibility = ["PUBLIC"],
+)
+
+cxx_test(
+    name = "ut",
+    srcs = glob(["*.test.cpp"]),
+    headers = glob(["*.test.hpp"]),
+    args = ["--rng-seed", "time"],
+    link_style = "static",
+    deps = [":util", "//.buck/conan:catch2-main"]
+)
