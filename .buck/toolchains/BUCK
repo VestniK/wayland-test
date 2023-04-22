@@ -3,9 +3,14 @@ load("@prelude//toolchains:python.bzl", "system_python_bootstrap_toolchain")
 
 system_cxx_toolchain(
     name = "cxx",
-    cxx_flags = ["-std=c++20"],
+    compiler_type = "gcc",
+    compiler = "gcc",
+    cxx_compiler = "g++",
+    linker = "g++",
+    cxx_flags = ["-std=c++20", "-O3"],
     visibility = ["PUBLIC"],
 )
+
 system_python_bootstrap_toolchain(
     name = "python_bootstrap",
     visibility = ["PUBLIC"],
