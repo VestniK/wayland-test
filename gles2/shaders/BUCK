@@ -1,0 +1,16 @@
+load("@root//.buck/rules:shaders.bzl", "shader_data")
+
+shader_data(
+    name = "shaders_src",
+    programs = ["main"],
+    extra_sources = ["phong.frag"],
+    header = "shaders.hpp",
+    namespace = "shaders"
+)
+
+cxx_library(
+    name = "shaders",
+    srcs = [":shaders_src[cpp]"],
+    exported_headers = [":shaders_src[hpp]"],
+    visibility = ['PUBLIC'],
+)
