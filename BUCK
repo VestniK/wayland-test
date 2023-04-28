@@ -7,6 +7,6 @@ cxx_binary(
     "//.buck/conan:asio",
     "//util:util",
     "//corort:corort",
-    "//gles:gles",
+    "//gles2:gles2",
   ],
 )
