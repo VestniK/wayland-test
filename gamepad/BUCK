@@ -1,0 +1,8 @@
+cxx_library(
+  name = "gamepad",
+  exported_headers = glob(["*.hpp"], exclude = ["*.test.hpp"]),
+  srcs = glob(["*.cpp"], exclude = ["*.test.cpp"]),
+  deps = ["//.buck/contrib/conan:spdlog", "//.buck/contrib/system:udev"],
+  exported_deps = ["//util:util"],
+  visibility = ["PUBLIC"],
+)

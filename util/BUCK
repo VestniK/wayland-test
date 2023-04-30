@@ -2,7 +2,7 @@ cxx_library(
   name = "util",
   exported_headers = glob(["*.hpp"], exclude = ["*.test.hpp"]),
   srcs = glob(["*.cpp"], exclude = ["*.test.cpp"]),
-  exported_deps = ["//.buck/conan:asio", "//.buck/conan:fmt"],
+  exported_deps = ["//.buck/contrib/conan:asio", "//.buck/contrib/conan:fmt"],
   tests = [":ut"],
   visibility = ["PUBLIC"],
 )
@@ -13,5 +13,5 @@ cxx_test(
     headers = glob(["*.test.hpp"]),
     args = ["--rng-seed", "time"],
     link_style = "static",
-    deps = [":util", "//.buck/conan:catch2-main"]
+    deps = [":util", "//.buck/contrib/conan:catch2-main"]
 )

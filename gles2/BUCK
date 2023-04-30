@@ -3,7 +3,12 @@ cxx_library(
   exported_headers = glob(["*.hpp"], exclude = ["*.test.hpp"]),
   srcs = glob(["*.cpp"], exclude = ["*.test.cpp"]),
   deps = ["//gles2/shaders:shaders"],
-  exported_deps = ["//util:util", "//.buck/conan:glm", "//.buck/conan:fmt"],
+  exported_deps = [
+    "//util:util",
+    "//.buck/contrib/conan:glm",
+    "//.buck/contrib/conan:fmt",
+    "//.buck/contrib/system:OpenGL",
+  ],
   include_directories = ["//."],
   tests = [":ut"],
   visibility = ["PUBLIC"],
@@ -15,5 +20,5 @@ cxx_test(
     headers = glob(["*.test.hpp"]),
     args = ["--rng-seed", "time"],
     link_style = "static",
-    deps = [":gles2", "//.buck/conan:catch2-main"]
+    deps = [":gles2", "//.buck/contrib/conan:catch2-main"]
 )

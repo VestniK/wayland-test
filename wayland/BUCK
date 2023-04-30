@@ -34,9 +34,30 @@ cxx_library(
 cxx_library(
   name = "wayland",
   exported_headers = glob(["*.hpp"], exclude = ["*.test.hpp"]),
-  srcs = glob(["*.cpp"], exclude = ["*.test.cpp"]),
-  deps = ["//.buck/conan:spdlog"],
-  exported_deps = ["//util:util", ':wl-protocols'],
-  include_directories = ["//."],
+  srcs = glob(["*.cpp"], exclude = ["*.test.cpp", "main.cpp"]),
+  deps = [
+    "//util:util",
+    "//.buck/contrib/conan:spdlog",
+    "//.buck/contrib/system:dl",
+    "//.buck/contrib/system:EGL",
+    "//.buck/contrib/system:wayland-client",
+    "//.buck/contrib/system:wayland-egl",
+  ],
+  exported_deps = [
+    ":wl-protocols",
+  ],
   visibility = ["PUBLIC"],
+)
+
+cxx_binary(
+  name = "wayland-test",
+  srcs = ['main.cpp'],
+  deps = [
+    "//wayland:wayland",
+    "//gamepad:gamepad",
+    "//gles2:gles2",
+    "//corort:corort",
+    "//.buck/contrib/conan:spdlog",
+    "//.buck/contrib/system:systemd",
+  ],
 )
