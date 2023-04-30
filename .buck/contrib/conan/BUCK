@@ -1,0 +1,56 @@
+prebuilt_cxx_library(
+  name = 'fmt',
+  static_lib = 'import/host/fmt/9.1.0/Release/x86_64/lib/libfmt.a',
+  header_dirs = [
+    'import/host/fmt/9.1.0/Release/x86_64/include',
+  ],
+  visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+  name = 'glm',
+  header_dirs = [
+    'import/host/glm/0.9.9.8/include',
+  ],
+  header_only = True,
+  visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+  name = 'spdlog',
+  static_lib = 'import/host/spdlog/1.11.0/Release/x86_64/lib/libspdlog.a',
+  header_dirs = [
+    'import/host/spdlog/1.11.0/Release/x86_64/include',
+  ],
+  deps = [":fmt"],
+  visibility = ["PUBLIC"],
+  exported_preprocessor_flags = [
+    '-DSPDLOG_FMT_EXTERNAL'
+  ],
+)
+
+prebuilt_cxx_library(
+  name = 'asio',
+  header_only = True,
+  header_dirs = [
+    'import/host/asio/1.24.0/include',
+  ],
+  exported_preprocessor_flags = ["-DASIO_STANDALONE"],
+  exported_deps = ["//.buck/contrib/system:threads"],
+  visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+  name = 'catch2',
+  static_lib = 'import/host/catch2/3.3.1/Release/x86_64/lib/libCatch2.a',
+  header_dirs = [
+    'import/host/catch2/3.3.1/Release/x86_64/include/',
+  ],
+  visibility = ["PUBLIC"],
+)
+prebuilt_cxx_library(
+  name = 'catch2-main',
+  static_lib = 'import/host/catch2/3.3.1/Release/x86_64/lib/libCatch2Main.a',
+  exported_deps = [":catch2"],
+  visibility = ["PUBLIC"],
+)

@@ -1,0 +1,47 @@
+prebuilt_cxx_library(
+    name = "threads",
+    exported_linker_flags = ["-pthread"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "dl",
+    exported_linker_flags = ["-ldl"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "udev",
+    exported_linker_flags = ["-ludev"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "systemd",
+    exported_linker_flags = ["-lsystemd"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "OpenGL",
+    exported_linker_flags = ["-lOpenGL"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "EGL",
+    exported_linker_flags = ["-lEGL"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "wayland-egl",
+    exported_linker_flags = ["-lwayland-egl"],
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "wayland-client",
+    exported_linker_flags = ["-lwayland-client"],
+    visibility = ["PUBLIC"],
+)
