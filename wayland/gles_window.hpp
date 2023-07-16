@@ -15,6 +15,8 @@
 #include <wayland/vsync_frames.hpp>
 #include <wayland/xdg_window.hpp>
 
+class registry;
+
 class gles_context {
 public:
   gles_context(wl_display &display, wl_surface &surf, size sz);

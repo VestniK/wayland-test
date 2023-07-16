@@ -16,6 +16,8 @@
 
 #include <gles2/renderer.hpp>
 
+#include <xdg-shell.h>
+
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 
@@ -60,7 +62,8 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
       .ping = [](void *, xdg_wm_base *wm, uint32_t serial) {
         xdg_wm_base_pong(wm, serial);
       }};
-  xdg_wm_base_add_listener(reg.get_xdg_wm(), &xdg_listener, nullptr);
+  if (reg.get_xdg_wm())
+    xdg_wm_base_add_listener(reg.get_xdg_wm(), &xdg_listener, nullptr);
 
   udev_gamepads gamepads;
   auto gamepads_watch_result = gamepads.watch(io_exec);
