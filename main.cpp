@@ -20,6 +20,7 @@
 
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
+#include <wayland/gui_shell.hpp>
 
 using namespace std::literals;
 
@@ -56,26 +57,20 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   setup_logger();
 
   event_loop eloop{get_option(args, "-d")};
-  registry reg{eloop};
-
-  xdg_wm_base_listener xdg_listener{
-      .ping = [](void *, xdg_wm_base *wm, uint32_t serial) {
-        xdg_wm_base_pong(wm, serial);
-      }};
-  if (reg.get_xdg_wm())
-    xdg_wm_base_add_listener(reg.get_xdg_wm(), &xdg_listener, nullptr);
+  wl::gui_shell shell{eloop};
 
   udev_gamepads gamepads;
   auto gamepads_watch_result = gamepads.watch(io_exec);
 
-  auto wnd = co_await gles_window::create_maximized(
-      eloop, reg, io_exec, pool_exec, make_render_func<scene_renderer>());
+  gles_window wnd{eloop, pool_exec,
+                  co_await shell.create_maximized_window(eloop, io_exec),
+                  make_render_func<scene_renderer>()};
 
   using namespace asio::experimental::awaitable_operators;
   co_await (eloop.dispatch_while(io_exec, [&] {
-    if (auto ec = reg.check()) {
+    if (auto ec = shell.check()) {
       spdlog::error("Wayland services state error: {}", ec.message());
-      return true;
+      return false;
     }
     return !wnd.is_closed();
   }) || std::move(gamepads_watch_result));

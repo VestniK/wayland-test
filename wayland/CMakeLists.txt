@@ -1,63 +1,29 @@
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
-  COMMAND Wayland::scanner client-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
-  COMMAND Wayland::scanner private-code ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
-  DEPENDS ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml
-)
-set_source_files_properties(
-  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
-  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
-  PROPERTIES
-    GENERATED ON
-)
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.h
-  COMMAND Wayland::scanner client-header ${LOCAL_WAYLAND_PROTOCOLS}/ivi-application.xml ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.h
-  COMMAND Wayland::scanner private-code ${LOCAL_WAYLAND_PROTOCOLS}/ivi-application.xml ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.c
-  DEPENDS ${LOCAL_WAYLAND_PROTOCOLS}/ivi-application.xml
-)
-set_source_files_properties(
-  ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.h
-  ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.c
-  PROPERTIES
-    GENERATED ON
-)
+find_package(OpenGL REQUIRED COMPONENTS EGL)
+find_package(Catch2 REQUIRED)
+find_package(asio REQUIRED)
+find_package(spdlog REQUIRED)
 
-add_library(wayland.obj OBJECT
-  egl.cpp
-  egl.hpp
-  event_loop.cpp
-  event_loop.hpp
-  ui_category.cpp
-  ui_category.hpp
-  wayland-client.hpp
-  ivi_window.cpp
-  ivi_window.hpp
-  vsync_frames.cpp
-  vsync_frames.hpp
-  xdg_window.cpp
-  xdg_window.hpp
-  window_delegate.hpp
-  wlutil.hpp
-  gles_window.cpp
-  gles_window.hpp
-
-  ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.h
-  ${CMAKE_CURRENT_BINARY_DIR}/ivi-application.c
-  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.h
-  ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell.c
+cpp_unit(
+  NAME wlwnd
+  STD cxx_std_20
+  LIBS
+    util
+    Wayland::client Wayland::egl
+    OpenGL::EGL
+    asio::asio
+    spdlog::spdlog
+  TEST_LIBS
+    Catch2::Catch2
+    Catch2::Catch2WithMain
+  TEST_ARGS --rng-seed time
 )
-target_compile_features(wayland.obj PUBLIC cxx_std_20)
-target_link_libraries(wayland.obj
-  util
-  gles2
-  Wayland::client Wayland::egl
-  OpenGL::EGL
-  asio::asio
-  spdlog::spdlog
-  ${CMAKE_DL_LIBS}
+target_wl_protocol(wlwnd
+  NAME xdg-shell
+  URL https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/4624cfaaf563cd7be5e2e2087c8de6d3a48ea867/stable/xdg-shell/xdg-shell.xml
+  SHA256 5b63a655af7147381705c32744fde4ac3f54ee6147396f709f394b0d1f711e71
 )
-target_include_directories(wayland.obj PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${wayland_SOURCE_DIR})
-target_compile_definitions(wayland.obj PUBLIC
-    # FIXME: For QtCreator clang based code completion only
-    ASIO_HAS_CO_AWAIT
-    ASIO_HAS_STD_COROUTINE
+target_wl_protocol(wlwnd
+  NAME ivi-application
+  URL https://github.com/COVESA/wayland-ivi-extension/raw/2.2.0/protocol/ivi-application.xml
+  SHA256 fbbdee032617675eae78d9bda864af519a3a34479d188740d938d17ffacf80d2
 )

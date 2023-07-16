@@ -95,32 +95,3 @@ inline wl_display &event_queue::display() const noexcept {
 inline void queues_notify_callback::operator()() noexcept {
   eloop_.get().notify_queues();
 }
-
-class registry {
-public:
-  registry(event_loop &eloop);
-
-  [[nodiscard]] wl_compositor *get_compositor() const noexcept {
-    return compositor_.service.get();
-  }
-  [[nodiscard]] ivi_application *get_ivi() const noexcept {
-    return ivi_.service.get();
-  }
-  [[nodiscard]] xdg_wm_base *get_xdg_wm() const noexcept {
-    return xdg_wm_.service.get();
-  }
-
-  std::error_code check() noexcept;
-
-private:
-  static void global(void *data, wl_registry *reg, uint32_t id,
-                     const char *name, uint32_t ver);
-  static void global_remove(void *data, wl_registry *, uint32_t id);
-
-private:
-  wl::unique_ptr<wl_registry> registry_;
-  wl_registry_listener listener_ = {&global, &global_remove};
-  identified<wl_compositor> compositor_;
-  identified<ivi_application> ivi_;
-  identified<xdg_wm_base> xdg_wm_;
-};

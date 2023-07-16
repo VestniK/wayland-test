@@ -1,7 +1,0 @@
-for (var i = 0; i < 1000; ++i) {
-  window.camera_look_at(
-    7, 10, 18,
-    3 + i*0.007, 1 + i*0.005, 0
-  );
-  window.draw_frame();
-}

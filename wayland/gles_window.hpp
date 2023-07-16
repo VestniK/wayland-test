@@ -3,19 +3,18 @@
 #include <optional>
 #include <variant>
 
-#include <asio/awaitable.hpp>
-#include <asio/io_context.hpp>
 #include <asio/static_thread_pool.hpp>
 
 #include <util/channel.hpp>
 #include <util/geom.hpp>
 
 #include <wayland/egl.hpp>
-#include <wayland/ivi_window.hpp>
+#include <wayland/shell_window.hpp>
 #include <wayland/vsync_frames.hpp>
-#include <wayland/xdg_window.hpp>
 
-class registry;
+namespace wl {
+class gui_shell;
+}
 
 class gles_context {
 public:
@@ -38,14 +37,14 @@ private:
 
 class gles_window {
 public:
-  using any_window = std::variant<xdg::toplevel_window, ivi::window>;
   using render_function =
       std::function<void(gles_context &glctx, vsync_frames &frames,
                          value_update_channel<size> &resize_channel)>;
 
   gles_window() noexcept = default;
   gles_window(event_loop &eloop, asio::thread_pool::executor_type pool_exec,
-              any_window wnd, size initial_size, render_function render_func);
+              wl::sized_window<wl::shell_window> &&wnd,
+              render_function render_func);
 
   gles_window(const gles_window &) = delete;
   gles_window &operator=(const gles_window &) = delete;
@@ -55,17 +54,13 @@ public:
 
   ~gles_window() noexcept;
 
-  static asio::awaitable<gles_window> create_maximized(
-      event_loop &eloop, registry &reg, asio::io_context::executor_type io_exec,
-      asio::thread_pool::executor_type pool_exec, render_function render_func);
-
   [[nodiscard]] bool is_closed() const noexcept;
 
 private:
   struct impl;
 
 private:
-  any_window wnd_;
+  wl::shell_window wnd_;
   std::unique_ptr<impl> impl_;
 };
 

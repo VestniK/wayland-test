@@ -10,7 +10,9 @@
 #include <wayland/egl.hpp>
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
+#include <wayland/gui_shell.hpp>
 #include <wayland/ui_category.hpp>
+#include <wayland/xdg_window.hpp>
 
 namespace {
 
@@ -100,47 +102,18 @@ struct gles_window::impl : public xdg::delegate {
   std::stop_callback<queues_notify_callback> on_stop;
 };
 
-asio::awaitable<gles_window> gles_window::create_maximized(
-    event_loop &eloop, registry &reg, asio::io_context::executor_type io_exec,
-    asio::thread_pool::executor_type pool_exec, render_function render_func) {
-  struct : xdg::delegate {
-    void resize(size sz) override { wnd_size = sz; }
-    void close() override { closed = true; }
-
-    std::optional<size> wnd_size;
-    bool closed = false;
-  } szdelegate;
-
-  any_window wnd =
-      reg.get_ivi()
-          ? any_window{std::in_place_type<ivi::window>, *reg.get_compositor(),
-                       *reg.get_ivi(), ivi_main_glapp_id, &szdelegate}
-          : any_window{std::in_place_type<xdg::toplevel_window>,
-                       *reg.get_compositor(), *reg.get_xdg_wm(), &szdelegate};
-  if (auto *xdg_wnd = std::get_if<xdg::toplevel_window>(&wnd))
-    xdg_wnd->maximize();
-  while (!szdelegate.wnd_size && !szdelegate.closed)
-    co_await eloop.dispatch_once(io_exec);
-
-  co_return szdelegate.closed
-      ? gles_window{}
-      : gles_window{eloop, pool_exec, std::move(wnd), *szdelegate.wnd_size,
-                    std::move(render_func)};
-}
-
 gles_window::gles_window(event_loop &eloop,
                          asio::thread_pool::executor_type pool_exec,
-                         any_window wnd, size initial_size,
+                         wl::sized_window<wl::shell_window> &&wnd,
                          render_function render_func)
-    : wnd_{std::move(wnd)} {
+    : wnd_{std::move(wnd.window)} {
   event_queue queue = eloop.make_queue();
-  wl_surface &surf = std::visit(
-      [](auto &wnd) -> wl_surface & { return wnd.get_surface(); }, wnd_);
+  wl_surface &surf = wnd_.get_surface();
   wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf), &queue.get());
   auto cb = queue.notify_callback();
-  impl_ = std::make_unique<impl>(pool_exec, std::move(queue), cb, surf,
-                                 initial_size, std::move(render_func));
-  std::visit([this](auto &wnd) { wnd.set_delegate(impl_.get()); }, wnd_);
+  impl_ = std::make_unique<impl>(pool_exec, std::move(queue), cb, surf, wnd.sz,
+                                 std::move(render_func));
+  wnd_.set_delegate(impl_.get());
 }
 
 gles_window::gles_window(gles_window &&) noexcept = default;
