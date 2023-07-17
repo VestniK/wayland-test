@@ -27,10 +27,12 @@ macro(cpp_unit)
 
     # IMPL lib
     set(PRJ_IMPL_SRC ${GLOB_SRCS} ${GLOB_HDRS})
+    list(FILTER PRJ_IMPL_SRC EXCLUDE REGEX "^.*/main.cpp$")
     list(FILTER PRJ_IMPL_SRC EXCLUDE REGEX "^main.cpp$")
     list(FILTER PRJ_IMPL_SRC EXCLUDE REGEX "^.*\.test.[hc]pp$")
 
     set(PRJ_COPMILE_SRC ${GLOB_SRCS})
+    list(FILTER PRJ_COPMILE_SRC EXCLUDE REGEX "^.*/main.cpp$")
     list(FILTER PRJ_COPMILE_SRC EXCLUDE REGEX "^main.cpp$")
     list(FILTER PRJ_COPMILE_SRC EXCLUDE REGEX "^.*\.test.[hc]pp$")
 
