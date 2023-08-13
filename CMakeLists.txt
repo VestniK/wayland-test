@@ -7,6 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 enable_testing()
 
+add_compile_options(-Wall)
 option(CMAKE_COMPILE_WARNING_AS_ERROR OFF "Treat warnings as errors")
 option(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE On "Enable LTO in release builds")
 

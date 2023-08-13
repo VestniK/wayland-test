@@ -93,8 +93,54 @@ asio::awaitable<void> evdev_gamepad::watch_device(
           std::chrono::seconds{ev.time.tv_sec} +
               std::chrono::microseconds{ev.time.tv_usec},
           ev.code, ev.value);
+      if (!key_handler_)
+        break;
       switch (ev.type) {
       case EV_KEY:
+        switch (ev.code) {
+        case BTN_A:
+          key_handler_(gamepad_key::A, ev.value != 0);
+          break;
+        case BTN_B:
+          key_handler_(gamepad_key::B, ev.value != 0);
+          break;
+        case BTN_X:
+          key_handler_(gamepad_key::X, ev.value != 0);
+          break;
+        case BTN_Y:
+          key_handler_(gamepad_key::Y, ev.value != 0);
+          break;
+        case BTN_TL:
+          key_handler_(gamepad_key::left_trg, ev.value != 0);
+          break;
+        case BTN_TR:
+          key_handler_(gamepad_key::right_trg, ev.value != 0);
+          break;
+        case BTN_TL2:
+          key_handler_(gamepad_key::left_alt_trg, ev.value != 0);
+          break;
+        case BTN_TR2:
+          key_handler_(gamepad_key::right_alt_trg, ev.value != 0);
+          break;
+        case BTN_DPAD_UP:
+          key_handler_(gamepad_key::dpad_up, ev.value != 0);
+          break;
+        case BTN_DPAD_DOWN:
+          key_handler_(gamepad_key::dpad_down, ev.value != 0);
+          break;
+        case BTN_DPAD_LEFT:
+          key_handler_(gamepad_key::dpad_left, ev.value != 0);
+          break;
+        case BTN_DPAD_RIGHT:
+          key_handler_(gamepad_key::dpad_right, ev.value != 0);
+          break;
+        case BTN_SELECT:
+          key_handler_(gamepad_key::select, ev.value != 0);
+          break;
+        case BTN_START:
+          key_handler_(gamepad_key::start, ev.value != 0);
+          break;
+        }
         break;
       case EV_ABS:
         break;

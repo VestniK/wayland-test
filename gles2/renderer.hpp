@@ -7,6 +7,7 @@
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 
+#include <util/channel.hpp>
 #include <util/clock.hpp>
 #include <util/geom.hpp>
 
@@ -25,7 +26,7 @@ public:
   shader_pipeline();
 
   void start_rendering(glm::mat4 camera);
-  void draw(glm::mat4 model, glm::vec3 color, mesh &mesh);
+  void draw(glm::mat4 model, glm::vec3 color, mesh& mesh);
 
 private:
   shader_program shader_prog_;
@@ -39,8 +40,8 @@ private:
 class mesh {
 public:
   constexpr mesh() noexcept = default;
-  explicit mesh(std::span<const vertex> verticies,
-                std::span<const GLuint> indexes);
+  explicit mesh(
+      std::span<const vertex> verticies, std::span<const GLuint> indexes);
 
   void draw(shader_pipeline::attributes attrs);
 
@@ -56,7 +57,8 @@ class scene_renderer {
   using clock = frames_clock;
 
 public:
-  scene_renderer();
+  scene_renderer(value_update_channel<glm::vec3>& cube_color_updates,
+      value_update_channel<glm::vec3>& landscape_color_updates);
 
   void resize(size sz);
   void draw(clock::time_point ts);
@@ -66,4 +68,8 @@ private:
   mesh cube_;
   mesh landscape_;
   glm::mat4 projection_{};
+  glm::vec3 cube_color_{.9, 0.7, 0.7};
+  value_update_channel<glm::vec3>& cube_color_updates_;
+  glm::vec3 landscape_color_{1., 1., 0.4};
+  value_update_channel<glm::vec3>& landscape_color_updates_;
 };
