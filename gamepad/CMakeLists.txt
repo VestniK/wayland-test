@@ -26,3 +26,6 @@ target_compile_definitions(gamepad PUBLIC
   ASIO_HAS_CO_AWAIT
   ASIO_HAS_STD_COROUTINE
 )
+target_compile_definitions(gamepad PRIVATE
+  $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=trace>
+)
