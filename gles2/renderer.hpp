@@ -68,8 +68,6 @@ private:
   mesh cube_;
   mesh landscape_;
   glm::mat4 projection_{};
-  glm::vec3 cube_color_{.9, 0.7, 0.7};
   value_update_channel<glm::vec3>& cube_color_updates_;
-  glm::vec3 landscape_color_{1., 1., 0.4};
   value_update_channel<glm::vec3>& landscape_color_updates_;
 };

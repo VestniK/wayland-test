@@ -162,15 +162,14 @@ void scene_renderer::draw(clock::time_point ts) {
       glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
-  cube_color_ = cube_color_updates_.get_update().value_or(cube_color_);
-  landscape_color_ =
-      landscape_color_updates_.get_update().value_or(landscape_color_);
+  const auto cube_color = cube_color_updates_.get_current();
+  const auto landscape_color = landscape_color_updates_.get_current();
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   pipeline_.start_rendering(projection_ * camera);
-  pipeline_.draw(model, cube_color_, cube_);
-  pipeline_.draw(glm::mat4{1.}, landscape_color_, landscape_);
+  pipeline_.draw(model, cube_color, cube_);
+  pipeline_.draw(glm::mat4{1.}, landscape_color, landscape_);
 
   glFlush();
 }

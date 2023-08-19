@@ -59,7 +59,9 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   wl::gui_shell shell{eloop};
 
   value_update_channel<glm::vec3> cube_color;
+  cube_color.update({.9, 0.7, 0.7});
   value_update_channel<glm::vec3> landscale_color;
+  landscale_color.update({1., 1., 0.4});
   udev_gamepads gamepads{
       [&cube_color, &landscale_color](gamepad_key key, bool pressed) {
         if (pressed)

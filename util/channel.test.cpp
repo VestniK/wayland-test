@@ -7,6 +7,8 @@
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <fmt/format.h>
+
 #include <asio/post.hpp>
 
 #include "channel.hpp"
@@ -15,7 +17,8 @@
 
 namespace {
 
-template <std::regular T> class mutex_value_update_channel {
+template <std::regular T>
+class mutex_value_update_channel {
 public:
   std::optional<T> get_update() {
     const T val = (std::lock_guard{mutex_}, current_);
@@ -23,7 +26,8 @@ public:
       return std::nullopt;
     return prev_ = val;
   }
-  void update(const T &t) { std::lock_guard{mutex_}, current_ = t; }
+  T get_current() { return std::lock_guard{mutex_}, prev_ = current_; }
+  void update(const T& t) { std::lock_guard{mutex_}, current_ = t; }
 
 private:
   std::mutex mutex_;
@@ -43,13 +47,28 @@ std::vector<int> make_some_nums(size_t count) {
 
 } // namespace
 
+namespace Catch {
+
+template <>
+struct StringMaker<size> {
+  static std::string convert(size val) {
+    return fmt::format("{{.width={}, .height={}}}", val.width, val.height);
+  }
+};
+
+} // namespace Catch
+
 TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
-                   value_update_channel<size>) {
+    value_update_channel<size>) {
   GIVEN("some channel") {
     TestType channel;
     WHEN("nothing updated") {
       THEN("no value is returned from get_update") {
         REQUIRE(channel.get_update() == std::nullopt);
+      }
+
+      THEN("default constructed value is returned by current") {
+        REQUIRE(channel.get_current() == size{});
       }
     }
 
@@ -59,15 +78,58 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
         REQUIRE(channel.get_update() == size{100, 500});
       }
 
+      THEN("new value is returned from get_current") {
+        REQUIRE(channel.get_current() == size{100, 500});
+      }
+
+      THEN("same value is returned on second get_current call") {
+        channel.get_current();
+        REQUIRE(channel.get_current() == size{100, 500});
+      }
+
+      THEN("same value is returned on third get_current call") {
+        channel.get_current();
+        channel.get_current();
+        REQUIRE(channel.get_current() == size{100, 500});
+      }
+
       THEN("nothing is returned on second get_update call") {
         channel.get_update();
         REQUIRE(channel.get_update() == std::nullopt);
+      }
+
+      THEN("nothing is returned on call get_update after get_current") {
+        channel.get_current();
+        REQUIRE(channel.get_update() == std::nullopt);
+      }
+
+      THEN(
+          "nothing is returned on call get_update after multiple get_current") {
+        channel.get_current();
+        channel.get_current();
+        REQUIRE(channel.get_update() == std::nullopt);
+      }
+
+      THEN("new value is returned on call get_current after get_update") {
+        channel.get_update();
+        REQUIRE(channel.get_current() == size{100, 500});
+      }
+
+      THEN("new value is returned on call get_current after multiple "
+           "get_update") {
+        channel.get_update();
+        channel.get_update();
+        REQUIRE(channel.get_current() == size{100, 500});
       }
 
       AND_WHEN("value is updated once again") {
         channel.update({42, 42});
         THEN("new value is returned from get_update") {
           REQUIRE(channel.get_update() == size{42, 42});
+        }
+
+        THEN("new value is returned from get_current") {
+          REQUIRE(channel.get_current() == size{42, 42});
         }
       }
     }
@@ -76,6 +138,10 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
       channel.update({100, 500});
       channel.update({42, 42});
       THEN("the last value is returned from get_update") {
+        REQUIRE(channel.get_update() == size{42, 42});
+      }
+
+      THEN("the last value is returned from get_current") {
         REQUIRE(channel.get_update() == size{42, 42});
       }
     }
@@ -88,44 +154,74 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
       });
 
       THEN("get_update will eventually return the value set") {
-        latch.arrive_and_wait();
         std::optional<size> val;
+        latch.arrive_and_wait();
         while (!val)
           val = channel.get_update();
+        REQUIRE(val == size{100, 500});
+      }
+
+      THEN("get_current will eventually return the value set") {
+        size val;
+        latch.arrive_and_wait();
+        while (val != size{100, 500})
+          val = channel.get_current();
         REQUIRE(val == size{100, 500});
       }
     }
   }
 }
 
+namespace {
+
+class bench_producer {
+public:
+  template <typename Channel>
+  void start(Channel& channel) {
+    asio::post(executors_environment::pool_executor(),
+        [&channel, vals = make_some_nums(0xffff), &start = start_,
+            stop = stop_.get_token()] {
+          start.arrive_and_wait();
+          do {
+            for (int v : vals)
+              channel.update(v);
+          } while (!stop.stop_requested());
+        });
+    start_.arrive_and_wait();
+  }
+
+  ~bench_producer() noexcept {
+    stop_.request_stop();
+    executors_environment::wait_pool_tasks_done();
+  }
+
+private:
+  std::stop_source stop_;
+  std::latch start_{2};
+};
+
+} // namespace
+
 TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks", "[bench]",
-                   mutex_value_update_channel<int>, value_update_channel<int>) {
+    mutex_value_update_channel<int>, value_update_channel<int>) {
+  TestType channel;
+
   BENCHMARK_ADVANCED("check for empty update without thread contention")
   (Catch::Benchmark::Chronometer meter) {
-    TestType channel;
     meter.measure([&] { return channel.get_update(); });
   };
 
-  BENCHMARK_ADVANCED("check for update from another thread")
+  BENCHMARK_ADVANCED("get_update with high thread contention")
   (Catch::Benchmark::Chronometer meter) {
-    TestType channel;
-
-    std::stop_source stop;
-    std::latch start{2};
-    asio::post(executors_environment::pool_executor(),
-               [&channel, vals = make_some_nums(0xffff), &start,
-                stop = stop.get_token()] {
-                 start.arrive_and_wait();
-                 do {
-                   for (int v : vals)
-                     channel.update(v);
-                 } while (!stop.stop_requested());
-               });
-
-    start.arrive_and_wait();
+    bench_producer producer;
+    producer.start(channel);
     meter.measure([&] { return channel.get_update(); });
+  };
 
-    stop.request_stop();
-    executors_environment::wait_pool_tasks_done();
+  BENCHMARK_ADVANCED("get_current with high thread contention")
+  (Catch::Benchmark::Chronometer meter) {
+    bench_producer producer;
+    producer.start(channel);
+    meter.measure([&] { return channel.get_current(); });
   };
 }
