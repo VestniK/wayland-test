@@ -121,9 +121,10 @@ void shader_pipeline::draw(glm::mat4 model, glm::vec3 color, mesh& mesh) {
 
 scene_renderer::scene_renderer(
     value_update_channel<glm::vec3>& cube_color_updates,
-    value_update_channel<glm::vec3>& landscape_color_updates)
+    value_update_channel<glm::vec3>& landscape_color_updates,
+    value_update_channel<glm::ivec2>& cube_pos)
     : cube_{cube_vertices, cube_idxs}, cube_color_updates_{cube_color_updates},
-      landscape_color_updates_{landscape_color_updates} {
+      landscape_color_updates_{landscape_color_updates}, cube_pos_{cube_pos} {
   landscape land{centimeters{5}, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
@@ -155,10 +156,12 @@ void scene_renderer::draw(clock::time_point ts) {
           1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
       glm::vec3{.0, .0, 1.});
 
+  const auto cube_pos = cube_pos_.get_current();
   const glm::mat4 model =
-      glm::translate(glm::mat4{1.}, glm::vec3{4 + 2 * std::cos(3 * spot_angle),
-                                        2.5 - 0.6 * std::sin(5 * spot_angle),
-                                        1.5 + std::cos(spot_angle)}) *
+      glm::translate(glm::mat4{1.},
+          glm::vec3{-std::clamp(cube_pos.x / 15000., -4., 4.) + 3.5,
+              std::clamp(cube_pos.y / 15000., -4., 4.) + 3.,
+              2. + std::cos(spot_angle)}) *
       glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
       glm::scale(glm::mat4{1.}, {.5, .5, .5});
 

@@ -49,6 +49,48 @@ std::string_view ev_type_name(std::uint16_t type) noexcept {
   return "unknown evdev event type";
 }
 
+auto evcode2axis(uint16_t evcode) noexcept {
+  struct {
+    gamepad::axis axis;
+    int coord;
+  } res;
+  switch (evcode) {
+  case ABS_X:
+    res.axis = gamepad::axis::L;
+    res.coord = 0;
+    break;
+  case ABS_Y:
+    res.axis = gamepad::axis::L;
+    res.coord = 1;
+    break;
+  case ABS_RX:
+    res.axis = gamepad::axis::R;
+    res.coord = 0;
+    break;
+  case ABS_RY:
+    res.axis = gamepad::axis::R;
+    res.coord = 1;
+    break;
+  case ABS_HAT0X:
+    res.axis = gamepad::axis::HAT0;
+    res.coord = 0;
+    break;
+  case ABS_HAT0Y:
+    res.axis = gamepad::axis::HAT0;
+    res.coord = 1;
+    break;
+  case ABS_HAT2X:
+    res.axis = gamepad::axis::HAT2;
+    res.coord = 0;
+    break;
+  case ABS_HAT2Y:
+    res.axis = gamepad::axis::HAT2;
+    res.coord = 1;
+    break;
+  }
+  return res;
+}
+
 } // namespace
 
 evdev_gamepad::evdev_gamepad(asio::io_context::executor_type io_executor,
@@ -99,50 +141,57 @@ asio::awaitable<void> evdev_gamepad::watch_device(
       case EV_KEY:
         switch (ev.code) {
         case BTN_A:
-          key_handler_(gamepad_key::A, ev.value != 0);
+          key_handler_(gamepad::key::A, ev.value != 0);
           break;
         case BTN_B:
-          key_handler_(gamepad_key::B, ev.value != 0);
+          key_handler_(gamepad::key::B, ev.value != 0);
           break;
         case BTN_X:
-          key_handler_(gamepad_key::X, ev.value != 0);
+          key_handler_(gamepad::key::X, ev.value != 0);
           break;
         case BTN_Y:
-          key_handler_(gamepad_key::Y, ev.value != 0);
+          key_handler_(gamepad::key::Y, ev.value != 0);
           break;
         case BTN_TL:
-          key_handler_(gamepad_key::left_trg, ev.value != 0);
+          key_handler_(gamepad::key::left_trg, ev.value != 0);
           break;
         case BTN_TR:
-          key_handler_(gamepad_key::right_trg, ev.value != 0);
+          key_handler_(gamepad::key::right_trg, ev.value != 0);
           break;
         case BTN_TL2:
-          key_handler_(gamepad_key::left_alt_trg, ev.value != 0);
+          key_handler_(gamepad::key::left_alt_trg, ev.value != 0);
           break;
         case BTN_TR2:
-          key_handler_(gamepad_key::right_alt_trg, ev.value != 0);
+          key_handler_(gamepad::key::right_alt_trg, ev.value != 0);
           break;
         case BTN_DPAD_UP:
-          key_handler_(gamepad_key::dpad_up, ev.value != 0);
+          key_handler_(gamepad::key::dpad_up, ev.value != 0);
           break;
         case BTN_DPAD_DOWN:
-          key_handler_(gamepad_key::dpad_down, ev.value != 0);
+          key_handler_(gamepad::key::dpad_down, ev.value != 0);
           break;
         case BTN_DPAD_LEFT:
-          key_handler_(gamepad_key::dpad_left, ev.value != 0);
+          key_handler_(gamepad::key::dpad_left, ev.value != 0);
           break;
         case BTN_DPAD_RIGHT:
-          key_handler_(gamepad_key::dpad_right, ev.value != 0);
+          key_handler_(gamepad::key::dpad_right, ev.value != 0);
           break;
         case BTN_SELECT:
-          key_handler_(gamepad_key::select, ev.value != 0);
+          key_handler_(gamepad::key::select, ev.value != 0);
           break;
         case BTN_START:
-          key_handler_(gamepad_key::start, ev.value != 0);
+          key_handler_(gamepad::key::start, ev.value != 0);
           break;
         }
         break;
       case EV_ABS:
+        if (axis_state_) {
+          const auto axisinf = evcode2axis(ev.code);
+          auto& state = axis_state_->get(axisinf.axis);
+          state.current[axisinf.coord] = ev.value;
+          if (state.channel)
+            state.channel->update(state.current);
+        }
         break;
       }
     }

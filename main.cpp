@@ -58,60 +58,66 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   event_loop eloop{get_option(args, "-d")};
   wl::gui_shell shell{eloop};
 
+  value_update_channel<glm::ivec2> cube_pos;
+  evdev_gamepad::axis_state axis;
+  axis.set_axis_channel(gamepad::axis::L, cube_pos);
+  //  axis.set_axis_channel(gamepad::axis::R, cube_pos);
+
   value_update_channel<glm::vec3> cube_color;
   cube_color.update({.9, 0.7, 0.7});
   value_update_channel<glm::vec3> landscale_color;
   landscale_color.update({1., 1., 0.4});
   udev_gamepads gamepads{
-      [&cube_color, &landscale_color](gamepad_key key, bool pressed) {
+      [&cube_color, &landscale_color](gamepad::key key, bool pressed) {
         if (pressed)
           return;
         switch (key) {
-        case gamepad_key::A:
+        case gamepad::key::A:
           cube_color.update({.0, 0.9, 0.0});
           break;
-        case gamepad_key::B:
+        case gamepad::key::B:
           cube_color.update({.9, 0.0, 0.0});
           break;
-        case gamepad_key::X:
+        case gamepad::key::X:
           cube_color.update({.0, .0, .9});
           break;
-        case gamepad_key::Y:
+        case gamepad::key::Y:
           cube_color.update({0.8, .8, 0.4});
           break;
-        case gamepad_key::left_trg:
+        case gamepad::key::left_trg:
           landscale_color.update({.8, .0, .0});
           break;
-        case gamepad_key::right_trg:
+        case gamepad::key::right_trg:
           landscale_color.update({.0, .8, .0});
           break;
-        case gamepad_key::left_alt_trg:
+        case gamepad::key::left_alt_trg:
           landscale_color.update({.4, .0, .0});
           break;
-        case gamepad_key::right_alt_trg:
+        case gamepad::key::right_alt_trg:
           landscale_color.update({.0, .4, .0});
           break;
-        case gamepad_key::select:
+        case gamepad::key::select:
           cube_color.update({.2, .2, .2});
           break;
-        case gamepad_key::start:
+        case gamepad::key::start:
           cube_color.update({.9, 0.7, 0.7});
           landscale_color.update({1., 1., 0.4});
           break;
 
-        case gamepad_key::dpad_down:
-        case gamepad_key::dpad_up:
-        case gamepad_key::dpad_left:
-        case gamepad_key::dpad_right:
+        case gamepad::key::dpad_down:
+        case gamepad::key::dpad_up:
+        case gamepad::key::dpad_left:
+        case gamepad::key::dpad_right:
           break;
         }
-      }};
+      },
+      axis};
   auto gamepads_watch_result = gamepads.watch(io_exec);
 
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
       make_render_func<scene_renderer>(
-          std::ref(cube_color), std::ref(landscale_color))};
+          std::ref(cube_color), std::ref(landscale_color), std::ref(cube_pos))};
 
   using namespace asio::experimental::awaitable_operators;
   co_await (eloop.dispatch_while(io_exec, [&] {
