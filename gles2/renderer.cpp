@@ -67,6 +67,10 @@ void apply_model_world_transformation(glm::mat4 transformation,
       glm::transpose(glm::inverse(glm::mat3(transformation))));
 }
 
+bool is_near(glm::vec2 a, glm::vec2 b, float fuzz) noexcept {
+  return std::abs(a.x - b.x) < fuzz && std::abs(a.y - b.y) < fuzz;
+}
+
 } // namespace
 
 mesh::mesh(std::span<const vertex> verticies, std::span<const GLuint> indexes)
@@ -122,9 +126,9 @@ void shader_pipeline::draw(glm::mat4 model, glm::vec3 color, mesh& mesh) {
 scene_renderer::scene_renderer(
     value_update_channel<glm::vec3>& cube_color_updates,
     value_update_channel<glm::vec3>& landscape_color_updates,
-    value_update_channel<glm::ivec2>& cube_pos)
+    value_update_channel<glm::ivec2>& cube_vel)
     : cube_{cube_vertices, cube_idxs}, cube_color_updates_{cube_color_updates},
-      landscape_color_updates_{landscape_color_updates}, cube_pos_{cube_pos} {
+      landscape_color_updates_{landscape_color_updates}, cube_vel_{cube_vel} {
   landscape land{centimeters{5}, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
@@ -156,14 +160,31 @@ void scene_renderer::draw(clock::time_point ts) {
           1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
       glm::vec3{.0, .0, 1.});
 
-  const auto cube_pos = cube_pos_.get_current();
-  const glm::mat4 model =
-      glm::translate(glm::mat4{1.},
-          glm::vec3{-std::clamp(cube_pos.x / 15000., -4., 4.) + 3.5,
-              std::clamp(cube_pos.y / 15000., -4., 4.) + 3.,
-              2. + std::cos(spot_angle)}) *
-      glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
-      glm::scale(glm::mat4{1.}, {.5, .5, .5});
+  if (const auto cube_vel = cube_vel_.get_update();
+      cube_vel && !is_near(glm::vec2{cube_vel.value()} / 15000.f,
+                      cube_planar_movement_.vel, 0.05)) {
+    cube_planar_movement_.start_ts = ts;
+    cube_planar_movement_.vel = glm::vec2{cube_vel.value()} / 15000.f;
+    cube_planar_movement_.vel.x = -cube_planar_movement_.vel.x;
+    cube_planar_movement_.start_pos = cube_planar_movement_.cur_pos;
+  } else {
+    cube_planar_movement_.cur_pos =
+        cube_planar_movement_.start_pos +
+        cube_planar_movement_.vel *
+            std::chrono::duration_cast<float_time::seconds>(
+                ts - cube_planar_movement_.start_ts)
+                .count();
+    cube_planar_movement_.cur_pos.x =
+        std::clamp(cube_planar_movement_.cur_pos.x, -4.f, 4.f);
+    cube_planar_movement_.cur_pos.y =
+        std::clamp(cube_planar_movement_.cur_pos.y, -4.f, 4.f);
+  }
+  const glm::mat4 model = glm::translate(glm::mat4{1.},
+                              glm::vec3{cube_planar_movement_.cur_pos.x + 3.5,
+                                  cube_planar_movement_.cur_pos.y + 3.,
+                                  2. + std::cos(spot_angle)}) *
+                          glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
+                          glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
   const auto cube_color = cube_color_updates_.get_current();
   const auto landscape_color = landscape_color_updates_.get_current();

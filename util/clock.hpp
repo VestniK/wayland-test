@@ -11,3 +11,9 @@ struct frames_clock {
   static constexpr bool is_steady = true;
 };
 
+namespace float_time {
+
+using seconds = std::chrono::duration<float>;
+using milliseconds = std::chrono::duration<float, std::milli>;
+
+} // namespace float_time

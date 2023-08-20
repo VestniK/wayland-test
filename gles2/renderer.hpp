@@ -59,7 +59,7 @@ class scene_renderer {
 public:
   scene_renderer(value_update_channel<glm::vec3>& cube_color_updates,
       value_update_channel<glm::vec3>& landscape_color_updates,
-      value_update_channel<glm::ivec2>& cube_pos);
+      value_update_channel<glm::ivec2>& cube_vel);
 
   void resize(size sz);
   void draw(clock::time_point ts);
@@ -71,5 +71,11 @@ private:
   glm::mat4 projection_{};
   value_update_channel<glm::vec3>& cube_color_updates_;
   value_update_channel<glm::vec3>& landscape_color_updates_;
-  value_update_channel<glm::ivec2>& cube_pos_;
+  value_update_channel<glm::ivec2>& cube_vel_;
+  struct {
+    glm::vec2 start_pos{};
+    glm::vec2 cur_pos{};
+    glm::vec2 vel{};
+    clock::time_point start_ts{};
+  } cube_planar_movement_{};
 };
