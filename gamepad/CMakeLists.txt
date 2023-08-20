@@ -26,6 +26,7 @@ target_compile_definitions(gamepad PUBLIC
   ASIO_HAS_CO_AWAIT
   ASIO_HAS_STD_COROUTINE
 )
-target_compile_definitions(gamepad PRIVATE
-  $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=trace>
-)
+option(TRACE_GAMEPAD_EVENTS Off "Enable all gamepad events tracing")
+if (TRACE_GAMEPAD_EVENTS)
+  target_compile_definitions(gamepad PRIVATE SPDLOG_ACTIVE_LEVEL=trace)
+endif()

@@ -19,7 +19,7 @@ auto span2buf(std::span<std::byte, Extent> in) {
   return asio::buffer(in.data(), in.size());
 }
 
-std::string_view ev_type_name(std::uint16_t type) noexcept {
+[[maybe_unused]] std::string_view ev_type_name(std::uint16_t type) noexcept {
   switch (type) {
   case EV_SYN:
     return "EV_SYN";
