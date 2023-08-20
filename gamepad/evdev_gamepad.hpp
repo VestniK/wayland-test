@@ -35,8 +35,8 @@ enum class key {
 };
 
 enum class axis {
-  L,
-  R,
+  main,
+  rotational,
   HAT0,
   HAT2,
 };
@@ -50,7 +50,7 @@ struct axis_value_consumer {
   value_update_channel<glm::ivec2>* channel;
 };
 
-class axis_state {
+class axes_state {
 public:
   void set_axis_channel(
       gamepad::axis axis, value_update_channel<glm::ivec2>& channel) noexcept {
@@ -78,7 +78,7 @@ private:
 class evdev_gamepad {
 public:
   using key_handler = std::function<void(gamepad::key, bool)>;
-  using axis_state = detail::axis_state;
+  using axes_state = detail::axes_state;
   evdev_gamepad(asio::io_context::executor_type io_executor,
       const std::filesystem::path& devnode);
 
@@ -90,16 +90,14 @@ public:
 
   void set_key_handler(const key_handler& val) { key_handler_ = val; }
   void set_key_handler(key_handler&& val) { key_handler_ = std::move(val); }
-  void set_axis_state(axis_state& state) noexcept { axis_state_ = &state; }
+  void set_axis_state(axes_state& state) noexcept { axis_state_ = &state; }
 
 private:
-private:
   asio::awaitable<void> watch_device(
-      asio::io_context::executor_type io_executor,
-      const std::filesystem::path& devnode);
+      asio::io_context::executor_type io_executor);
 
 private:
   asio::posix::stream_descriptor dev_;
   key_handler key_handler_;
-  axis_state* axis_state_ = nullptr;
+  axes_state* axis_state_ = nullptr;
 };

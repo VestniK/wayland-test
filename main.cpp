@@ -59,9 +59,8 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   wl::gui_shell shell{eloop};
 
   value_update_channel<glm::ivec2> cube_pos;
-  evdev_gamepad::axis_state axis;
-  axis.set_axis_channel(gamepad::axis::L, cube_pos);
-  //  axis.set_axis_channel(gamepad::axis::R, cube_pos);
+  evdev_gamepad::axes_state axes;
+  axes.set_axis_channel(gamepad::axis::main, cube_pos);
 
   value_update_channel<glm::vec3> cube_color;
   cube_color.update({.9, 0.7, 0.7});
@@ -111,7 +110,7 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
           break;
         }
       },
-      axis};
+      axes};
   auto gamepads_watch_result = gamepads.watch(io_exec);
 
   gles_window wnd{eloop, pool_exec,

@@ -119,7 +119,7 @@ asio::awaitable<void> udev_gamepads::watch(
 }
 
 udev_gamepads::udev_gamepads(evdev_gamepad::key_handler key_handler,
-    evdev_gamepad::axis_state& axis_state)
+    evdev_gamepad::axes_state& axis_state)
     : key_handler_{key_handler}, axis_state_{&axis_state} {
   udev_monitor_filter_add_match_subsystem_devtype(monitor_.get(), "input", 0);
   udev_monitor_enable_receiving(monitor_.get());

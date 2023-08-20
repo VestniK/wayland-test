@@ -12,6 +12,8 @@
 
 #include <util/io.hpp>
 
+using namespace std::literals;
+
 namespace {
 
 template <size_t Extent = std::dynamic_extent>
@@ -22,31 +24,31 @@ auto span2buf(std::span<std::byte, Extent> in) {
 [[maybe_unused]] std::string_view ev_type_name(std::uint16_t type) noexcept {
   switch (type) {
   case EV_SYN:
-    return "EV_SYN";
+    return "EV_SYN"sv;
   case EV_KEY:
-    return "EV_KEY";
+    return "EV_KEY"sv;
   case EV_REL:
-    return "EV_REL";
+    return "EV_REL"sv;
   case EV_ABS:
-    return "EV_ABS";
+    return "EV_ABS"sv;
   case EV_MSC:
-    return "EV_MSC";
+    return "EV_MSC"sv;
   case EV_SW:
-    return "EV_SW";
+    return "EV_SW"sv;
   case EV_LED:
-    return "EV_LED";
+    return "EV_LED"sv;
   case EV_SND:
-    return "EV_SND";
+    return "EV_SND"sv;
   case EV_REP:
-    return "EV_REP";
+    return "EV_REP"sv;
   case EV_FF:
-    return "EV_FF";
+    return "EV_FF"sv;
   case EV_PWR:
-    return "EV_PWR";
+    return "EV_PWR"sv;
   case EV_FF_STATUS:
-    return "EV_FF_STATUS";
+    return "EV_FF_STATUS"sv;
   }
-  return "unknown evdev event type";
+  return "unknown evdev event type"sv;
 }
 
 auto evcode2axis(uint16_t evcode) noexcept {
@@ -56,19 +58,19 @@ auto evcode2axis(uint16_t evcode) noexcept {
   } res;
   switch (evcode) {
   case ABS_X:
-    res.axis = gamepad::axis::L;
+    res.axis = gamepad::axis::main;
     res.coord = 0;
     break;
   case ABS_Y:
-    res.axis = gamepad::axis::L;
+    res.axis = gamepad::axis::main;
     res.coord = 1;
     break;
   case ABS_RX:
-    res.axis = gamepad::axis::R;
+    res.axis = gamepad::axis::rotational;
     res.coord = 0;
     break;
   case ABS_RY:
-    res.axis = gamepad::axis::R;
+    res.axis = gamepad::axis::rotational;
     res.coord = 1;
     break;
   case ABS_HAT0X:
@@ -91,19 +93,55 @@ auto evcode2axis(uint16_t evcode) noexcept {
   return res;
 }
 
+auto axis2evcode(gamepad::axis axis, int coord) noexcept {
+  struct {
+    uint16_t code;
+    std::string_view define_name;
+  } res;
+  switch (axis) {
+  case gamepad::axis::main:
+    res.code = coord == 0 ? ABS_X : ABS_Y;
+    res.define_name = coord == 0 ? "ABS_X"sv : "ABS_Y"sv;
+    break;
+  case gamepad::axis::rotational:
+    res.code = coord == 0 ? ABS_RX : ABS_RY;
+    res.define_name = coord == 0 ? "ABS_RX"sv : "ABS_RY"sv;
+    break;
+  case gamepad::axis::HAT0:
+    res.code = coord == 0 ? ABS_HAT0X : ABS_HAT0Y;
+    res.define_name = coord == 0 ? "ABS_HAT0X"sv : "ABS_HAT0Y"sv;
+    break;
+  case gamepad::axis::HAT2:
+    res.code = coord == 0 ? ABS_HAT2X : ABS_HAT2Y;
+    res.define_name = coord == 0 ? "ABS_HAT2X"sv : "ABS_HAT2Y"sv;
+    break;
+  }
+  return res;
+}
+
+input_absinfo load_absinfo(
+    asio::posix::stream_descriptor& dev, gamepad::axis axis, int coord) {
+  const auto [code, name] = axis2evcode(axis, coord);
+  input_absinfo axis_limits{};
+  if (ioctl(dev.native_handle(), EVIOCGABS(code), &axis_limits) == -1)
+    throw std::system_error{errno, std::system_category(),
+        fmt::format("ioctl(EVIOCGNAME({}))", name)};
+  spdlog::debug(
+      "{} range: [{}, {}];", name, axis_limits.minimum, axis_limits.maximum);
+  return axis_limits;
+}
+
 } // namespace
 
 evdev_gamepad::evdev_gamepad(asio::io_context::executor_type io_executor,
     const std::filesystem::path& devnode)
     : dev_{io_executor,
           io::open(devnode, io::mode::read_only | io::mode::ndelay).release()} {
-  asio::co_spawn(
-      io_executor, watch_device(io_executor, devnode), asio::detached);
+  asio::co_spawn(io_executor, watch_device(io_executor), asio::detached);
 }
 
 asio::awaitable<void> evdev_gamepad::watch_device(
-    asio::io_context::executor_type io_executor,
-    const std::filesystem::path& devnode) {
+    asio::io_context::executor_type io_executor) {
   input_id id;
   if (ioctl(dev_.native_handle(), EVIOCGID, &id) == -1)
     throw std::system_error{errno, std::system_category(), "ioctl(EVIOCGID)"};
@@ -115,6 +153,15 @@ asio::awaitable<void> evdev_gamepad::watch_device(
           namebuf.data()) == -1)
     throw std::system_error{errno, std::system_category(), "ioctl(EVIOCGNAME)"};
   spdlog::debug("gamepad name: {}", namebuf.data());
+
+  load_absinfo(dev_, gamepad::axis::main, 0);
+  load_absinfo(dev_, gamepad::axis::main, 1);
+  load_absinfo(dev_, gamepad::axis::rotational, 0);
+  load_absinfo(dev_, gamepad::axis::rotational, 1);
+  load_absinfo(dev_, gamepad::axis::HAT0, 0);
+  load_absinfo(dev_, gamepad::axis::HAT0, 1);
+  load_absinfo(dev_, gamepad::axis::HAT2, 0);
+  load_absinfo(dev_, gamepad::axis::HAT2, 1);
 
   std::array<input_event, 32> events;
   while (true) {
