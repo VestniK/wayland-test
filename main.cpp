@@ -62,45 +62,45 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   evdev_gamepad::axes_state axes;
   axes.set_axis_channel(gamepad::axis::main, cube_pos);
 
-  value_update_channel<glm::vec3> cube_color;
-  cube_color.update({.9, 0.7, 0.7});
-  value_update_channel<glm::vec3> landscale_color;
-  landscale_color.update({1., 1., 0.4});
+  value_update_channel<animate_to> cube_color;
+  cube_color.update({.dest = {.9, 0.7, 0.7}, .duration = 0ms});
+  value_update_channel<animate_to> landscale_color;
+  landscale_color.update({.dest = {1., 1., 0.4}, .duration = 0ms});
   udev_gamepads gamepads{
       [&cube_color, &landscale_color](gamepad::key key, bool pressed) {
         if (pressed)
           return;
         switch (key) {
         case gamepad::key::A:
-          cube_color.update({.0, 0.9, 0.0});
+          cube_color.update({.dest = {.0, 0.9, 0.0}, .duration = 600ms});
           break;
         case gamepad::key::B:
-          cube_color.update({.9, 0.0, 0.0});
+          cube_color.update({.dest = {.9, 0.0, 0.0}, .duration = 600ms});
           break;
         case gamepad::key::X:
-          cube_color.update({.0, .0, .9});
+          cube_color.update({.dest = {.0, .0, .9}, .duration = 600ms});
           break;
         case gamepad::key::Y:
-          cube_color.update({0.8, .8, 0.4});
+          cube_color.update({.dest = {0.8, .8, 0.4}, .duration = 600ms});
           break;
         case gamepad::key::left_trg:
-          landscale_color.update({.8, .0, .0});
+          landscale_color.update({.dest = {.8, .0, .0}, .duration = 600ms});
           break;
         case gamepad::key::right_trg:
-          landscale_color.update({.0, .8, .0});
+          landscale_color.update({.dest = {.0, .8, .0}, .duration = 600ms});
           break;
         case gamepad::key::left_alt_trg:
-          landscale_color.update({.4, .0, .0});
+          landscale_color.update({.dest = {.4, .0, .0}, .duration = 600ms});
           break;
         case gamepad::key::right_alt_trg:
-          landscale_color.update({.0, .4, .0});
+          landscale_color.update({.dest = {.0, .4, .0}, .duration = 600ms});
           break;
         case gamepad::key::select:
-          cube_color.update({.2, .2, .2});
+          cube_color.update({.dest = {.2, .2, .2}, .duration = 400ms});
           break;
         case gamepad::key::start:
-          cube_color.update({.9, 0.7, 0.7});
-          landscale_color.update({1., 1., 0.4});
+          cube_color.update({.dest = {.9, 0.7, 0.7}, .duration = 500ms});
+          landscale_color.update({.dest = {1., 1., 0.4}, .duration = 500ms});
           break;
 
         case gamepad::key::dpad_down:

@@ -124,8 +124,8 @@ void shader_pipeline::draw(glm::mat4 model, glm::vec3 color, mesh& mesh) {
 }
 
 scene_renderer::scene_renderer(
-    value_update_channel<glm::vec3>& cube_color_updates,
-    value_update_channel<glm::vec3>& landscape_color_updates,
+    value_update_channel<animate_to>& cube_color_updates,
+    value_update_channel<animate_to>& landscape_color_updates,
     value_update_channel<glm::ivec2>& cube_vel)
     : cube_{cube_vertices, cube_idxs}, cube_color_updates_{cube_color_updates},
       landscape_color_updates_{landscape_color_updates}, cube_vel_{cube_vel} {
@@ -186,14 +186,17 @@ void scene_renderer::draw(clock::time_point ts) {
                           glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
                           glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
-  const auto cube_color = cube_color_updates_.get_current();
-  const auto landscape_color = landscape_color_updates_.get_current();
+  if (const auto cube_color = cube_color_updates_.get_update())
+    cube_color_.reset(ts, cube_color.value());
+
+  if (const auto landscape_color = landscape_color_updates_.get_update())
+    landscape_color_.reset(ts, landscape_color.value());
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   pipeline_.start_rendering(projection_ * camera);
-  pipeline_.draw(model, cube_color, cube_);
-  pipeline_.draw(glm::mat4{1.}, landscape_color, landscape_);
+  pipeline_.draw(model, cube_color_.animate(ts), cube_);
+  pipeline_.draw(glm::mat4{1.}, landscape_color_.animate(ts), landscape_);
 
   glFlush();
 }

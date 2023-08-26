@@ -53,12 +53,40 @@ private:
   unsigned triangles_count_ = 0;
 };
 
+struct animate_to {
+  glm::vec3 dest;
+  std::chrono::milliseconds duration;
+
+  bool operator==(const animate_to&) const noexcept = default;
+};
+struct linear_animation {
+  glm::vec3 start;
+  frames_clock::time_point start_time;
+  glm::vec3 end;
+  frames_clock::time_point end_time;
+
+  void reset(frames_clock::time_point now, animate_to animation) noexcept {
+    start = animate(now);
+    start_time = now;
+    end = animation.dest;
+    end_time = now + animation.duration;
+  }
+
+  glm::vec3 animate(frames_clock::time_point now) const noexcept {
+    if (now >= end_time)
+      return end;
+    const auto factor = float_time::milliseconds{now - start_time} /
+                        float_time::milliseconds{end_time - start_time};
+    return start + (end - start) * factor;
+  }
+};
+
 class scene_renderer {
   using clock = frames_clock;
 
 public:
-  scene_renderer(value_update_channel<glm::vec3>& cube_color_updates,
-      value_update_channel<glm::vec3>& landscape_color_updates,
+  scene_renderer(value_update_channel<animate_to>& cube_color_updates,
+      value_update_channel<animate_to>& landscape_color_updates,
       value_update_channel<glm::ivec2>& cube_vel);
 
   void resize(size sz);
@@ -69,8 +97,13 @@ private:
   mesh cube_;
   mesh landscape_;
   glm::mat4 projection_{};
-  value_update_channel<glm::vec3>& cube_color_updates_;
-  value_update_channel<glm::vec3>& landscape_color_updates_;
+
+  value_update_channel<animate_to>& cube_color_updates_;
+  linear_animation cube_color_;
+
+  value_update_channel<animate_to>& landscape_color_updates_;
+  linear_animation landscape_color_;
+
   value_update_channel<glm::ivec2>& cube_vel_;
   struct {
     glm::vec2 start_pos{};
