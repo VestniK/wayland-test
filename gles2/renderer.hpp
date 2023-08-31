@@ -106,9 +106,7 @@ private:
 
   value_update_channel<glm::ivec2>& cube_vel_;
   struct {
-    glm::vec2 start_pos{};
     glm::vec2 cur_pos{};
-    glm::vec2 vel{};
-    clock::time_point start_ts{};
+    clock::time_point last_ts{};
   } cube_planar_movement_{};
 };

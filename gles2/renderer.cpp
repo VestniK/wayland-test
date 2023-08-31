@@ -160,25 +160,18 @@ void scene_renderer::draw(clock::time_point ts) {
           1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
       glm::vec3{.0, .0, 1.});
 
-  if (const auto cube_vel = cube_vel_.get_update();
-      cube_vel && !is_near(glm::vec2{cube_vel.value()} / 15000.f,
-                      cube_planar_movement_.vel, 0.05)) {
-    cube_planar_movement_.start_ts = ts;
-    cube_planar_movement_.vel = glm::vec2{cube_vel.value()} / 15000.f;
-    cube_planar_movement_.vel.x = -cube_planar_movement_.vel.x;
-    cube_planar_movement_.start_pos = cube_planar_movement_.cur_pos;
-  } else {
-    cube_planar_movement_.cur_pos =
-        cube_planar_movement_.start_pos +
-        cube_planar_movement_.vel *
-            std::chrono::duration_cast<float_time::seconds>(
-                ts - cube_planar_movement_.start_ts)
-                .count();
-    cube_planar_movement_.cur_pos.x =
-        std::clamp(cube_planar_movement_.cur_pos.x, -4.f, 4.f);
-    cube_planar_movement_.cur_pos.y =
-        std::clamp(cube_planar_movement_.cur_pos.y, -4.f, 4.f);
-  }
+  const auto cube_vel_raw = cube_vel_.get_current();
+  const auto cube_vel = glm::vec2{-cube_vel_raw.x, cube_vel_raw.y} / 8000.f;
+  cube_planar_movement_.cur_pos +=
+      std::chrono::duration_cast<float_time::seconds>(
+          ts - std::exchange(cube_planar_movement_.last_ts, ts))
+          .count() *
+      cube_vel;
+  cube_planar_movement_.cur_pos.x =
+      std::clamp(cube_planar_movement_.cur_pos.x, -4.f, 4.f);
+  cube_planar_movement_.cur_pos.y =
+      std::clamp(cube_planar_movement_.cur_pos.y, -4.f, 4.f);
+
   const glm::mat4 model = glm::translate(glm::mat4{1.},
                               glm::vec3{cube_planar_movement_.cur_pos.x + 3.5,
                                   cube_planar_movement_.cur_pos.y + 3.,
