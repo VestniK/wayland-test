@@ -67,16 +67,11 @@ void apply_model_world_transformation(glm::mat4 transformation,
       glm::transpose(glm::inverse(glm::mat3(transformation))));
 }
 
-bool is_near(glm::vec2 a, glm::vec2 b, float fuzz) noexcept {
-  return std::abs(a.x - b.x) < fuzz && std::abs(a.y - b.y) < fuzz;
-}
-
 } // namespace
 
 mesh::mesh(std::span<const vertex> verticies, std::span<const GLuint> indexes)
-    : ibo_{gen_buffer()}, vbo_{gen_buffer()}, triangles_count_{
-                                                  static_cast<unsigned>(
-                                                      indexes.size())} {
+    : ibo_{gen_buffer()}, vbo_{gen_buffer()},
+      triangles_count_{static_cast<unsigned>(indexes.size())} {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   glBufferData(GL_ARRAY_BUFFER, verticies.size_bytes(), verticies.data(),
       GL_STATIC_DRAW);
