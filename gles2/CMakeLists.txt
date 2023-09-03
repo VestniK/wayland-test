@@ -7,7 +7,7 @@ find_package(OpenGL REQUIRED COMPONENTS OpenGL)
 
 cpp_unit(
   NAME gles2
-  STD cxx_std_20
+  STD cxx_std_23
   LIBS
     util
     shaders

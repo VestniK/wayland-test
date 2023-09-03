@@ -4,7 +4,7 @@ find_package(fmt REQUIRED)
 
 cpp_unit(
   NAME util
-  STD cxx_std_20
+  STD cxx_std_23
   LIBS
     asio::asio
   TEST_LIBS

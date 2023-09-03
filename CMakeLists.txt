@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.27)
 project(wayland-test)
 
 set(CMAKE_CXX_EXTENSIONS Off)
@@ -30,6 +30,7 @@ pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 add_executable(wayland-test
   conanfile.txt
   .clang-format
+  .clangd
   main.cpp
 )
 target_link_libraries(wayland-test PRIVATE

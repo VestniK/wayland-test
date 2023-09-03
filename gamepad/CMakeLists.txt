@@ -8,7 +8,7 @@ pkg_check_modules(UDEV REQUIRED IMPORTED_TARGET libudev)
 
 cpp_unit(
   NAME gamepad
-  STD cxx_std_20
+  STD cxx_std_23
   LIBS
     util
     PkgConfig::UDEV

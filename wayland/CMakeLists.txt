@@ -5,7 +5,7 @@ find_package(spdlog REQUIRED)
 
 cpp_unit(
   NAME wlwnd
-  STD cxx_std_20
+  STD cxx_std_23
   LIBS
     util
     Wayland::client Wayland::egl
