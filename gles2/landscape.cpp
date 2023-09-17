@@ -12,8 +12,8 @@ namespace {
 
 struct morton_hash {
   constexpr size_t operator()(triangular::point pt) const noexcept {
-    return morton::code(static_cast<unsigned>(pt.x),
-                        static_cast<unsigned>(pt.y));
+    return morton::code(
+        static_cast<unsigned>(pt.x), static_cast<unsigned>(pt.y));
   }
 };
 
@@ -44,9 +44,9 @@ landscape::landscape(meters cell_radius, int columns, int rows) {
       const GLuint mr = idx(cell_coord(center, corner::midle_right));
       const GLuint tr = idx(cell_coord(center, corner::top_right));
 
-      hexagons_.push_back({triangle{c, bl, ml}, triangle{c, ml, tl},
-                           triangle{c, tl, tr}, triangle{c, tr, mr},
-                           triangle{c, mr, br}, triangle{c, br, bl}});
+      hexagons_.push_back(
+          {triangle{c, bl, ml}, triangle{c, ml, tl}, triangle{c, tl, tr},
+              triangle{c, tr, mr}, triangle{c, mr, br}, triangle{c, br, bl}});
     }
   }
 }

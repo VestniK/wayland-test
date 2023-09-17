@@ -10,22 +10,23 @@
 
 #include <util/member.hpp>
 
-template <typename Deleter> class gl_resource : Deleter {
+template <typename Deleter>
+class gl_resource : Deleter {
 public:
   constexpr gl_resource() noexcept = default;
   constexpr gl_resource(GLuint handle) noexcept : handle_{handle} {}
 
   ~gl_resource() {
     if (handle_ != 0)
-      static_cast<Deleter &>(*this)(handle_);
+      static_cast<Deleter&>(*this)(handle_);
   }
 
-  gl_resource(const gl_resource &) = delete;
-  gl_resource &operator=(const gl_resource &) = delete;
+  gl_resource(const gl_resource&) = delete;
+  gl_resource& operator=(const gl_resource&) = delete;
 
-  constexpr gl_resource(gl_resource &&rhs) noexcept
+  constexpr gl_resource(gl_resource&& rhs) noexcept
       : handle_{std::exchange(rhs.handle_, 0)} {}
-  constexpr gl_resource &operator=(gl_resource &&rhs) noexcept {
+  constexpr gl_resource& operator=(gl_resource&& rhs) noexcept {
     gl_resource old{std::exchange(handle_, std::exchange(rhs.handle_, 0))};
     return *this;
   }
@@ -48,8 +49,8 @@ enum class shader_type : GLenum {
   vertex = GL_VERTEX_SHADER,
   fragment = GL_FRAGMENT_SHADER
 };
-shader compile(shader_type type, const char *src);
-shader compile(shader_type type, std::span<const char *> srcs);
+shader compile(shader_type type, const char* src);
+shader compile(shader_type type, std::span<const char*> srcs);
 
 // Buffers
 struct buffer_deleter {
@@ -64,13 +65,15 @@ inline buffer gen_buffer() {
 }
 
 // shadet program attributes
-template <typename T> class attrib_location {
+template <typename T>
+class attrib_location {
 public:
   constexpr attrib_location() noexcept = default;
   constexpr explicit attrib_location(GLint location) noexcept
       : location_{location} {}
 
-  template <typename C> void set_pointer(member_ptr<C, T> member);
+  template <typename C>
+  void set_pointer(member_ptr<C, T> member);
 
 private:
   GLint location_ = 0;
@@ -79,42 +82,43 @@ private:
 template <>
 template <typename C>
 void attrib_location<glm::vec3>::set_pointer(member_ptr<C, glm::vec3> member) {
-  glVertexAttribPointer(
-      location_, 3, GL_FLOAT, GL_FALSE, sizeof(C),
-      reinterpret_cast<const GLvoid *>(member_offset(member)));
+  glVertexAttribPointer(location_, 3, GL_FLOAT, GL_FALSE, sizeof(C),
+      reinterpret_cast<const GLvoid*>(member_offset(member)));
   glEnableVertexAttribArray(location_);
 }
 
 // shader program uniforms
-template <typename T> class uniform_location {
+template <typename T>
+class uniform_location {
 public:
   constexpr uniform_location() noexcept = default;
   constexpr explicit uniform_location(GLint location) noexcept
       : location_{location} {}
 
   // must be specialized for each reauired T
-  void set_value(const T &val) = delete;
+  void set_value(const T& val) = delete;
 
 private:
   GLint location_ = 0;
 };
 
-template <> inline void uniform_location<float>::set_value(const float &val) {
+template <>
+inline void uniform_location<float>::set_value(const float& val) {
   glUniform1f(location_, val);
 }
 
 template <>
-inline void uniform_location<glm::mat4>::set_value(const glm::mat4 &val) {
+inline void uniform_location<glm::mat4>::set_value(const glm::mat4& val) {
   glUniformMatrix4fv(location_, 1, GL_FALSE, glm::value_ptr(val));
 }
 
 template <>
-inline void uniform_location<glm::mat3>::set_value(const glm::mat3 &val) {
+inline void uniform_location<glm::mat3>::set_value(const glm::mat3& val) {
   glUniformMatrix3fv(location_, 1, GL_FALSE, glm::value_ptr(val));
 }
 
 template <>
-inline void uniform_location<glm::vec3>::set_value(const glm::vec3 &val) {
+inline void uniform_location<glm::vec3>::set_value(const glm::vec3& val) {
   glUniform3fv(location_, 1, glm::value_ptr(val));
 }
 
@@ -122,22 +126,23 @@ inline void uniform_location<glm::vec3>::set_value(const glm::vec3 &val) {
 struct program_deleter {
   void operator()(GLuint handle) { glDeleteProgram(handle); }
 };
-gl_resource<program_deleter> link(const shader &vertex, const shader &fragment);
+gl_resource<program_deleter> link(const shader& vertex, const shader& fragment);
 
 class shader_program {
 public:
-  explicit shader_program(const char *vertex_shader_sources,
-                          const char *fragment_shader_sources);
+  explicit shader_program(
+      const char* vertex_shader_sources, const char* fragment_shader_sources);
 
   void use();
 
-  template <typename T> uniform_location<T> get_uniform(const char *name) {
+  template <typename T>
+  uniform_location<T> get_uniform(const char* name) {
     return uniform_location<T>{
         glGetUniformLocation(program_handle_.get(), name)};
   }
 
   template <typename T>
-  attrib_location<T> get_attrib(const char *name) noexcept {
+  attrib_location<T> get_attrib(const char* name) noexcept {
     return attrib_location<T>{glGetAttribLocation(program_handle_.get(), name)};
   }
 
