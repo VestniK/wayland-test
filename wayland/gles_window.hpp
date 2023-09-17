@@ -37,7 +37,7 @@ private:
 
 class gles_window {
 public:
-  using render_function = std::function<void(gles_context& glctx,
+  using render_function = std::move_only_function<void(gles_context& glctx,
       vsync_frames& frames, value_update_channel<size>& resize_channel)>;
 
   gles_window() noexcept = default;
