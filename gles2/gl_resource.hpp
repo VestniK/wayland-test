@@ -64,6 +64,18 @@ inline buffer gen_buffer() {
   return {handle};
 }
 
+// Textures
+struct texture_deleter {
+  void operator()(GLuint handle) { glDeleteTextures(1, &handle); }
+};
+
+using texture = gl_resource<texture_deleter>;
+inline texture gen_texture() {
+  GLuint handle;
+  glGenTextures(1, &handle);
+  return {handle};
+}
+
 // shadet program attributes
 template <typename T>
 class attrib_location {
@@ -87,6 +99,14 @@ void attrib_location<glm::vec3>::set_pointer(member_ptr<C, glm::vec3> member) {
   glEnableVertexAttribArray(location_);
 }
 
+template <>
+template <typename C>
+void attrib_location<glm::vec2>::set_pointer(member_ptr<C, glm::vec2> member) {
+  glVertexAttribPointer(location_, 2, GL_FLOAT, GL_FALSE, sizeof(C),
+      reinterpret_cast<const GLvoid*>(member_offset(member)));
+  glEnableVertexAttribArray(location_);
+}
+
 // shader program uniforms
 template <typename T>
 class uniform_location {
@@ -101,6 +121,11 @@ public:
 private:
   GLint location_ = 0;
 };
+
+template <>
+inline void uniform_location<GLint>::set_value(const GLint& val) {
+  glUniform1i(location_, val);
+}
 
 template <>
 inline void uniform_location<float>::set_value(const float& val) {
