@@ -11,6 +11,8 @@
 #include <util/clock.hpp>
 #include <util/geom.hpp>
 
+#include <img/load.hpp>
+
 #include <gles2/gl_resource.hpp>
 
 struct vertex;
@@ -21,19 +23,20 @@ public:
   struct attributes {
     attrib_location<glm::vec3> position;
     attrib_location<glm::vec3> normal;
+    attrib_location<glm::vec2> uv;
   };
 
   shader_pipeline();
 
   void start_rendering(glm::mat4 camera);
-  void draw(glm::mat4 model, glm::vec3 color, mesh& mesh);
+  void draw(glm::mat4 model, int tex_idx, mesh& mesh);
 
 private:
   shader_program shader_prog_;
   uniform_location<glm::mat4> camera_uniform_;
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;
-  uniform_location<glm::vec3> color_uniform_;
+  uniform_location<GLint> texture_index_uniform_;
   attributes attributes_;
 };
 
@@ -85,7 +88,8 @@ class scene_renderer {
   using clock = frames_clock;
 
 public:
-  scene_renderer(value_update_channel<animate_to>& cube_color_updates,
+  scene_renderer(img::image cube_tex, img::image land_tex,
+      value_update_channel<animate_to>& cube_color_updates,
       value_update_channel<animate_to>& landscape_color_updates,
       value_update_channel<glm::ivec2>& cube_vel);
 
@@ -97,6 +101,9 @@ private:
   mesh cube_;
   mesh landscape_;
   glm::mat4 projection_{};
+
+  texture cube_tex_;
+  texture land_tex_;
 
   value_update_channel<animate_to>& cube_color_updates_;
   linear_animation cube_color_;

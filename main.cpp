@@ -1,3 +1,4 @@
+#include <fstream>
 #include <span>
 
 #include <fmt/format.h>
@@ -8,9 +9,12 @@
 
 #include <asio/awaitable.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
+#include <asio/experimental/promise.hpp>
+#include <asio/experimental/use_promise.hpp>
 #include <asio/static_thread_pool.hpp>
 
 #include <util/get_option.hpp>
+#include <util/xdg.hpp>
 
 #include <gamepad/udev_gamepads.hpp>
 
@@ -21,6 +25,8 @@
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
 #include <wayland/gui_shell.hpp>
+
+#include <img/load.hpp>
 
 using namespace std::literals;
 
@@ -36,6 +42,13 @@ void setup_logger() {
   spdlog::default_logger()->sinks().push_back(term);
 #endif
   spdlog::cfg::load_env_levels();
+}
+
+asio::awaitable<img::image> load(std::filesystem::path path) {
+  std::ifstream in{path};
+  if (!in)
+    throw std::system_error{errno, std::system_category(), "open"};
+  co_return img::load(in);
 }
 
 } // namespace
@@ -54,6 +67,13 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
     co_return EXIT_SUCCESS;
   }
   setup_logger();
+
+  auto cube_tex =
+      asio::co_spawn(pool_exec, load(xdg::find_data("resources/cube-tex.png")),
+          asio::experimental::use_promise);
+  auto land_tex =
+      asio::co_spawn(pool_exec, load(xdg::find_data("resources/grass-tex.png")),
+          asio::experimental::use_promise);
 
   event_loop eloop{get_option(args, "-d")};
   wl::gui_shell shell{eloop};
@@ -115,8 +135,9 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
 
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
-      make_render_func<scene_renderer>(
-          std::ref(cube_color), std::ref(landscale_color), std::ref(cube_pos))};
+      make_render_func<scene_renderer>(co_await std::move(cube_tex),
+          co_await std::move(land_tex), std::ref(cube_color),
+          std::ref(landscale_color), std::ref(cube_pos))};
 
   using namespace asio::experimental::awaitable_operators;
   co_await (eloop.dispatch_while(io_exec, [&] {

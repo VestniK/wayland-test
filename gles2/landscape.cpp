@@ -24,9 +24,12 @@ landscape::landscape(meters cell_radius, int columns, int rows) {
   auto idx = [&](triangular::point pt) {
     auto [it, success] = idxs.insert({pt, verticies_.size()});
     if (success) {
-      verticies_.push_back(
-          {{cell_radius.count() * triangular::to_cartesian(it->first), 0.},
-           {0., 0., 1.}});
+      verticies_.push_back({.position = {cell_radius.count() *
+                                             triangular::to_cartesian(
+                                                 it->first),
+                                0.},
+          .normal = {0., 0., 1.},
+          .uv = cell_radius.count() / 5 * triangular::to_cartesian(it->first)});
     }
     return it->second;
   };

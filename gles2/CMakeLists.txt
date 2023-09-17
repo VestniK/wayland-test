@@ -10,6 +10,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     util
+    img
     shaders
     OpenGL::OpenGL
     glm::glm

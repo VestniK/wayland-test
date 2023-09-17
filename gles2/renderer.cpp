@@ -14,35 +14,35 @@ namespace {
 
 // clang-format off
 const vertex cube_vertices[] = {
-  {{-1., 1., -1.}, {0., 0., -1.}},
-  {{1., 1., -1.}, {0., 0., -1.}},
-  {{-1., -1., -1.}, {0., 0., -1.}},
-  {{1., -1., -1.}, {0., 0., -1.}},
+  {{-1., 1., -1.}, {0., 0., -1.}, {0., .5}},
+  {{1., 1., -1.}, {0., 0., -1.}, {.5, .5}},
+  {{-1., -1., -1.}, {0., 0., -1.}, {0., 0.}},
+  {{1., -1., -1.}, {0., 0., -1.}, {.5, 0.}},
 
-  {{1., 1., -1.}, {1., 0., 0.}},
-  {{1., 1., 1.}, {1., 0., 0.}},
-  {{1., -1., -1.}, {1., 0., 0.}},
-  {{1., -1., 1.}, {1., 0., 0.}},
+  {{1., 1., -1.}, {1., 0., 0.}, {.75, .25}},
+  {{1., 1., 1.}, {1., 0., 0.}, {.75, .75}},
+  {{1., -1., -1.}, {1., 0., 0.}, {.25, .25}},
+  {{1., -1., 1.}, {1., 0., 0.}, {.25, .75}},
 
-  {{-1., 1., -1.}, {-1., 0., 0.}},
-  {{-1., 1., 1.}, {-1., 0., 0.}},
-  {{-1., -1., -1.}, {-1., 0., 0.}},
-  {{-1., -1., 1.}, {-1., 0., 0.}},
+  {{-1., 1., -1.}, {-1., 0., 0.}, {1., .5}},
+  {{-1., 1., 1.}, {-1., 0., 0.}, {1., 1.}},
+  {{-1., -1., -1.}, {-1., 0., 0.}, {.5, .5}},
+  {{-1., -1., 1.}, {-1., 0., 0.}, {.5, 1.}},
 
-  {{-1., 1., -1.}, {0., 1., 0.}},
-  {{1., 1., -1.}, {0., 1., 0.}},
-  {{1., 1., 1.}, {0., 1., 0.}},
-  {{-1., 1., 1.}, {0., 1., 0.}},
+  {{-1., 1., -1.}, {0., 1., 0.}, {.5, .5}},
+  {{1., 1., -1.}, {0., 1., 0.}, {1., .5}},
+  {{1., 1., 1.}, {0., 1., 0.}, {.1, 1.}},
+  {{-1., 1., 1.}, {0., 1., 0.}, {.5, 1.}},
 
-  {{-1., -1., -1.}, {0., -1., 0.}},
-  {{1., -1., -1.}, {0., -1., 0.}},
-  {{1., -1., 1.}, {0., -1., 0.}},
-  {{-1., -1., 1.}, {0., -1., 0.}},
+  {{-1., -1., -1.}, {0., -1., 0.}, {0., .5}},
+  {{1., -1., -1.}, {0., -1., 0.}, {.5, .5}},
+  {{1., -1., 1.}, {0., -1., 0.}, {.5, 1.}},
+  {{-1., -1., 1.}, {0., -1., 0.}, {0., 1.}},
 
-  {{-1., 1., 1.}, {0., 0., 1.}},
-  {{1., 1., 1.}, {0., 0., 1.}},
-  {{-1., -1., 1.}, {0., 0., 1.}},
-  {{1., -1., 1.}, {0., 0., 1.}}
+  {{-1., 1., 1.}, {0., 0., 1.}, {.5, .5}},
+  {{1., 1., 1.}, {0., 0., 1.}, {1., .5}},
+  {{-1., -1., 1.}, {0., 0., 1.}, {.5, 0.}},
+  {{1., -1., 1.}, {0., 0., 1.}, {1., 0.}}
 };
 const GLuint cube_idxs[] = {
   0, 1, 2, 1, 3, 2,
@@ -85,6 +85,7 @@ void mesh::draw(shader_pipeline::attributes attrs) {
   glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
   attrs.position.set_pointer(&vertex::position);
   attrs.normal.set_pointer(&vertex::normal);
+  attrs.uv.set_pointer(&vertex::uv);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
@@ -92,12 +93,13 @@ void mesh::draw(shader_pipeline::attributes attrs) {
 shader_pipeline::shader_pipeline()
     : shader_prog_{shaders::main_vert, shaders::main_frag},
       attributes_{.position = shader_prog_.get_attrib<glm::vec3>("position"),
-          .normal = shader_prog_.get_attrib<glm::vec3>("normal")} {
+          .normal = shader_prog_.get_attrib<glm::vec3>("normal"),
+          .uv = shader_prog_.get_attrib<glm::vec2>("uv")} {
   model_world_uniform_ = shader_prog_.get_uniform<glm::mat4>("model");
   norm_world_uniform_ = shader_prog_.get_uniform<glm::mat3>("norm_rotation");
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
-  color_uniform_ = shader_prog_.get_uniform<glm::vec3>("color");
+  texture_index_uniform_ = shader_prog_.get_uniform<GLint>("texture_data");
 
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
@@ -111,18 +113,19 @@ void shader_pipeline::start_rendering(glm::mat4 camera) {
   camera_uniform_.set_value(camera);
 }
 
-void shader_pipeline::draw(glm::mat4 model, glm::vec3 color, mesh& mesh) {
+void shader_pipeline::draw(glm::mat4 model, int tex_idx, mesh& mesh) {
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
-  color_uniform_.set_value(color);
+  texture_index_uniform_.set_value(tex_idx);
   mesh.draw(attributes_);
 }
 
-scene_renderer::scene_renderer(
+scene_renderer::scene_renderer(img::image cube_tex, img::image land_tex,
     value_update_channel<animate_to>& cube_color_updates,
     value_update_channel<animate_to>& landscape_color_updates,
     value_update_channel<glm::ivec2>& cube_vel)
-    : cube_{cube_vertices, cube_idxs}, cube_color_updates_{cube_color_updates},
+    : cube_{cube_vertices, cube_idxs}, cube_tex_{gen_texture()},
+      land_tex_{gen_texture()}, cube_color_updates_{cube_color_updates},
       landscape_color_updates_{landscape_color_updates}, cube_vel_{cube_vel} {
   landscape land{centimeters{5}, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
@@ -130,6 +133,26 @@ scene_renderer::scene_renderer(
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
   glClearColor(0, 0, 0, .75);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, cube_tex_.get());
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cube_tex.size().width,
+      cube_tex.size().height, 0, GL_RGB, GL_UNSIGNED_BYTE,
+      cube_tex.data().data());
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, land_tex_.get());
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, land_tex.size().width,
+      land_tex.size().height, 0, GL_RGB, GL_UNSIGNED_BYTE,
+      land_tex.data().data());
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 }
 
 void scene_renderer::resize(size sz) {
@@ -183,8 +206,10 @@ void scene_renderer::draw(clock::time_point ts) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   pipeline_.start_rendering(projection_ * camera);
-  pipeline_.draw(model, cube_color_.animate(ts), cube_);
-  pipeline_.draw(glm::mat4{1.}, landscape_color_.animate(ts), landscape_);
+  glActiveTexture(GL_TEXTURE0);
+  pipeline_.draw(model, 0, cube_);
+  glActiveTexture(GL_TEXTURE1);
+  pipeline_.draw(glm::mat4{1.}, 1, landscape_);
 
   glFlush();
 }
