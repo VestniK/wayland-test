@@ -4,6 +4,8 @@ catch2/3.4.0
 fmt/10.0.0
 asio/1.28.1
 spdlog/1.12.0
+libpng/1.6.40
+ms-gsl/4.0.0
 
 [options]
 
