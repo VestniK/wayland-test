@@ -82,47 +82,32 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   evdev_gamepad::axes_state axes;
   axes.set_axis_channel(gamepad::axis::main, cube_pos);
 
-  value_update_channel<animate_to> cube_color;
-  cube_color.update({.dest = {.9, 0.7, 0.7}, .duration = 0ms});
-  value_update_channel<animate_to> landscale_color;
-  landscale_color.update({.dest = {1., 1., 0.4}, .duration = 0ms});
+  value_update_channel<animate_to> cube_tex_off;
+  cube_tex_off.update({.dest = {}, .duration = 0ms});
   udev_gamepads gamepads{
-      [&cube_color, &landscale_color](gamepad::key key, bool pressed) {
+      [&cube_tex_off](gamepad::key key, bool pressed) {
         if (pressed)
           return;
         switch (key) {
         case gamepad::key::A:
-          cube_color.update({.dest = {.0, 0.9, 0.0}, .duration = 600ms});
+          cube_tex_off.update({.dest = {.0, .0}, .duration = 600ms});
           break;
         case gamepad::key::B:
-          cube_color.update({.dest = {.9, 0.0, 0.0}, .duration = 600ms});
+          cube_tex_off.update({.dest = {.5, .0}, .duration = 600ms});
           break;
         case gamepad::key::X:
-          cube_color.update({.dest = {.0, .0, .9}, .duration = 600ms});
+          cube_tex_off.update({.dest = {.0, .0}, .duration = 600ms});
           break;
         case gamepad::key::Y:
-          cube_color.update({.dest = {0.8, .8, 0.4}, .duration = 600ms});
-          break;
-        case gamepad::key::left_trg:
-          landscale_color.update({.dest = {.8, .0, .0}, .duration = 600ms});
-          break;
-        case gamepad::key::right_trg:
-          landscale_color.update({.dest = {.0, .8, .0}, .duration = 600ms});
-          break;
-        case gamepad::key::left_alt_trg:
-          landscale_color.update({.dest = {.4, .0, .0}, .duration = 600ms});
-          break;
-        case gamepad::key::right_alt_trg:
-          landscale_color.update({.dest = {.0, .4, .0}, .duration = 600ms});
-          break;
-        case gamepad::key::select:
-          cube_color.update({.dest = {.2, .2, .2}, .duration = 400ms});
-          break;
-        case gamepad::key::start:
-          cube_color.update({.dest = {.9, 0.7, 0.7}, .duration = 500ms});
-          landscale_color.update({.dest = {1., 1., 0.4}, .duration = 500ms});
+          cube_tex_off.update({.dest = {.5, .5}, .duration = 600ms});
           break;
 
+        case gamepad::key::left_trg:
+        case gamepad::key::right_trg:
+        case gamepad::key::left_alt_trg:
+        case gamepad::key::right_alt_trg:
+        case gamepad::key::select:
+        case gamepad::key::start:
         case gamepad::key::dpad_down:
         case gamepad::key::dpad_up:
         case gamepad::key::dpad_left:
@@ -136,8 +121,8 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
       make_render_func<scene_renderer>(co_await std::move(cube_tex),
-          co_await std::move(land_tex), std::ref(cube_color),
-          std::ref(landscale_color), std::ref(cube_pos))};
+          co_await std::move(land_tex), std::ref(cube_tex_off),
+          std::ref(cube_pos))};
 
   using namespace asio::experimental::awaitable_operators;
   co_await (eloop.dispatch_while(io_exec, [&] {

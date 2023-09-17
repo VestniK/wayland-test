@@ -29,13 +29,15 @@ public:
   shader_pipeline();
 
   void start_rendering(glm::mat4 camera);
-  void draw(glm::mat4 model, int tex_idx, mesh& mesh);
+  void draw(
+      glm::mat4 model, int tex_idx, mesh& mesh, glm::vec2 tex_offset = {});
 
 private:
   shader_program shader_prog_;
   uniform_location<glm::mat4> camera_uniform_;
   uniform_location<glm::mat4> model_world_uniform_;
   uniform_location<glm::mat3> norm_world_uniform_;
+  uniform_location<glm::vec2> tex_offset_uniform_;
   uniform_location<GLint> texture_index_uniform_;
   attributes attributes_;
 };
@@ -57,15 +59,15 @@ private:
 };
 
 struct animate_to {
-  glm::vec3 dest;
+  glm::vec2 dest;
   std::chrono::milliseconds duration;
 
   bool operator==(const animate_to&) const noexcept = default;
 };
 struct linear_animation {
-  glm::vec3 start;
+  glm::vec2 start;
   frames_clock::time_point start_time;
-  glm::vec3 end;
+  glm::vec2 end;
   frames_clock::time_point end_time;
 
   void reset(frames_clock::time_point now, animate_to animation) noexcept {
@@ -75,7 +77,7 @@ struct linear_animation {
     end_time = now + animation.duration;
   }
 
-  glm::vec3 animate(frames_clock::time_point now) const noexcept {
+  glm::vec2 animate(frames_clock::time_point now) const noexcept {
     if (now >= end_time)
       return end;
     const auto factor = float_time::milliseconds{now - start_time} /
@@ -89,8 +91,7 @@ class scene_renderer {
 
 public:
   scene_renderer(img::image cube_tex, img::image land_tex,
-      value_update_channel<animate_to>& cube_color_updates,
-      value_update_channel<animate_to>& landscape_color_updates,
+      value_update_channel<animate_to>& cube_tex_x_offset,
       value_update_channel<glm::ivec2>& cube_vel);
 
   void resize(size sz);
@@ -105,11 +106,8 @@ private:
   texture cube_tex_;
   texture land_tex_;
 
-  value_update_channel<animate_to>& cube_color_updates_;
-  linear_animation cube_color_;
-
-  value_update_channel<animate_to>& landscape_color_updates_;
-  linear_animation landscape_color_;
+  value_update_channel<animate_to>& cube_tex_offset_update_;
+  linear_animation cube_tex_offset_;
 
   value_update_channel<glm::ivec2>& cube_vel_;
   struct {

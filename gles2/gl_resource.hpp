@@ -147,6 +147,11 @@ inline void uniform_location<glm::vec3>::set_value(const glm::vec3& val) {
   glUniform3fv(location_, 1, glm::value_ptr(val));
 }
 
+template <>
+inline void uniform_location<glm::vec2>::set_value(const glm::vec2& val) {
+  glUniform2fv(location_, 1, glm::value_ptr(val));
+}
+
 // shader program
 struct program_deleter {
   void operator()(GLuint handle) { glDeleteProgram(handle); }

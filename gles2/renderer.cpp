@@ -100,6 +100,7 @@ shader_pipeline::shader_pipeline()
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
   texture_index_uniform_ = shader_prog_.get_uniform<GLint>("texture_data");
+  tex_offset_uniform_ = shader_prog_.get_uniform<glm::vec2>("tex_offset");
 
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
@@ -113,20 +114,21 @@ void shader_pipeline::start_rendering(glm::mat4 camera) {
   camera_uniform_.set_value(camera);
 }
 
-void shader_pipeline::draw(glm::mat4 model, int tex_idx, mesh& mesh) {
+void shader_pipeline::draw(
+    glm::mat4 model, int tex_idx, mesh& mesh, glm::vec2 tex_offset) {
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
+  tex_offset_uniform_.set_value(tex_offset);
   texture_index_uniform_.set_value(tex_idx);
   mesh.draw(attributes_);
 }
 
 scene_renderer::scene_renderer(img::image cube_tex, img::image land_tex,
-    value_update_channel<animate_to>& cube_color_updates,
-    value_update_channel<animate_to>& landscape_color_updates,
+    value_update_channel<animate_to>& cube_tex_offset,
     value_update_channel<glm::ivec2>& cube_vel)
     : cube_{cube_vertices, cube_idxs}, cube_tex_{gen_texture()},
-      land_tex_{gen_texture()}, cube_color_updates_{cube_color_updates},
-      landscape_color_updates_{landscape_color_updates}, cube_vel_{cube_vel} {
+      land_tex_{gen_texture()}, cube_tex_offset_update_{cube_tex_offset},
+      cube_vel_{cube_vel} {
   landscape land{centimeters{5}, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
@@ -197,17 +199,14 @@ void scene_renderer::draw(clock::time_point ts) {
                           glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
                           glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
-  if (const auto cube_color = cube_color_updates_.get_update())
-    cube_color_.reset(ts, cube_color.value());
-
-  if (const auto landscape_color = landscape_color_updates_.get_update())
-    landscape_color_.reset(ts, landscape_color.value());
+  if (const auto tex_offset = cube_tex_offset_update_.get_update())
+    cube_tex_offset_.reset(ts, tex_offset.value());
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   pipeline_.start_rendering(projection_ * camera);
   glActiveTexture(GL_TEXTURE0);
-  pipeline_.draw(model, 0, cube_);
+  pipeline_.draw(model, 0, cube_, cube_tex_offset_.animate(ts));
   glActiveTexture(GL_TEXTURE1);
   pipeline_.draw(glm::mat4{1.}, 1, landscape_);
 
