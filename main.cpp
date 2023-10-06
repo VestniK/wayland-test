@@ -96,7 +96,7 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
           cube_tex_off.update({.dest = {.5, .0}, .duration = 600ms});
           break;
         case gamepad::key::X:
-          cube_tex_off.update({.dest = {.0, .0}, .duration = 600ms});
+          cube_tex_off.update({.dest = {.0, .5}, .duration = 600ms});
           break;
         case gamepad::key::Y:
           cube_tex_off.update({.dest = {.5, .5}, .duration = 600ms});
