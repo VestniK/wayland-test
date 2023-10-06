@@ -20,14 +20,14 @@ private:
   };
 
 public:
-  std::optional<T> get_update() noexcept(
-      std::is_nothrow_copy_constructible_v<T>) {
+  std::optional<T> get_update() const
+      noexcept(std::is_nothrow_copy_constructible_v<T>) {
     const T val = consumer_val();
     if (!try_fetch_update() || val == consumer_val())
       return std::nullopt;
     return consumer_val();
   }
-  T get_current() noexcept(std::is_nothrow_copy_constructible_v<T>&&
+  T get_current() const noexcept(std::is_nothrow_copy_constructible_v<T>&&
           std::is_nothrow_move_constructible_v<T>) {
     const T val = consumer_val();
     if (try_fetch_update())
@@ -44,7 +44,7 @@ private:
     return buf_[consumer_ & ~seen_mask].val;
   }
 
-  bool try_fetch_update() noexcept {
+  bool try_fetch_update() const noexcept {
     // Consumer index is marked as seen in constructor and always marked as seen
     // if new value was fetched from producer. Bit operatrions bellow rely on
     // this invariant.
@@ -100,7 +100,7 @@ private:
 
 private:
   std::array<box, 3> buf_;
-  std::atomic<unsigned> cur_ = 0 | old_mask;
+  mutable std::atomic<unsigned> cur_ = 0 | old_mask;
   unsigned producer_ = 1;
-  unsigned consumer_ = 2 | seen_mask;
+  mutable unsigned consumer_ = 2 | seen_mask;
 };

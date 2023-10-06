@@ -127,6 +127,6 @@ public:
   }
 
 protected:
-  mutable value_update_channel<animate_to> cube_tex_offset_update_;
-  mutable value_update_channel<glm::ivec2> cube_vel_;
+  value_update_channel<animate_to> cube_tex_offset_update_;
+  value_update_channel<glm::ivec2> cube_vel_;
 };
