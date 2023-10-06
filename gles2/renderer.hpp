@@ -90,9 +90,10 @@ class scene_renderer {
   using clock = frames_clock;
 
 public:
-  scene_renderer(img::image cube_tex, img::image land_tex,
-      value_update_channel<animate_to>& cube_tex_x_offset,
-      value_update_channel<glm::ivec2>& cube_vel);
+  class controller;
+
+  scene_renderer(
+      img::image cube_tex, img::image land_tex, const controller& controller);
 
   void resize(size sz);
   void draw(clock::time_point ts);
@@ -106,12 +107,26 @@ private:
   texture cube_tex_;
   texture land_tex_;
 
-  value_update_channel<animate_to>& cube_tex_offset_update_;
-  linear_animation cube_tex_offset_;
+  const controller& controller_;
 
-  value_update_channel<glm::ivec2>& cube_vel_;
+  linear_animation cube_tex_offset_;
   struct {
     glm::vec2 cur_pos{};
     clock::time_point last_ts{};
   } cube_planar_movement_{};
+};
+
+class scene_renderer::controller {
+public:
+  glm::ivec2 current_cube_vel() const noexcept {
+    return cube_vel_.get_current();
+  }
+
+  std::optional<animate_to> cube_tex_offset_update() const noexcept {
+    return cube_tex_offset_update_.get_update();
+  }
+
+protected:
+  mutable value_update_channel<animate_to> cube_tex_offset_update_;
+  mutable value_update_channel<glm::ivec2> cube_vel_;
 };

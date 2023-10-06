@@ -123,12 +123,10 @@ void shader_pipeline::draw(
   mesh.draw(attributes_);
 }
 
-scene_renderer::scene_renderer(img::image cube_tex, img::image land_tex,
-    value_update_channel<animate_to>& cube_tex_offset,
-    value_update_channel<glm::ivec2>& cube_vel)
+scene_renderer::scene_renderer(
+    img::image cube_tex, img::image land_tex, const controller& contr)
     : cube_{cube_vertices, cube_idxs}, cube_tex_{gen_texture()},
-      land_tex_{gen_texture()}, cube_tex_offset_update_{cube_tex_offset},
-      cube_vel_{cube_vel} {
+      land_tex_{gen_texture()}, controller_{contr} {
   landscape land{centimeters{5}, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
@@ -180,7 +178,7 @@ void scene_renderer::draw(clock::time_point ts) {
           1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
       glm::vec3{.0, .0, 1.});
 
-  const auto cube_vel_raw = cube_vel_.get_current();
+  const auto cube_vel_raw = controller_.current_cube_vel();
   const auto cube_vel = glm::vec2{-cube_vel_raw.x, cube_vel_raw.y} / 8000.f;
   cube_planar_movement_.cur_pos +=
       std::chrono::duration_cast<float_time::seconds>(
@@ -199,7 +197,7 @@ void scene_renderer::draw(clock::time_point ts) {
                           glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
                           glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
-  if (const auto tex_offset = cube_tex_offset_update_.get_update())
+  if (const auto tex_offset = controller_.cube_tex_offset_update())
     cube_tex_offset_.reset(ts, tex_offset.value());
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

@@ -51,6 +51,55 @@ asio::awaitable<img::image> load(std::filesystem::path path) {
   co_return img::load(in);
 }
 
+class controller : public scene_renderer::controller {
+public:
+  controller() : gamepads_{std::ref(*this), axes_} {
+    axes_.set_axis_channel(gamepad::axis::main, cube_vel_);
+    cube_tex_offset_update_.update({.dest = {}, .duration = 0ms});
+  }
+
+  void operator()(gamepad::key key, bool pressed) {
+    if (pressed)
+      return;
+    switch (key) {
+    case gamepad::key::A:
+      cube_tex_offset_update_.update({.dest = {.0, .0}, .duration = 600ms});
+      break;
+    case gamepad::key::B:
+      cube_tex_offset_update_.update({.dest = {.5, .0}, .duration = 600ms});
+      break;
+    case gamepad::key::X:
+      cube_tex_offset_update_.update({.dest = {.0, .5}, .duration = 600ms});
+      break;
+    case gamepad::key::Y:
+      cube_tex_offset_update_.update({.dest = {.5, .5}, .duration = 600ms});
+      break;
+
+    case gamepad::key::left_trg:
+    case gamepad::key::right_trg:
+    case gamepad::key::left_alt_trg:
+    case gamepad::key::right_alt_trg:
+    case gamepad::key::select:
+    case gamepad::key::start:
+    case gamepad::key::dpad_down:
+    case gamepad::key::dpad_up:
+    case gamepad::key::dpad_left:
+    case gamepad::key::dpad_right:
+      break;
+    }
+  }
+
+  asio::experimental::promise<void(std::exception_ptr)> start(
+      asio::io_context::executor_type io_exec) {
+    return asio::co_spawn(
+        io_exec, gamepads_.watch(io_exec), asio::experimental::use_promise);
+  }
+
+private:
+  evdev_gamepad::axes_state axes_;
+  udev_gamepads gamepads_;
+};
+
 } // namespace
 
 namespace co {
@@ -78,60 +127,22 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   event_loop eloop{get_option(args, "-d")};
   wl::gui_shell shell{eloop};
 
-  value_update_channel<glm::ivec2> cube_pos;
-  evdev_gamepad::axes_state axes;
-  axes.set_axis_channel(gamepad::axis::main, cube_pos);
-
-  value_update_channel<animate_to> cube_tex_off;
-  cube_tex_off.update({.dest = {}, .duration = 0ms});
-  udev_gamepads gamepads{
-      [&cube_tex_off](gamepad::key key, bool pressed) {
-        if (pressed)
-          return;
-        switch (key) {
-        case gamepad::key::A:
-          cube_tex_off.update({.dest = {.0, .0}, .duration = 600ms});
-          break;
-        case gamepad::key::B:
-          cube_tex_off.update({.dest = {.5, .0}, .duration = 600ms});
-          break;
-        case gamepad::key::X:
-          cube_tex_off.update({.dest = {.0, .5}, .duration = 600ms});
-          break;
-        case gamepad::key::Y:
-          cube_tex_off.update({.dest = {.5, .5}, .duration = 600ms});
-          break;
-
-        case gamepad::key::left_trg:
-        case gamepad::key::right_trg:
-        case gamepad::key::left_alt_trg:
-        case gamepad::key::right_alt_trg:
-        case gamepad::key::select:
-        case gamepad::key::start:
-        case gamepad::key::dpad_down:
-        case gamepad::key::dpad_up:
-        case gamepad::key::dpad_left:
-        case gamepad::key::dpad_right:
-          break;
-        }
-      },
-      axes};
-  auto gamepads_watch_result = gamepads.watch(io_exec);
+  controller contr;
+  auto contr_coro = contr.start(io_exec);
 
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
       make_render_func<scene_renderer>(co_await std::move(cube_tex),
-          co_await std::move(land_tex), std::ref(cube_tex_off),
-          std::ref(cube_pos))};
+          co_await std::move(land_tex), std::cref(contr))};
 
   using namespace asio::experimental::awaitable_operators;
-  co_await (eloop.dispatch_while(io_exec, [&] {
+  co_await eloop.dispatch_while(io_exec, [&] {
     if (auto ec = shell.check()) {
       spdlog::error("Wayland services state error: {}", ec.message());
       return false;
     }
     return !wnd.is_closed();
-  }) || std::move(gamepads_watch_result));
+  });
 
   spdlog::debug("window is closed exit the app");
   co_return EXIT_SUCCESS;
