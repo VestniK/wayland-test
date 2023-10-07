@@ -135,7 +135,6 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
       make_render_func<scene_renderer>(co_await std::move(cube_tex),
           co_await std::move(land_tex), std::cref(contr))};
 
-  using namespace asio::experimental::awaitable_operators;
   co_await eloop.dispatch_while(io_exec, [&] {
     if (auto ec = shell.check()) {
       spdlog::error("Wayland services state error: {}", ec.message());
