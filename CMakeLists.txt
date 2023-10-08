@@ -19,6 +19,7 @@ add_subdirectory(util)
 add_subdirectory(gamepad)
 add_subdirectory(gles2)
 add_subdirectory(img)
+add_subdirectory(scene)
 add_subdirectory(wayland)
 
 find_package(fmt REQUIRED)

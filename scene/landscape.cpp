@@ -5,8 +5,8 @@
 
 #include <util/morton.hpp>
 
-#include <gles2/landscape.hpp>
-#include <gles2/triangular_net.hpp>
+#include <scene/landscape.hpp>
+#include <scene/triangular_net.hpp>
 
 namespace {
 
@@ -20,7 +20,7 @@ struct morton_hash {
 } // namespace
 
 landscape::landscape(meters cell_radius, int columns, int rows) {
-  std::unordered_map<triangular::point, GLuint, morton_hash> idxs;
+  std::unordered_map<triangular::point, unsigned, morton_hash> idxs;
   auto idx = [&](triangular::point pt) {
     auto [it, success] = idxs.insert({pt, verticies_.size()});
     if (success) {
@@ -39,13 +39,13 @@ landscape::landscape(meters cell_radius, int columns, int rows) {
   for (int m = 0; m < columns; ++m) {
     for (int n = 0; n < rows - (m & 1); ++n) {
       triangular::point center = hexagon_net::cell_center(m, n);
-      const GLuint c = idx(center);
-      const GLuint bl = idx(cell_coord(center, corner::bottom_left));
-      const GLuint ml = idx(cell_coord(center, corner::midle_left));
-      const GLuint tl = idx(cell_coord(center, corner::top_left));
-      const GLuint br = idx(cell_coord(center, corner::bottom_right));
-      const GLuint mr = idx(cell_coord(center, corner::midle_right));
-      const GLuint tr = idx(cell_coord(center, corner::top_right));
+      const unsigned c = idx(center);
+      const unsigned bl = idx(cell_coord(center, corner::bottom_left));
+      const unsigned ml = idx(cell_coord(center, corner::midle_left));
+      const unsigned tl = idx(cell_coord(center, corner::top_left));
+      const unsigned br = idx(cell_coord(center, corner::bottom_right));
+      const unsigned mr = idx(cell_coord(center, corner::midle_right));
+      const unsigned tr = idx(cell_coord(center, corner::top_right));
 
       hexagons_.push_back(
           {triangle{c, bl, ml}, triangle{c, ml, tl}, triangle{c, tl, tr},

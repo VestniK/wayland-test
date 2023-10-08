@@ -3,8 +3,9 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
-#include <gles2/landscape.hpp>
-#include <gles2/mesh_data.hpp>
+#include <scene/landscape.hpp>
+#include <scene/mesh_data.hpp>
+
 #include <gles2/renderer.hpp>
 #include <gles2/shaders/shaders.hpp>
 

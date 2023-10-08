@@ -9,7 +9,7 @@
 
 #include <fmt/format.h>
 
-#include <gles2/landscape.hpp>
+#include <scene/landscape.hpp>
 
 using namespace fmt::literals;
 
@@ -23,14 +23,13 @@ constexpr unsigned vertixies_in_hexagon =
     vertixies_in_triangle * triangles_in_hexagon;
 
 template <size_t N>
-std::array<glm::vec3, vertixies_in_triangle * N>
-get_triangles(const landscape &land, size_t start_offset) noexcept {
+std::array<glm::vec3, vertixies_in_triangle * N> get_triangles(
+    const landscape& land, size_t start_offset) noexcept {
   std::array<glm::vec3, vertixies_in_triangle * N> triangles_set;
-  const auto indexes = std::span<const GLuint>{land.indexes()}.subspan(
+  const auto indexes = std::span<const unsigned>{land.indexes()}.subspan(
       start_offset, vertixies_in_triangle * N);
-  std::transform(
-      indexes.begin(), indexes.end(), triangles_set.begin(),
-      [vert = land.verticies()](GLuint idx) { return vert[idx].position; });
+  std::transform(indexes.begin(), indexes.end(), triangles_set.begin(),
+      [vert = land.verticies()](unsigned idx) { return vert[idx].position; });
   return triangles_set;
 }
 
@@ -78,8 +77,8 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
     std::span<const vertex> vert = land.verticies();
     const box landscape_bounds = bounding_box(vert.begin(), vert.end());
     SECTION("mesh is flat") {
-      CHECK_THAT(landscape_bounds.height(),
-                 Catch::Matchers::WithinAbs(0., 0.0001));
+      CHECK_THAT(
+          landscape_bounds.height(), Catch::Matchers::WithinAbs(0., 0.0001));
     }
     SECTION("mesh has proper x dimensions") {
       CHECK(landscape_bounds.length() ==
@@ -101,33 +100,32 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
       std::array<glm::vec3, vertixies_in_hexagon> triangles_set =
           get_triangles<triangles_in_hexagon>(land, index_set_start);
 
-      SECTION(fmt::format(
-          "triangles {} - {} of {} forms hexagon", index_set_start,
-          index_set_start + vertixies_in_hexagon, land.indexes().size())) {
+      SECTION(
+          fmt::format("triangles {} - {} of {} forms hexagon", index_set_start,
+              index_set_start + vertixies_in_hexagon, land.indexes().size())) {
         for (size_t triangle_offset = 0; triangle_offset < triangles_set.size();
              triangle_offset += vertixies_in_triangle) {
           std::span<const glm::vec3, vertixies_in_triangle> triangle{
               triangles_set.data() + triangle_offset, vertixies_in_triangle};
 
           SECTION(fmt::format("triangle {} is equilateral",
-                              triangle_offset / triangles_in_hexagon)) {
-            CHECK(glm::dot(triangle[1] - triangle[0],
-                           triangle[2] - triangle[0]) ==
+              triangle_offset / triangles_in_hexagon)) {
+            CHECK(glm::dot(
+                      triangle[1] - triangle[0], triangle[2] - triangle[0]) ==
                   Catch::Approx(0.5 * radius.count() * radius.count()));
-            CHECK(glm::dot(triangle[0] - triangle[1],
-                           triangle[2] - triangle[1]) ==
+            CHECK(glm::dot(
+                      triangle[0] - triangle[1], triangle[2] - triangle[1]) ==
                   Catch::Approx(0.5 * radius.count() * radius.count()));
-            CHECK(glm::dot(triangle[0] - triangle[2],
-                           triangle[1] - triangle[2]) ==
+            CHECK(glm::dot(
+                      triangle[0] - triangle[2], triangle[1] - triangle[2]) ==
                   Catch::Approx(0.5 * radius.count() * radius.count()));
           }
 
           SECTION("there are 7 unique points (center and hexagon perimeter)") {
             std::sort(triangles_set.begin(), triangles_set.end(),
-                      [](glm::vec3 l, glm::vec3 r) {
-                        return std::tie(l.x, l.y, l.z) <
-                               std::tie(r.x, r.y, r.z);
-                      });
+                [](glm::vec3 l, glm::vec3 r) {
+                  return std::tie(l.x, l.y, l.z) < std::tie(r.x, r.y, r.z);
+                });
             auto it = std::unique(triangles_set.begin(), triangles_set.end());
             CHECK(std::distance(triangles_set.begin(), it) == 7);
           }

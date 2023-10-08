@@ -1,19 +1,13 @@
-add_subdirectory(shaders)
-
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(glm REQUIRED)
-find_package(OpenGL REQUIRED COMPONENTS OpenGL)
 
 cpp_unit(
-  NAME gles2
+  NAME scene
   STD cxx_std_23
   LIBS
     util
-    img
-    scene
-    shaders
-    OpenGL::OpenGL
+    gamepad-types
     glm::glm
   TEST_LIBS
     Catch2::Catch2

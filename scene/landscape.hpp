@@ -6,7 +6,7 @@
 #include <util/concat.hpp>
 #include <util/unit.hpp>
 
-#include <gles2/mesh_data.hpp>
+#include <scene/mesh_data.hpp>
 
 class landscape {
 public:
@@ -14,20 +14,20 @@ public:
 
   ~landscape() noexcept = default;
 
-  landscape(const landscape &) = delete;
-  landscape &operator=(const landscape &) = delete;
-  landscape(landscape &&) = delete;
-  landscape &operator=(landscape &&) = delete;
+  landscape(const landscape&) = delete;
+  landscape& operator=(const landscape&) = delete;
+  landscape(landscape&&) = delete;
+  landscape& operator=(landscape&&) = delete;
 
   [[nodiscard]] std::span<const vertex> verticies() const noexcept {
     return verticies_;
   }
-  [[nodiscard]] std::span<const GLuint> indexes() const noexcept {
+  [[nodiscard]] std::span<const unsigned> indexes() const noexcept {
     return as_concated(as_concated(hexagons_));
   }
 
 private:
-  using triangle = std::array<GLuint, 3>;
+  using triangle = std::array<unsigned, 3>;
   using hexagon = std::array<triangle, 6>;
 
   std::vector<vertex> verticies_;

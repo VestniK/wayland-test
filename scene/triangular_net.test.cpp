@@ -10,14 +10,15 @@
 
 #include <fmt/format.h>
 
-#include <gles2/triangular_net.hpp>
+#include <scene/triangular_net.hpp>
 
 using Catch::Generators::random;
 using namespace fmt::literals;
 
 namespace Catch {
 
-template <> struct StringMaker<triangular::point> {
+template <>
+struct StringMaker<triangular::point> {
   static std::string convert(triangular::point pt) {
     return fmt::format("{{x: {}, y: {}}}", pt.x, pt.y);
   }
@@ -35,19 +36,18 @@ TEST_CASE("triangular to cartesian", "[triangular]") {
   CAPTURE(tx, ty);
 
   SECTION("x coordinate calculated properly") {
-    CHECK_THAT(
-        triangular::to_cartesian({tx, ty}).x,
+    CHECK_THAT(triangular::to_cartesian({tx, ty}).x,
         Catch::Matchers::WithinAbs(tx + ty * std::cos(M_PI / 3), 0.0001));
   }
 
   SECTION("y coordinate calculated properly") {
     CHECK_THAT(triangular::to_cartesian({tx, ty}).y,
-               Catch::Matchers::WithinAbs(ty * std::sin(M_PI / 3), 0.0001));
+        Catch::Matchers::WithinAbs(ty * std::sin(M_PI / 3), 0.0001));
   }
 }
 
 TEST_CASE("hexagon_net::cell_center returns zero point for 0,0 cell",
-          "[hexagon_net]") {
+    "[hexagon_net]") {
   CHECK(hexagon_net::cell_center(0, 0) == triangular::point{0, 0});
 }
 
@@ -56,8 +56,8 @@ TEST_CASE("hexagon_net::cell_center", "[hexagon_net]") {
 
   const int m = GENERATE(range(-3, 3));
   const int n = GENERATE(range(-3, 3));
-  CAPTURE(m, n, cell_center(m, n), cell_center(m, n + 1),
-          cell_center(m + 1, n));
+  CAPTURE(
+      m, n, cell_center(m, n), cell_center(m, n + 1), cell_center(m + 1, n));
 
   SECTION("adjacent cells from the same column have common upper border") {
     CHECK(cell_coord(cell_center(m, n), corner::top_left) ==
@@ -75,10 +75,10 @@ TEST_CASE("hexagon_net::cell_center", "[hexagon_net]") {
    */
   SECTION("adjacent cells from the same row have proper common border") {
     CHECK(cell_coord(cell_center(m, n),
-                     m % 2 == 0 ? corner::top_right : corner::bottom_right) ==
+              m % 2 == 0 ? corner::top_right : corner::bottom_right) ==
           cell_coord(cell_center(m + 1, n), corner::midle_left));
     CHECK(cell_coord(cell_center(m, n), corner::midle_right) ==
           cell_coord(cell_center(m + 1, n),
-                     m % 2 == 0 ? corner::bottom_left : corner::top_left));
+              m % 2 == 0 ? corner::bottom_left : corner::top_left));
   }
 }
