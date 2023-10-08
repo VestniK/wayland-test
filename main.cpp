@@ -8,7 +8,7 @@
 #include <spdlog/spdlog.h>
 
 #include <asio/awaitable.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
+#include <asio/co_spawn.hpp>
 #include <asio/experimental/promise.hpp>
 #include <asio/experimental/use_promise.hpp>
 #include <asio/static_thread_pool.hpp>
@@ -19,6 +19,8 @@
 #include <gamepad/udev_gamepads.hpp>
 
 #include <gles2/renderer.hpp>
+
+#include <scene/controller.hpp>
 
 #include <xdg-shell.h>
 
@@ -51,55 +53,6 @@ asio::awaitable<img::image> load(std::filesystem::path path) {
   co_return img::load(in);
 }
 
-class controller : public scene_renderer::controller {
-public:
-  controller() : gamepads_{std::ref(*this), axes_} {
-    axes_.set_axis_channel(gamepad::axis::main, cube_vel_);
-    cube_tex_offset_update_.update({.dest = {}, .duration = 0ms});
-  }
-
-  void operator()(gamepad::key key, bool pressed) {
-    if (pressed)
-      return;
-    switch (key) {
-    case gamepad::key::A:
-      cube_tex_offset_update_.update({.dest = {.0, .0}, .duration = 600ms});
-      break;
-    case gamepad::key::B:
-      cube_tex_offset_update_.update({.dest = {.5, .0}, .duration = 600ms});
-      break;
-    case gamepad::key::X:
-      cube_tex_offset_update_.update({.dest = {.0, .5}, .duration = 600ms});
-      break;
-    case gamepad::key::Y:
-      cube_tex_offset_update_.update({.dest = {.5, .5}, .duration = 600ms});
-      break;
-
-    case gamepad::key::left_trg:
-    case gamepad::key::right_trg:
-    case gamepad::key::left_alt_trg:
-    case gamepad::key::right_alt_trg:
-    case gamepad::key::select:
-    case gamepad::key::start:
-    case gamepad::key::dpad_down:
-    case gamepad::key::dpad_up:
-    case gamepad::key::dpad_left:
-    case gamepad::key::dpad_right:
-      break;
-    }
-  }
-
-  asio::experimental::promise<void(std::exception_ptr)> start(
-      asio::io_context::executor_type io_exec) {
-    return asio::co_spawn(
-        io_exec, gamepads_.watch(io_exec), asio::experimental::use_promise);
-  }
-
-private:
-  evdev_gamepad::axes_state axes_;
-  udev_gamepads gamepads_;
-};
-
 } // namespace
 
 namespace co {
@@ -127,8 +80,10 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   event_loop eloop{get_option(args, "-d")};
   wl::gui_shell shell{eloop};
 
-  controller contr;
-  auto contr_coro = contr.start(io_exec);
+  scene::controller contr;
+  udev_gamepads gamepads{std::ref(contr), contr.axes_state()};
+  auto contr_coro = asio::co_spawn(
+      io_exec, gamepads.watch(io_exec), asio::experimental::use_promise);
 
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),

@@ -1,3 +1,4 @@
+find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(glm REQUIRED)
@@ -8,6 +9,8 @@ cpp_unit(
   LIBS
     util
     gamepad-types
+    img
+    asio::asio
     glm::glm
   TEST_LIBS
     Catch2::Catch2

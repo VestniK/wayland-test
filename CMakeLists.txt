@@ -41,6 +41,7 @@ target_link_libraries(wayland-test PRIVATE
   wlwnd
   util
   gles2
+  scene
   corort
   gamepad
   fmt::fmt

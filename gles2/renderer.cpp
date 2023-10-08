@@ -125,7 +125,7 @@ void shader_pipeline::draw(
 }
 
 scene_renderer::scene_renderer(
-    img::image cube_tex, img::image land_tex, const controller& contr)
+    img::image cube_tex, img::image land_tex, const scene::controller& contr)
     : cube_{cube_vertices, cube_idxs}, cube_tex_{gen_texture()},
       land_tex_{gen_texture()}, controller_{contr} {
   landscape land{centimeters{5}, 120, 80};

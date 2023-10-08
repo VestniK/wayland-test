@@ -10,7 +10,6 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     util
-    img
     scene
     shaders
     OpenGL::OpenGL
