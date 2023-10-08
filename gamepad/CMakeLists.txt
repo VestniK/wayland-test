@@ -1,3 +1,5 @@
+add_subdirectory(types)
+
 find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
@@ -15,6 +17,7 @@ cpp_unit(
     fmt::fmt
     spdlog::spdlog
     asio::asio
+    gamepad-types
   TEST_LIBS
     Catch2::Catch2
     Catch2::Catch2WithMain

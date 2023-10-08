@@ -12,73 +12,14 @@
 
 #include <util/channel.hpp>
 
-namespace gamepad {
-
-enum class key {
-  A,
-  B,
-  X,
-  Y,
-
-  left_trg,
-  right_trg,
-  left_alt_trg,
-  right_alt_trg,
-
-  dpad_up,
-  dpad_down,
-  dpad_left,
-  dpad_right,
-
-  select,
-  start
-};
-
-enum class axis {
-  main,
-  rotational,
-  HAT0,
-  HAT2,
-};
-
-} // namespace gamepad
-
-namespace detail {
-
-struct axis_value_consumer {
-  glm::ivec2 current{};
-  value_update_channel<glm::ivec2>* channel;
-};
-
-class axes_state {
-public:
-  void set_axis_channel(
-      gamepad::axis axis, value_update_channel<glm::ivec2>& channel) noexcept {
-    get(axis).channel = &channel;
-  }
-
-  void reset_axis_channel(gamepad::axis axis) noexcept {
-    get(axis).channel = nullptr;
-  }
-
-  axis_value_consumer& get(gamepad::axis axis) noexcept {
-    return values_[static_cast<std::underlying_type_t<gamepad::axis>>(axis)];
-  }
-
-  const axis_value_consumer& get(gamepad::axis axis) const noexcept {
-    return values_[static_cast<std::underlying_type_t<gamepad::axis>>(axis)];
-  }
-
-private:
-  std::array<axis_value_consumer, 4> values_;
-};
-
-} // namespace detail
+#include <gamepad/types/axes_state.hpp>
+#include <gamepad/types/axis.hpp>
+#include <gamepad/types/kyes.hpp>
 
 class evdev_gamepad {
 public:
   using key_handler = std::function<void(gamepad::key, bool)>;
-  using axes_state = detail::axes_state;
+  using axes_state = gamepad::axes_state;
   evdev_gamepad(asio::io_context::executor_type io_executor,
       const std::filesystem::path& devnode);
 
