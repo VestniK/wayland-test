@@ -21,12 +21,8 @@ void warn_fn(png_struct*, const char* msg) { spdlog::warn("PNG: {}", msg); }
 
 void read_fn(png_struct* png_ptr, png_byte* data, size_t length) {
   auto& in = *static_cast<io::file_descriptor*>(png_get_io_ptr(png_ptr));
-  while (length > 0) {
-    const auto sz = read(in, std::as_writable_bytes(std::span{data, length}));
-    if (sz == 0)
-      throw std::runtime_error{"premature png file end"};
-    length -= sz;
-  }
+  if (io::read(in, std::as_writable_bytes(std::span{data, length})) != length)
+    throw std::runtime_error{"premature png file end"};
 }
 
 struct read_info_struct_deleter {

@@ -4,7 +4,7 @@
 #include <span>
 
 #include <util/geom.hpp>
-#include <util/io.hpp>
+#include <util/io/io.hpp>
 
 namespace img {
 

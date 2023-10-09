@@ -13,6 +13,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     util
+    uio
     PkgConfig::UDEV
     fmt::fmt
     spdlog::spdlog

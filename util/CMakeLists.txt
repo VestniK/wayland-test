@@ -1,3 +1,5 @@
+add_subdirectory(io)
+
 find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)

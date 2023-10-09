@@ -10,7 +10,7 @@
 #include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
 
-#include <util/io.hpp>
+#include <util/io/io.hpp>
 
 using namespace std::literals;
 

@@ -7,6 +7,7 @@ cpp_unit(
   NAME img
   STD cxx_std_23
   LIBS
+    uio
     PNG::PNG
     spdlog::spdlog
     Microsoft.GSL::GSL
