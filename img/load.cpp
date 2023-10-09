@@ -20,13 +20,13 @@ void warn_fn(png_struct*, const char* msg) { spdlog::warn("PNG: {}", msg); }
 }
 
 void read_fn(png_struct* png_ptr, png_byte* data, size_t length) {
-  auto& in = *static_cast<std::istream*>(png_get_io_ptr(png_ptr));
-  in.read(reinterpret_cast<char*>(data), length);
-  if (!in)
-    throw std::system_error{
-        errno, std::system_category(), "std::istream::read"};
-  if (in.eof() && gsl::narrow<size_t>(in.gcount()) != length)
-    throw std::runtime_error{"premature png file end"};
+  auto& in = *static_cast<io::file_descriptor*>(png_get_io_ptr(png_ptr));
+  while (length > 0) {
+    const auto sz = read(in, std::as_writable_bytes(std::span{data, length}));
+    if (sz == 0)
+      throw std::runtime_error{"premature png file end"};
+    length -= sz;
+  }
 }
 
 struct read_info_struct_deleter {
@@ -44,13 +44,10 @@ using read_info_ptr = std::unique_ptr<png_struct, read_info_struct_deleter>;
 
 namespace img {
 
-image load(std::istream& in) {
+image load(io::file_descriptor& in) {
   std::array<std::byte, png::signature_size> sig;
-  in.read(reinterpret_cast<char*>(sig.data()), sig.size());
-  if (!in)
-    throw std::system_error(
-        errno, std::system_category(), "std::istream::read");
-  if (in.gcount() != sig.size())
+  const auto read = io::read(in, sig);
+  if (read != sig.size())
     throw std::runtime_error{"invalid png stream, premature end of file"};
   if (png_sig_cmp(
           reinterpret_cast<png_const_bytep>(sig.data()), 0, sig.size()) != 0)

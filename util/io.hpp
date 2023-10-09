@@ -250,7 +250,7 @@ inline std::unique_ptr<const std::byte[], auto_unmaper> mmap(
   return std::unique_ptr<const std::byte[], auto_unmaper>{
       data, auto_unmaper{len}};
 }
-auto mmap(const file_descriptor& fd, std::streamoff start, size_t len) {
+inline auto mmap(const file_descriptor& fd, std::streamoff start, size_t len) {
   std::error_code ec;
   auto res = mmap(fd, start, len, ec);
   if (ec)
@@ -258,22 +258,22 @@ auto mmap(const file_descriptor& fd, std::streamoff start, size_t len) {
   return res;
 }
 
-const std::byte* data(
+inline const std::byte* data(
     const std::unique_ptr<const std::byte[], auto_unmaper>& mapping) noexcept {
   return mapping.get();
 }
 
-size_t size(
+inline size_t size(
     const std::unique_ptr<const std::byte[], auto_unmaper>& mapping) noexcept {
   return mapping.get_deleter().size;
 }
 
-const std::byte* begin(
+inline const std::byte* begin(
     const std::unique_ptr<const std::byte[], auto_unmaper>& mapping) noexcept {
   return data(mapping);
 }
 
-const std::byte* end(
+inline const std::byte* end(
     const std::unique_ptr<const std::byte[], auto_unmaper>& mapping) noexcept {
   return data(mapping) + size(mapping);
 }

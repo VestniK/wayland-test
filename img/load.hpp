@@ -1,10 +1,10 @@
 #pragma once
 
-#include <iosfwd>
 #include <memory>
 #include <span>
 
 #include <util/geom.hpp>
+#include <util/io.hpp>
 
 namespace img {
 
@@ -28,6 +28,6 @@ private:
   std::unique_ptr<std::byte[]> data_;
 };
 
-image load(std::istream& in);
+image load(io::file_descriptor& in);
 
 } // namespace img

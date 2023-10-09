@@ -47,9 +47,7 @@ void setup_logger() {
 }
 
 asio::awaitable<img::image> load(std::filesystem::path path) {
-  std::ifstream in{path};
-  if (!in)
-    throw std::system_error{errno, std::system_category(), "open"};
+  auto in = io::open(path, io::mode::read_only);
   co_return img::load(in);
 }
 
