@@ -14,6 +14,7 @@
 
 #include <util/bitmask.hpp>
 #include <util/io/input.hpp>
+#include <util/io/output.hpp>
 
 namespace fs = std::filesystem;
 
@@ -139,35 +140,21 @@ struct input_traits<file_descriptor> {
   }
 };
 
-inline size_t write(const file_descriptor& fd, std::span<const std::byte> data,
-    std::error_code& ec) noexcept {
-  ssize_t res;
-  do
-    res = ::write(fd.native_handle(), data.data(), data.size());
-  while (res < 0 && errno == EINTR);
-  if (res < 0) {
-    ec = {errno, std::system_category()};
-    return 0;
+template <>
+struct output_traits<file_descriptor> {
+  static inline size_t write(const file_descriptor& fd,
+      std::span<const std::byte> data, std::error_code& ec) noexcept {
+    ssize_t res;
+    do
+      res = ::write(fd.native_handle(), data.data(), data.size());
+    while (res < 0 && errno == EINTR);
+    if (res < 0) {
+      ec = {errno, std::system_category()};
+      return 0;
+    }
+    return static_cast<size_t>(res);
   }
-  return static_cast<size_t>(res);
-}
-inline size_t write(
-    const file_descriptor& fd, std::span<const std::byte> data) {
-  std::error_code ec;
-  size_t res = write(fd, data, ec);
-  if (ec)
-    throw std::system_error(ec, "write");
-  return res;
-}
-
-inline size_t write(const file_descriptor& fd, std::string_view str,
-    std::error_code ec) noexcept {
-  return write(fd, std::as_bytes(std::span<const char>{str}), ec);
-}
-
-inline size_t write(const file_descriptor& fd, std::string_view str) {
-  return write(fd, std::as_bytes(std::span<const char>{str}));
-}
+};
 
 inline void sync(const file_descriptor& fd, std::error_code& ec) noexcept {
   int res;
