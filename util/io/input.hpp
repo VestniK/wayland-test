@@ -8,7 +8,10 @@
 namespace io {
 
 template <typename T>
-struct input_traits;
+struct input_traits {
+  static size_t read(
+      T& in, std::span<std::byte> dest, std::error_code& ec) noexcept = delete;
+};
 
 template <typename T>
 concept input =

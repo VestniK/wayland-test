@@ -125,36 +125,32 @@ inline file_descriptor open_anonymous(
 }
 
 template <>
-struct input_traits<file_descriptor> {
-  static size_t read(const file_descriptor& fd, std::span<std::byte> buf,
-      std::error_code& ec) noexcept {
-    ssize_t res;
-    do
-      res = ::read(fd.native_handle(), buf.data(), buf.size());
-    while (res < 0 && errno == EINTR);
-    if (res < 0) {
-      ec = {errno, std::system_category()};
-      return 0;
-    }
-    return static_cast<size_t>(res);
+inline size_t input_traits<file_descriptor>::read(file_descriptor& fd,
+    std::span<std::byte> buf, std::error_code& ec) noexcept {
+  ssize_t res;
+  do
+    res = ::read(fd.native_handle(), buf.data(), buf.size());
+  while (res < 0 && errno == EINTR);
+  if (res < 0) {
+    ec = {errno, std::system_category()};
+    return 0;
   }
-};
+  return static_cast<size_t>(res);
+}
 
 template <>
-struct output_traits<file_descriptor> {
-  static inline size_t write(const file_descriptor& fd,
-      std::span<const std::byte> data, std::error_code& ec) noexcept {
-    ssize_t res;
-    do
-      res = ::write(fd.native_handle(), data.data(), data.size());
-    while (res < 0 && errno == EINTR);
-    if (res < 0) {
-      ec = {errno, std::system_category()};
-      return 0;
-    }
-    return static_cast<size_t>(res);
+inline size_t output_traits<file_descriptor>::write(file_descriptor& fd,
+    std::span<const std::byte> data, std::error_code& ec) noexcept {
+  ssize_t res;
+  do
+    res = ::write(fd.native_handle(), data.data(), data.size());
+  while (res < 0 && errno == EINTR);
+  if (res < 0) {
+    ec = {errno, std::system_category()};
+    return 0;
   }
-};
+  return static_cast<size_t>(res);
+}
 
 inline void sync(const file_descriptor& fd, std::error_code& ec) noexcept {
   int res;

@@ -9,7 +9,10 @@
 namespace io {
 
 template <typename T>
-struct output_traits;
+struct output_traits {
+  static size_t write(T& out, std::span<const std::byte> dest,
+      std::error_code& ec) noexcept = delete;
+};
 
 template <typename T>
 concept output =
