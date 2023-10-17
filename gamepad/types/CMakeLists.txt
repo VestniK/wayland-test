@@ -6,5 +6,5 @@ cpp_unit(
   TEST_LIBS
     Catch2::Catch2
     Catch2::Catch2WithMain
-  TEST_ARGS --rng-seed time
+  TEST_ARGS --order rand --rng-seed time
 )

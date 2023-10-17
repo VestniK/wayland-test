@@ -18,5 +18,5 @@ cpp_unit(
     Catch2::Catch2
     Catch2::Catch2WithMain
     fmt::fmt
-  TEST_ARGS --rng-seed time
+  TEST_ARGS --order rand --rng-seed time
 )
