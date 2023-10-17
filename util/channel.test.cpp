@@ -179,7 +179,7 @@ public:
   template <typename Channel>
   void start(Channel& channel) {
     asio::post(executors_environment::pool_executor(),
-        [&channel, vals = make_some_nums(0xffff), &start = start_,
+        [&channel, vals = make_some_nums(0xffffff), &start = start_,
             stop = stop_.get_token()] {
           start.arrive_and_wait();
           do {
@@ -211,17 +211,15 @@ TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks", "[bench]",
     meter.measure([&] { return channel.get_update(); });
   };
 
+  bench_producer producer;
+  producer.start(channel);
   BENCHMARK_ADVANCED("get_update with high thread contention")
   (Catch::Benchmark::Chronometer meter) {
-    bench_producer producer;
-    producer.start(channel);
     meter.measure([&] { return channel.get_update(); });
   };
 
   BENCHMARK_ADVANCED("get_current with high thread contention")
   (Catch::Benchmark::Chronometer meter) {
-    bench_producer producer;
-    producer.start(channel);
     meter.measure([&] { return channel.get_current(); });
   };
 }
