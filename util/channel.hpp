@@ -36,7 +36,8 @@ public:
   }
   void update(const T& t) noexcept(std::is_nothrow_copy_constructible_v<T>) {
     buf_[producer_].val = t;
-    producer_ = cur_.exchange(producer_) & ~(seen_mask | old_mask);
+    producer_ = cur_.exchange(producer_, std::memory_order::release) &
+                ~(seen_mask | old_mask);
   }
 
 private:
@@ -86,7 +87,8 @@ private:
     //      1      |      1     |    ?       | impossible case
     // The combination of bit operations bellow changes single bit in "old" bit
     // position for three possible cases and keeps other bits unchanged.
-    consumer_ = cur_.exchange(consumer_) | (was_old ^ old_mask);
+    consumer_ = cur_.exchange(consumer_, std::memory_order::acquire) |
+                (was_old ^ old_mask);
     if (consumer_ & seen_mask)
       return false;
     // Update case is handled separatelly here marking index with s1:o0.
