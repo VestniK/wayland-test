@@ -13,6 +13,13 @@ option(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE On "Enable LTO in release buil
 
 include(cmake/canonical_project.cmake)
 include(cmake/wayland_protocols.cmake)
+include(FetchContent)
+FetchContent_Declare(
+  thinsys
+  GIT_REPOSITORY https://github.com/VestniK/thinsys.git
+  GIT_TAG 962daa53b8ca70b2fbe9908bbf22348f0fa975ec
+  OVERRIDE_FIND_PACKAGE
+)
 
 add_subdirectory(corort)
 add_subdirectory(util)

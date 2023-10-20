@@ -20,8 +20,10 @@ void warn_fn(png_struct*, const char* msg) { spdlog::warn("PNG: {}", msg); }
 }
 
 void read_fn(png_struct* png_ptr, png_byte* data, size_t length) {
-  auto& in = *static_cast<io::file_descriptor*>(png_get_io_ptr(png_ptr));
-  if (io::read(in, std::as_writable_bytes(std::span{data, length})) != length)
+  auto& in =
+      *static_cast<thinsys::io::file_descriptor*>(png_get_io_ptr(png_ptr));
+  if (thinsys::io::read(in, std::as_writable_bytes(std::span{data, length})) !=
+      length)
     throw std::runtime_error{"premature png file end"};
 }
 
@@ -40,9 +42,9 @@ using read_info_ptr = std::unique_ptr<png_struct, read_info_struct_deleter>;
 
 namespace img {
 
-image load(io::file_descriptor& in) {
+image load(thinsys::io::file_descriptor& in) {
   std::array<std::byte, png::signature_size> sig;
-  const auto read = io::read(in, sig);
+  const auto read = thinsys::io::read(in, sig);
   if (read != sig.size())
     throw std::runtime_error{"invalid png stream, premature end of file"};
   if (png_sig_cmp(

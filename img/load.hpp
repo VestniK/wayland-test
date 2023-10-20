@@ -3,8 +3,8 @@
 #include <memory>
 #include <span>
 
+#include <thinsys/io/io.hpp>
 #include <util/geom.hpp>
-#include <util/io/io.hpp>
 
 namespace img {
 
@@ -28,6 +28,6 @@ private:
   std::unique_ptr<std::byte[]> data_;
 };
 
-image load(io::file_descriptor& in);
+image load(thinsys::io::file_descriptor& in);
 
 } // namespace img

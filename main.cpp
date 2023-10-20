@@ -47,7 +47,7 @@ void setup_logger() {
 }
 
 asio::awaitable<img::image> load(std::filesystem::path path) {
-  auto in = io::open(path, io::mode::read_only);
+  auto in = thinsys::io::open(path, thinsys::io::mode::read_only);
   co_return img::load(in);
 }
 

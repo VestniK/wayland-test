@@ -10,7 +10,7 @@
 #include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
 
-#include <util/io/io.hpp>
+#include <thinsys/io/io.hpp>
 
 using namespace std::literals;
 
@@ -136,7 +136,9 @@ input_absinfo load_absinfo(
 evdev_gamepad::evdev_gamepad(asio::io_context::executor_type io_executor,
     const std::filesystem::path& devnode)
     : dev_{io_executor,
-          io::open(devnode, io::mode::read_only | io::mode::ndelay).release()} {
+          thinsys::io::open(
+              devnode, thinsys::io::mode::read_only | thinsys::io::mode::ndelay)
+              .release()} {
   asio::co_spawn(io_executor, watch_device(io_executor), asio::detached);
 }
 
