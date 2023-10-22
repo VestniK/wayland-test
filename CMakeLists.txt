@@ -12,6 +12,7 @@ option(CMAKE_COMPILE_WARNING_AS_ERROR OFF "Treat warnings as errors")
 option(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE On "Enable LTO in release builds")
 
 include(cmake/canonical_project.cmake)
+include(cmake/sanitizers.cmake)
 include(cmake/wayland_protocols.cmake)
 include(FetchContent)
 FetchContent_Declare(
@@ -41,6 +42,7 @@ add_executable(wayland-test
   .clang-format
   .clangd
   main.cpp
+  cmake/sanitizers.cmake
 )
 target_link_libraries(wayland-test PRIVATE
   spdlog::spdlog

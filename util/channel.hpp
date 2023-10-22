@@ -42,7 +42,7 @@ public:
 
 private:
   const T& consumer_val() const noexcept {
-    return buf_[consumer_ & ~seen_mask].val;
+    return buf_[consumer_ & ~(seen_mask | old_mask)].val;
   }
 
   bool try_fetch_update() const noexcept {
