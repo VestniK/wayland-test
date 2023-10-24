@@ -9,4 +9,6 @@ enum class axis {
   HAT2,
 };
 
+enum class dimention { x, y, z };
+
 } // namespace gamepad

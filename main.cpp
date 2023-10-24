@@ -78,15 +78,15 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   event_loop eloop{get_option(args, "-d")};
   wl::gui_shell shell{eloop};
 
-  scene::controller contr;
-  udev_gamepads gamepads{std::ref(contr), contr.axes_state()};
+  scene::controller controller;
+  udev_gamepads gamepads{std::ref(controller), controller.axes_state()};
   auto contr_coro = asio::co_spawn(
       io_exec, gamepads.watch(io_exec), asio::experimental::use_promise);
 
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
       make_render_func<scene_renderer>(co_await std::move(cube_tex),
-          co_await std::move(land_tex), std::cref(contr))};
+          co_await std::move(land_tex), std::cref(controller))};
 
   co_await eloop.dispatch_while(io_exec, [&] {
     if (auto ec = shell.check()) {

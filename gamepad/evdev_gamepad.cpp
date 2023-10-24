@@ -1,5 +1,7 @@
 #include "evdev_gamepad.hpp"
 
+#include <expected>
+
 #include <linux/input.h>
 
 #include <asio/bind_cancellation_slot.hpp>
@@ -93,42 +95,92 @@ auto evcode2axis(uint16_t evcode) noexcept {
   return res;
 }
 
-auto axis2evcode(gamepad::axis axis, int coord) noexcept {
-  struct {
-    uint16_t code;
-    std::string_view define_name;
-  } res;
+namespace evio {
+enum class axe_error { z_dim_requested_for_2d_axis };
+struct axe {
+  uint16_t code;
+  std::string_view define_name;
+};
+} // namespace evio
+
+constexpr std::expected<evio::axe, evio::axe_error> axis2evcode(
+    gamepad::axis axis, gamepad::dimention coord) noexcept {
+  using enum gamepad::dimention;
+  evio::axe res;
   switch (axis) {
   case gamepad::axis::main:
-    res.code = coord == 0 ? ABS_X : ABS_Y;
-    res.define_name = coord == 0 ? "ABS_X"sv : "ABS_Y"sv;
+    switch (coord) {
+    case x:
+      res = {.code = ABS_X, .define_name = "ABS_X"sv};
+      break;
+    case y:
+      res = {.code = ABS_Y, .define_name = "ABS_Y"sv};
+      break;
+    case z:
+      res = {.code = ABS_Z, .define_name = "ABS_Z"sv};
+      break;
+    }
     break;
   case gamepad::axis::rotational:
-    res.code = coord == 0 ? ABS_RX : ABS_RY;
-    res.define_name = coord == 0 ? "ABS_RX"sv : "ABS_RY"sv;
+    switch (coord) {
+    case x:
+      res = {.code = ABS_RX, .define_name = "ABS_RX"sv};
+      break;
+    case y:
+      res = {.code = ABS_RY, .define_name = "ABS_RY"sv};
+      break;
+    case z:
+      res = {.code = ABS_RZ, .define_name = "ABS_RZ"sv};
+      break;
+    }
     break;
   case gamepad::axis::HAT0:
-    res.code = coord == 0 ? ABS_HAT0X : ABS_HAT0Y;
-    res.define_name = coord == 0 ? "ABS_HAT0X"sv : "ABS_HAT0Y"sv;
+    switch (coord) {
+    case x:
+      res = {.code = ABS_HAT0X, .define_name = "ABS_HAT0X"sv};
+      break;
+    case y:
+      res = {.code = ABS_HAT0Y, .define_name = "ABS_HAT0Y"sv};
+      break;
+    case z:
+      return std::unexpected(evio::axe_error::z_dim_requested_for_2d_axis);
+    }
     break;
   case gamepad::axis::HAT2:
-    res.code = coord == 0 ? ABS_HAT2X : ABS_HAT2Y;
-    res.define_name = coord == 0 ? "ABS_HAT2X"sv : "ABS_HAT2Y"sv;
+    switch (coord) {
+    case x:
+      res = {.code = ABS_HAT2X, .define_name = "ABS_HAT2X"sv};
+      break;
+    case y:
+      res = {.code = ABS_HAT2Y, .define_name = "ABS_HAT2Y"sv};
+      break;
+    case z:
+      return std::unexpected(evio::axe_error::z_dim_requested_for_2d_axis);
+    }
     break;
   }
   return res;
 }
 
-input_absinfo load_absinfo(
-    asio::posix::stream_descriptor& dev, gamepad::axis axis, int coord) {
-  const auto [code, name] = axis2evcode(axis, coord);
+std::expected<input_absinfo, std::error_code> load_absinfo(
+    asio::posix::stream_descriptor& dev, uint16_t code) {
   input_absinfo axis_limits{};
   if (ioctl(dev.native_handle(), EVIOCGABS(code), &axis_limits) == -1)
-    throw std::system_error{errno, std::system_category(),
-        fmt::format("ioctl(EVIOCGNAME({}))", name)};
-  spdlog::debug(
-      "{} range: [{}, {}];", name, axis_limits.minimum, axis_limits.maximum);
+    return std::unexpected(std::error_code{errno, std::system_category()});
   return axis_limits;
+}
+
+std::expected<input_absinfo, evio::axe_error> load_absinfo(
+    asio::posix::stream_descriptor& dev, gamepad::axis axis,
+    gamepad::dimention coord) {
+  return axis2evcode(axis, coord).transform([&](auto axe) {
+    return load_absinfo(dev, axe.code)
+        .or_else([&](auto ec) -> std::expected<input_absinfo, std::error_code> {
+          throw std::system_error{
+              ec, fmt::format("ioctl(EVIOCGNAME({}))", axe.define_name)};
+        })
+        .value();
+  });
 }
 
 } // namespace
@@ -156,14 +208,14 @@ asio::awaitable<void> evdev_gamepad::watch_device(
     throw std::system_error{errno, std::system_category(), "ioctl(EVIOCGNAME)"};
   spdlog::debug("gamepad name: {}", namebuf.data());
 
-  load_absinfo(dev_, gamepad::axis::main, 0);
-  load_absinfo(dev_, gamepad::axis::main, 1);
-  load_absinfo(dev_, gamepad::axis::rotational, 0);
-  load_absinfo(dev_, gamepad::axis::rotational, 1);
-  load_absinfo(dev_, gamepad::axis::HAT0, 0);
-  load_absinfo(dev_, gamepad::axis::HAT0, 1);
-  load_absinfo(dev_, gamepad::axis::HAT2, 0);
-  load_absinfo(dev_, gamepad::axis::HAT2, 1);
+  load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::x);
+  load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::y);
+  load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::x);
+  load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::y);
+  load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::x);
+  load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::y);
+  load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::x);
+  load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::y);
 
   std::array<input_event, 32> events;
   while (true) {
