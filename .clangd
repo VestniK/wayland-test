@@ -1,3 +1,3 @@
 CompileFlags:
   Remove: -std=c++23
-  Add: -std=c++2b
+  Add: [-std=c++2b, -D__cpp_concepts=202002L]
