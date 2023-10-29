@@ -14,10 +14,5 @@ cpp_unit(
   TEST_ARGS --order rand --rng-seed time
 )
 
-target_compile_definitions(util PUBLIC
-  # FIXME: For QtCreator clang based code completion only
-  ASIO_HAS_CO_AWAIT
-  ASIO_HAS_STD_COROUTINE
-)
 target_compile_options(util PUBLIC -Wno-error=interference-size)
 

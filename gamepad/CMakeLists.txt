@@ -25,12 +25,6 @@ cpp_unit(
     Catch2::Catch2WithMain
   TEST_ARGS --order rand --rng-seed time
 )
-
-target_compile_definitions(gamepad PUBLIC
-  # FIXME: For QtCreator clang based code completion only
-  ASIO_HAS_CO_AWAIT
-  ASIO_HAS_STD_COROUTINE
-)
 option(TRACE_GAMEPAD_EVENTS Off "Enable all gamepad events tracing")
 if (TRACE_GAMEPAD_EVENTS)
   target_compile_definitions(gamepad PRIVATE SPDLOG_ACTIVE_LEVEL=trace)
