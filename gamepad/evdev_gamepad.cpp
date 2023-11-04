@@ -18,15 +18,6 @@
 
 using namespace std::literals;
 
-namespace {
-
-template <size_t Extent = std::dynamic_extent>
-auto span2buf(std::span<std::byte, Extent> in) {
-  return asio::buffer(in.data(), in.size());
-}
-
-} // namespace
-
 evdev_gamepad::evdev_gamepad(asio::io_context::executor_type io_executor,
     const std::filesystem::path& devnode)
     : dev_{io_executor,
@@ -52,19 +43,9 @@ asio::awaitable<void> evdev_gamepad::watch_device(
   evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::x);
   evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::y);
 
-  std::array<input_event, 32> events;
-  while (true) {
-    size_t bytes_read = 0;
-    while (bytes_read == 0 || bytes_read % sizeof(input_event) != 0) {
-      // TODO handle EOF properly
-      bytes_read += co_await dev_.async_read_some(
-          span2buf(
-              std::as_writable_bytes(std::span{events}).subspan(bytes_read)),
-          asio::use_awaitable);
-    }
-    const std::span<const input_event> events_read =
-        std::span{events}.subspan(0, bytes_read / sizeof(input_event));
-    for (const auto& ev : events_read) {
+  auto events = evio::read_events(dev_);
+  while (const auto chunk = co_await events.async_resume(asio::use_awaitable)) {
+    for (const input_event& ev : *chunk) {
       if (ev.type == EV_SYN)
         continue;
       SPDLOG_TRACE("{}: time: {} code: 0x{:x} value: {}",

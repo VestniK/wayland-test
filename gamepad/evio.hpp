@@ -2,8 +2,10 @@
 
 #include <linux/input.h>
 
+#include <span>
 #include <string>
 
+#include <asio/experimental/coro.hpp>
 #include <asio/posix/stream_descriptor.hpp>
 
 #include <gamepad/evio_codes.hpp>
@@ -18,5 +20,8 @@ std::expected<input_absinfo, evio::error> load_absinfo(
 input_id load_dev_id(asio::posix::stream_descriptor& dev);
 
 std::string load_dev_name(asio::posix::stream_descriptor& dev);
+
+asio::experimental::coro<std::span<const input_event>> read_events(
+    asio::posix::stream_descriptor& dev);
 
 } // namespace evio
