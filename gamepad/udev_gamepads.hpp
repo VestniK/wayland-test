@@ -80,7 +80,8 @@ public:
   };
 
   udev_gamepads(evdev_gamepad::key_handler key_handler,
-      evdev_gamepad::axes_state& axis_state);
+      evdev_gamepad::axis2d_handler axis2d_handler,
+      evdev_gamepad::axis3d_handler axis3d_handler);
 
   connected_gamepads connected() { return {*udev_}; }
   asio::awaitable<void> watch(asio::io_context::executor_type exec);
@@ -97,5 +98,6 @@ private:
       udev_monitor_new_from_netlink(udev_.get(), "udev")};
   std::unordered_map<std::filesystem::path, evdev_gamepad> gamepads_;
   evdev_gamepad::key_handler key_handler_;
-  evdev_gamepad::axes_state* axis_state_ = nullptr;
+  evdev_gamepad::axis2d_handler axis2d_handler_;
+  evdev_gamepad::axis3d_handler axis3d_handler_;
 };

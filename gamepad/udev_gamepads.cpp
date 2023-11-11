@@ -119,8 +119,10 @@ asio::awaitable<void> udev_gamepads::watch(
 }
 
 udev_gamepads::udev_gamepads(evdev_gamepad::key_handler key_handler,
-    evdev_gamepad::axes_state& axis_state)
-    : key_handler_{key_handler}, axis_state_{&axis_state} {
+    evdev_gamepad::axis2d_handler axis2d_handler,
+    evdev_gamepad::axis3d_handler axis3d_handler)
+    : key_handler_{key_handler}, axis2d_handler_{axis2d_handler},
+      axis3d_handler_{axis3d_handler} {
   udev_monitor_filter_add_match_subsystem_devtype(monitor_.get(), "input", 0);
   udev_monitor_enable_receiving(monitor_.get());
 }
@@ -134,8 +136,8 @@ void udev_gamepads::on_add(asio::io_context::executor_type exec,
         devnode, notify::add);
   }
   it->second.set_key_handler(key_handler_);
-  if (axis_state_)
-    it->second.set_axis_state(*axis_state_);
+  it->second.set_axis_handler(axis2d_handler_);
+  it->second.set_axis_handler(axis3d_handler_);
 }
 void udev_gamepads::on_remove(std::string_view devnode, udev_device& dev) {
   auto it = gamepads_.find(devnode);

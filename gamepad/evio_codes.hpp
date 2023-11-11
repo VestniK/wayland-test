@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <string_view>
 
 #include <gamepad/types/axis.hpp>
@@ -53,43 +54,45 @@ constexpr std::string_view ev_type_name(std::uint16_t type) noexcept {
   return "unknown evdev event type"sv;
 }
 
+struct axis_dim {
+  gamepad::axis axis;
+  gamepad::dimention dim;
+};
+
 constexpr auto evcode2axis(uint16_t evcode) noexcept {
-  struct {
-    gamepad::axis axis;
-    gamepad::dimention dim;
-  } res;
+  using enum gamepad::axis;
+  using enum gamepad::dimention;
+  std::optional<axis_dim> res;
   switch (evcode) {
   case ABS_X:
-    res.axis = gamepad::axis::main;
-    res.dim = gamepad::dimention::x;
+    res = {.axis = main, .dim = x};
     break;
   case ABS_Y:
-    res.axis = gamepad::axis::main;
-    res.dim = gamepad::dimention::y;
+    res = {.axis = main, .dim = y};
+    break;
+  case ABS_Z:
+    res = {.axis = main, .dim = z};
     break;
   case ABS_RX:
-    res.axis = gamepad::axis::rotational;
-    res.dim = gamepad::dimention::x;
+    res = {.axis = rotational, .dim = x};
     break;
   case ABS_RY:
-    res.axis = gamepad::axis::rotational;
-    res.dim = gamepad::dimention::y;
+    res = {.axis = rotational, .dim = y};
+    break;
+  case ABS_RZ:
+    res = {.axis = rotational, .dim = z};
     break;
   case ABS_HAT0X:
-    res.axis = gamepad::axis::HAT0;
-    res.dim = gamepad::dimention::x;
+    res = {.axis = HAT0, .dim = x};
     break;
   case ABS_HAT0Y:
-    res.axis = gamepad::axis::HAT0;
-    res.dim = gamepad::dimention::y;
+    res = {.axis = HAT0, .dim = y};
     break;
   case ABS_HAT2X:
-    res.axis = gamepad::axis::HAT2;
-    res.dim = gamepad::dimention::x;
+    res = {.axis = HAT2, .dim = x};
     break;
   case ABS_HAT2Y:
-    res.axis = gamepad::axis::HAT2;
-    res.dim = gamepad::dimention::y;
+    res = {.axis = HAT2, .dim = x};
     break;
   }
   return res;

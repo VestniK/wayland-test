@@ -8,7 +8,7 @@
 #include <util/channel.hpp>
 #include <util/clock.hpp>
 
-#include <gamepad/types/axes_state.hpp>
+#include <gamepad/types/axis_state.hpp>
 #include <gamepad/types/kyes.hpp>
 
 struct animate_to {
@@ -46,6 +46,8 @@ public:
   controller();
 
   void operator()(gamepad::key key, bool pressed);
+  void operator()(gamepad::axis axis, gamepad::axis2d_state state);
+  void operator()(gamepad::axis axis, gamepad::axis3d_state state);
 
   glm::ivec2 current_cube_vel() const noexcept {
     return cube_vel_.get_current();
@@ -55,12 +57,9 @@ public:
     return cube_tex_offset_update_.get_update();
   }
 
-  gamepad::axes_state& axes_state() noexcept { return axes_; }
-
 private:
   value_update_channel<animate_to> cube_tex_offset_update_;
   value_update_channel<glm::ivec2> cube_vel_;
-  gamepad::axes_state axes_;
 };
 
 } // namespace scene

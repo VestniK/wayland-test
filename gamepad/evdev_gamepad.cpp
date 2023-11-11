@@ -16,6 +16,8 @@
 
 #include <thinsys/io/io.hpp>
 
+#include <gamepad/types/axis_state.hpp>
+
 using namespace std::literals;
 
 evdev_gamepad::evdev_gamepad(asio::io_context::executor_type io_executor,
@@ -34,14 +36,35 @@ asio::awaitable<void> evdev_gamepad::watch_device(
       id.bustype, id.vendor, id.product, id.version);
   spdlog::debug("gamepad name: {}", evio::load_dev_name(dev_));
 
-  evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::x);
-  evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::y);
-  evio::load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::x);
-  evio::load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::y);
-  evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::x);
-  evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::y);
-  evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::x);
-  evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::y);
+  gamepad::axes3d axes3d;
+  axes3d[gamepad::axis::main] = {
+      *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::x),
+      *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::y),
+      *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::z)};
+  if (axis3d_handler_)
+    axis3d_handler_(gamepad::axis::main, axes3d[gamepad::axis::main]);
+  axes3d[gamepad::axis::rotational] = {
+      *evio::load_absinfo(
+          dev_, gamepad::axis::rotational, gamepad::dimention::x),
+      *evio::load_absinfo(
+          dev_, gamepad::axis::rotational, gamepad::dimention::y),
+      *evio::load_absinfo(
+          dev_, gamepad::axis::rotational, gamepad::dimention::z)};
+  if (axis3d_handler_)
+    axis3d_handler_(
+        gamepad::axis::rotational, axes3d[gamepad::axis::rotational]);
+
+  gamepad::axes2d axes2d;
+  axes2d[gamepad::axis::HAT0] = {
+      *evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::x),
+      *evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::y)};
+  if (axis2d_handler_)
+    axis2d_handler_(gamepad::axis::HAT0, axes2d[gamepad::axis::HAT0]);
+  axes2d[gamepad::axis::HAT2] = {
+      *evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::x),
+      *evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::y)};
+  if (axis2d_handler_)
+    axis2d_handler_(gamepad::axis::HAT2, axes2d[gamepad::axis::HAT2]);
 
   auto events = evio::read_events(dev_);
   while (const auto chunk = co_await events.async_resume(asio::use_awaitable)) {
@@ -53,19 +76,26 @@ asio::awaitable<void> evdev_gamepad::watch_device(
           std::chrono::seconds{ev.time.tv_sec} +
               std::chrono::microseconds{ev.time.tv_usec},
           ev.code, ev.value);
-      if (!key_handler_)
-        break;
       switch (ev.type) {
       case EV_KEY:
-        if (auto key = evio::code2key(ev.code))
-          key_handler_(key.value(), ev.value != 0);
+        if (auto key = evio::code2key(ev.code)) {
+          if (key_handler_)
+            key_handler_(key.value(), ev.value != 0);
+        }
       case EV_ABS:
-        if (axis_state_) {
-          const auto axisinf = evio::evcode2axis(ev.code);
-          auto& state = axis_state_->get(axisinf.axis);
-          state.current[std::to_underlying(axisinf.dim)] = ev.value;
-          if (state.channel)
-            state.channel->update(state.current);
+        if (const auto axisinf = evio::evcode2axis(ev.code)) {
+          switch (gamepad::axis_dimrntions(axisinf->axis)) {
+          case 2:
+            axes2d[axisinf->axis, axisinf->dim].value = ev.value;
+            if (axis2d_handler_)
+              axis2d_handler_(axisinf->axis, axes2d[axisinf->axis]);
+            break;
+          case 3:
+            axes3d[axisinf->axis, axisinf->dim].value = ev.value;
+            if (axis3d_handler_)
+              axis3d_handler_(axisinf->axis, axes3d[axisinf->axis]);
+            break;
+          }
         }
         break;
       }

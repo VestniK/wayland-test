@@ -4,7 +4,6 @@ namespace scene {
 
 controller::controller() {
   using namespace std::literals;
-  axes_.set_axis_channel(gamepad::axis::main, cube_vel_);
   cube_tex_offset_update_.update({.dest = {}, .duration = 0ms});
 }
 
@@ -36,6 +35,22 @@ void controller::operator()(gamepad::key key, bool pressed) {
   case gamepad::key::dpad_up:
   case gamepad::key::dpad_left:
   case gamepad::key::dpad_right:
+    break;
+  }
+}
+
+void controller::operator()(gamepad::axis axis [[maybe_unused]],
+    gamepad::axis2d_state state [[maybe_unused]]) {}
+
+void controller::operator()(gamepad::axis axis, gamepad::axis3d_state state) {
+  switch (axis) {
+  case gamepad::axis::main:
+    cube_vel_.update({state.x.value, state.y.value});
+    break;
+
+  case gamepad::axis::rotational:
+  case gamepad::axis::HAT0:
+  case gamepad::axis::HAT2:
     break;
   }
 }

@@ -12,14 +12,17 @@
 
 #include <util/channel.hpp>
 
-#include <gamepad/types/axes_state.hpp>
 #include <gamepad/types/axis.hpp>
+#include <gamepad/types/axis_state.hpp>
 #include <gamepad/types/kyes.hpp>
 
 class evdev_gamepad {
 public:
   using key_handler = std::function<void(gamepad::key, bool)>;
-  using axes_state = gamepad::axes_state;
+  using axis2d_handler =
+      std::function<void(gamepad::axis, gamepad::axis2d_state)>;
+  using axis3d_handler =
+      std::function<void(gamepad::axis, gamepad::axis3d_state)>;
   evdev_gamepad(asio::io_context::executor_type io_executor,
       const std::filesystem::path& devnode);
 
@@ -31,7 +34,16 @@ public:
 
   void set_key_handler(const key_handler& val) { key_handler_ = val; }
   void set_key_handler(key_handler&& val) { key_handler_ = std::move(val); }
-  void set_axis_state(axes_state& state) noexcept { axis_state_ = &state; }
+
+  void set_axis_handler(const axis2d_handler& val) { axis2d_handler_ = val; }
+  void set_axis_handler(axis2d_handler&& val) {
+    axis2d_handler_ = std::move(val);
+  }
+
+  void set_axis_handler(const axis3d_handler& val) { axis3d_handler_ = val; }
+  void set_axis_handler(axis3d_handler&& val) {
+    axis3d_handler_ = std::move(val);
+  }
 
 private:
   asio::awaitable<void> watch_device(
@@ -40,5 +52,6 @@ private:
 private:
   asio::posix::stream_descriptor dev_;
   key_handler key_handler_;
-  axes_state* axis_state_ = nullptr;
+  axis2d_handler axis2d_handler_;
+  axis3d_handler axis3d_handler_;
 };

@@ -79,7 +79,8 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   wl::gui_shell shell{eloop};
 
   scene::controller controller;
-  udev_gamepads gamepads{std::ref(controller), controller.axes_state()};
+  udev_gamepads gamepads{
+      std::ref(controller), std::ref(controller), std::ref(controller)};
   auto contr_coro = asio::co_spawn(
       io_exec, gamepads.watch(io_exec), asio::experimental::use_promise);
 
