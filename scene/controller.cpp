@@ -45,7 +45,7 @@ void controller::operator()(gamepad::axis axis [[maybe_unused]],
 void controller::operator()(gamepad::axis axis, gamepad::axis3d_state state) {
   switch (axis) {
   case gamepad::axis::main:
-    cube_vel_.update({state.x.value, state.y.value});
+    cube_vel_.update(glm::vec2{-state.x.value, state.y.value} / 8000.f);
     break;
 
   case gamepad::axis::rotational:

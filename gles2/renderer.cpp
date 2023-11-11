@@ -179,8 +179,7 @@ void scene_renderer::draw(clock::time_point ts) {
           1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
       glm::vec3{.0, .0, 1.});
 
-  const auto cube_vel_raw = controller_.current_cube_vel();
-  const auto cube_vel = glm::vec2{-cube_vel_raw.x, cube_vel_raw.y} / 8000.f;
+  const auto cube_vel = controller_.current_cube_vel();
   cube_planar_movement_.cur_pos +=
       std::chrono::duration_cast<float_time::seconds>(
           ts - std::exchange(cube_planar_movement_.last_ts, ts))

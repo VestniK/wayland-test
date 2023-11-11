@@ -49,7 +49,7 @@ public:
   void operator()(gamepad::axis axis, gamepad::axis2d_state state);
   void operator()(gamepad::axis axis, gamepad::axis3d_state state);
 
-  glm::ivec2 current_cube_vel() const noexcept {
+  glm::vec2 current_cube_vel() const noexcept {
     return cube_vel_.get_current();
   }
 
@@ -59,7 +59,7 @@ public:
 
 private:
   value_update_channel<animate_to> cube_tex_offset_update_;
-  value_update_channel<glm::ivec2> cube_vel_;
+  value_update_channel<glm::vec2> cube_vel_;
 };
 
 } // namespace scene
