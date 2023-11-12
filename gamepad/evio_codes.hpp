@@ -92,7 +92,7 @@ constexpr auto evcode2axis(uint16_t evcode) noexcept {
     res = {.axis = HAT2, .dim = x};
     break;
   case ABS_HAT2Y:
-    res = {.axis = HAT2, .dim = x};
+    res = {.axis = HAT2, .dim = y};
     break;
   }
   return res;

@@ -39,8 +39,20 @@ void controller::operator()(gamepad::key key, bool pressed) {
   }
 }
 
-void controller::operator()(gamepad::axis axis [[maybe_unused]],
-    gamepad::axis2d_state state [[maybe_unused]]) {}
+void controller::operator()(gamepad::axis axis, gamepad::axis2d_state state) {
+  switch (axis) {
+  case gamepad::axis::HAT0:
+    camera_center_.update(
+        glm::vec2{state.x.value * 1.5 / (state.x.maximum - state.x.minimum),
+            -state.y.value * 1.5 / ((state.y.maximum - state.y.minimum))});
+    break;
+
+  case gamepad::axis::HAT2:
+  case gamepad::axis::main:
+  case gamepad::axis::rotational:
+    break;
+  }
+}
 
 void controller::operator()(gamepad::axis axis, gamepad::axis3d_state state) {
   switch (axis) {
@@ -49,6 +61,11 @@ void controller::operator()(gamepad::axis axis, gamepad::axis3d_state state) {
     break;
 
   case gamepad::axis::rotational:
+    camera_center_.update(
+        glm::vec2{state.x.value * 0.9 / (state.x.maximum - state.x.minimum),
+            -state.y.value * 0.6 / ((state.y.maximum - state.y.minimum))});
+    break;
+
   case gamepad::axis::HAT0:
   case gamepad::axis::HAT2:
     break;

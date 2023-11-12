@@ -163,8 +163,8 @@ void scene_renderer::resize(size sz) {
 }
 
 void scene_renderer::draw(clock::time_point ts) {
-  constexpr auto period = 3s;
-  constexpr auto spot_period = 27s;
+  constexpr auto period = 5s;
+  constexpr auto spot_period = 7s;
 
   const GLfloat spin_phase = (ts.time_since_epoch() % period).count() /
                              GLfloat(clock::duration{period}.count());
@@ -174,28 +174,20 @@ void scene_renderer::draw(clock::time_point ts) {
   const GLfloat spot_angle = 2 * M_PI * flyght_phase;
   const GLfloat angle = 2 * M_PI * spin_phase;
 
-  const glm::mat4 camera = glm::lookAt(glm::vec3{7, 10, 18},
-      glm::vec3{3 + 2 * std::cos(6 * M_PI * flyght_phase),
-          1 + 2 * std::sin(4 * M_PI * flyght_phase), 0},
+  const glm::mat4 camera = glm::lookAt(glm::vec3{7, 12, 18},
+      glm::vec3{
+          camera_center_integrator_(controller_.current_camera_center(), ts),
+          0},
       glm::vec3{.0, .0, 1.});
 
   const auto cube_vel = controller_.current_cube_vel();
-  cube_planar_movement_.cur_pos +=
-      std::chrono::duration_cast<float_time::seconds>(
-          ts - std::exchange(cube_planar_movement_.last_ts, ts))
-          .count() *
-      cube_vel;
-  cube_planar_movement_.cur_pos.x =
-      std::clamp(cube_planar_movement_.cur_pos.x, -4.f, 4.f);
-  cube_planar_movement_.cur_pos.y =
-      std::clamp(cube_planar_movement_.cur_pos.y, -4.f, 4.f);
+  const auto cube_planar_pos = cube_pos_integrator_(cube_vel, ts);
 
-  const glm::mat4 model = glm::translate(glm::mat4{1.},
-                              glm::vec3{cube_planar_movement_.cur_pos.x + 3.5,
-                                  cube_planar_movement_.cur_pos.y + 3.,
-                                  2. + std::cos(spot_angle)}) *
-                          glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
-                          glm::scale(glm::mat4{1.}, {.5, .5, .5});
+  const glm::mat4 model =
+      glm::translate(glm::mat4{1.},
+          glm::vec3{cube_planar_pos, 3. + 2. * std::cos(spot_angle)}) *
+      glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
+      glm::scale(glm::mat4{1.}, {.5, .5, .5});
 
   if (const auto tex_offset = controller_.cube_tex_offset_update())
     cube_tex_offset_.reset(ts, tex_offset.value());

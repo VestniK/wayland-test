@@ -53,6 +53,10 @@ public:
     return cube_vel_.get_current();
   }
 
+  glm::vec2 current_camera_center() const noexcept {
+    return camera_center_.get_current();
+  }
+
   std::optional<animate_to> cube_tex_offset_update() const noexcept {
     return cube_tex_offset_update_.get_update();
   }
@@ -60,6 +64,7 @@ public:
 private:
   value_update_channel<animate_to> cube_tex_offset_update_;
   value_update_channel<glm::vec2> cube_vel_;
+  value_update_channel<glm::vec2> camera_center_;
 };
 
 } // namespace scene
