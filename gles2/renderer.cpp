@@ -71,23 +71,23 @@ void apply_model_world_transformation(glm::mat4 transformation,
 } // namespace
 
 mesh::mesh(std::span<const vertex> verticies, std::span<const GLuint> indexes)
-    : ibo_{gen_buffer()}, vbo_{gen_buffer()},
+    : bufs_{gl::gen_buffers<2>()},
       triangles_count_{static_cast<unsigned>(indexes.size())} {
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
+  glBindBuffer(GL_ARRAY_BUFFER, vbo());
   glBufferData(GL_ARRAY_BUFFER, verticies.size_bytes(), verticies.data(),
       GL_STATIC_DRAW);
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo());
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size_bytes(), indexes.data(),
       GL_STATIC_DRAW);
 }
 
 void mesh::draw(shader_pipeline::attributes attrs) {
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_.get());
+  glBindBuffer(GL_ARRAY_BUFFER, vbo());
   attrs.position.set_pointer(&vertex::position);
   attrs.normal.set_pointer(&vertex::normal);
   attrs.uv.set_pointer(&vertex::uv);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_.get());
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo());
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
 
@@ -126,8 +126,7 @@ void shader_pipeline::draw(
 
 scene_renderer::scene_renderer(
     img::image cube_tex, img::image land_tex, const scene::controller& contr)
-    : cube_{cube_vertices, cube_idxs}, cube_tex_{gen_texture()},
-      land_tex_{gen_texture()}, controller_{contr} {
+    : cube_{cube_vertices, cube_idxs}, controller_{contr} {
   landscape land{centimeters{5}, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
@@ -136,7 +135,7 @@ scene_renderer::scene_renderer(
   glClearColor(0, 0, 0, .75);
 
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, cube_tex_.get());
+  glBindTexture(GL_TEXTURE_2D, tex_[0].native_handle());
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cube_tex.size().width,
       cube_tex.size().height, 0, GL_RGB, GL_UNSIGNED_BYTE,
       cube_tex.data().data());
@@ -146,7 +145,7 @@ scene_renderer::scene_renderer(
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
   glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, land_tex_.get());
+  glBindTexture(GL_TEXTURE_2D, tex_[1].native_handle());
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, land_tex.size().width,
       land_tex.size().height, 0, GL_RGB, GL_UNSIGNED_BYTE,
       land_tex.data().data());
@@ -195,9 +194,7 @@ void scene_renderer::draw(clock::time_point ts) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   pipeline_.start_rendering(projection_ * camera);
-  glActiveTexture(GL_TEXTURE0);
   pipeline_.draw(model, 0, cube_, cube_tex_offset_.animate(ts));
-  glActiveTexture(GL_TEXTURE1);
   pipeline_.draw(glm::mat4{1.}, 1, landscape_);
 
   glFlush();

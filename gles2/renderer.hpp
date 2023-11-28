@@ -52,11 +52,12 @@ public:
 
   void draw(shader_pipeline::attributes attrs);
 
-  constexpr explicit operator bool() const noexcept { return vbo_ && ibo_; };
+private:
+  GLuint vbo() const noexcept { return bufs_[0].native_handle(); }
+  GLuint ibo() const noexcept { return bufs_[1].native_handle(); }
 
 private:
-  buffer ibo_;
-  buffer vbo_;
+  gl::buffers<2> bufs_;
   unsigned triangles_count_ = 0;
 };
 
@@ -108,8 +109,7 @@ private:
   mesh landscape_;
   glm::mat4 projection_{};
 
-  texture cube_tex_;
-  texture land_tex_;
+  gl::textures<2> tex_ = gl::gen_textures<2>();
 
   const scene::controller& controller_;
 
