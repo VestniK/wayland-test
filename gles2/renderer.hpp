@@ -15,7 +15,8 @@
 
 #include <scene/controller.hpp>
 
-#include <gles2/gl_resource.hpp>
+#include <gles2/resource.hpp>
+#include <gles2/textures.hpp>
 
 struct vertex;
 class mesh;
@@ -31,8 +32,8 @@ public:
   shader_pipeline();
 
   void start_rendering(glm::mat4 camera);
-  void draw(
-      glm::mat4 model, int tex_idx, mesh& mesh, glm::vec2 tex_offset = {});
+  void draw(glm::mat4 model, gl::texture_sampler tex_idx, mesh& mesh,
+      glm::vec2 tex_offset = {});
 
 private:
   gl::shader_program shader_prog_;
@@ -40,7 +41,7 @@ private:
   gl::uniform_location<glm::mat4> model_world_uniform_;
   gl::uniform_location<glm::mat3> norm_world_uniform_;
   gl::uniform_location<glm::vec2> tex_offset_uniform_;
-  gl::uniform_location<GLint> texture_index_uniform_;
+  gl::uniform_location<gl::texture_sampler> texture_index_uniform_;
   attributes attributes_;
 };
 

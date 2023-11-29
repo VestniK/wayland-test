@@ -100,7 +100,8 @@ shader_pipeline::shader_pipeline()
   norm_world_uniform_ = shader_prog_.get_uniform<glm::mat3>("norm_rotation");
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
-  texture_index_uniform_ = shader_prog_.get_uniform<GLint>("texture_data");
+  texture_index_uniform_ =
+      shader_prog_.get_uniform<gl::texture_sampler>("texture_data");
   tex_offset_uniform_ = shader_prog_.get_uniform<glm::vec2>("tex_offset");
 
   shader_prog_.use();
@@ -115,8 +116,8 @@ void shader_pipeline::start_rendering(glm::mat4 camera) {
   camera_uniform_.set_value(camera);
 }
 
-void shader_pipeline::draw(
-    glm::mat4 model, int tex_idx, mesh& mesh, glm::vec2 tex_offset) {
+void shader_pipeline::draw(glm::mat4 model, gl::texture_sampler tex_idx,
+    mesh& mesh, glm::vec2 tex_offset) {
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
   tex_offset_uniform_.set_value(tex_offset);
@@ -134,25 +135,21 @@ scene_renderer::scene_renderer(
   glDepthFunc(GL_LESS);
   glClearColor(0, 0, 0, .75);
 
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, tex_[0].native_handle());
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cube_tex.size().width,
-      cube_tex.size().height, 0, GL_RGB, GL_UNSIGNED_BYTE,
-      cube_tex.data().data());
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  gl::samplers[0]
+      .bind(tex_[0])
+      .image_2d(cube_tex.size(), cube_tex.data())
+      .tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+      .tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+      .tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT)
+      .tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-  glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, tex_[1].native_handle());
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, land_tex.size().width,
-      land_tex.size().height, 0, GL_RGB, GL_UNSIGNED_BYTE,
-      land_tex.data().data());
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  gl::samplers[1]
+      .bind(tex_[1])
+      .image_2d(land_tex.size(), land_tex.data())
+      .tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+      .tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+      .tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT)
+      .tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
 }
 
 void scene_renderer::resize(size sz) {
@@ -194,8 +191,8 @@ void scene_renderer::draw(clock::time_point ts) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   pipeline_.start_rendering(projection_ * camera);
-  pipeline_.draw(model, 0, cube_, cube_tex_offset_.animate(ts));
-  pipeline_.draw(glm::mat4{1.}, 1, landscape_);
+  pipeline_.draw(model, gl::samplers[0], cube_, cube_tex_offset_.animate(ts));
+  pipeline_.draw(glm::mat4{1.}, gl::samplers[1], landscape_);
 
   glFlush();
 }

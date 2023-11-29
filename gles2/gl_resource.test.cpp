@@ -6,7 +6,7 @@
 #include <catch2/matchers/catch_matchers_container_properties.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 
-#include <gles2/gl_resource.hpp>
+#include <gles2/resource.hpp>
 
 using namespace Catch::Matchers;
 
@@ -105,3 +105,8 @@ TEST_CASE("array gl::resource") {
     REQUIRE(deleted_handles == std::vector<GLuint>{7, 8});
   }
 }
+
+static_assert(gl::resource_handle<scalar_handle>);
+static_assert(gl::scalar_resource_handle<scalar_handle>);
+static_assert(gl::resource_handle<array_handle>);
+static_assert(gl::array_resource_handle<array_handle>);
