@@ -30,8 +30,9 @@ shader compile(shader_type type, std::span<const char*> srcs) {
   return res;
 }
 
-shader_program link(shader_handle vertex, shader_handle fragment) {
-  shader_program res{shader_program_handle{glCreateProgram()}};
+resource<shader_program_handle> link(
+    shader_handle vertex, shader_handle fragment) {
+  resource<shader_program_handle> res{shader_program_handle{glCreateProgram()}};
   if (!res)
     throw std::runtime_error{"Failed to create GLSL program"};
   glAttachShader(res.native_handle(), vertex.native_handle());
@@ -55,12 +56,13 @@ shader_program link(shader_handle vertex, shader_handle fragment) {
   return res;
 }
 
-} // namespace gl
+shader_program::shader_program(shader_handle vertex, shader_handle fragment)
+    : resource<shader_program_handle>{link(vertex, fragment)} {}
 
 shader_program::shader_program(
     const char* vertex_shader_sources, const char* fragment_shader_sources)
-    : program_{link(
+    : shader_program{
           compile(gl::shader_type::vertex, vertex_shader_sources).get(),
-          compile(gl::shader_type::fragment, fragment_shader_sources).get())} {}
+          compile(gl::shader_type::fragment, fragment_shader_sources).get()} {}
 
-void shader_program::use() { glUseProgram(program_.native_handle()); }
+} // namespace gl

@@ -23,9 +23,9 @@ class mesh;
 class shader_pipeline {
 public:
   struct attributes {
-    attrib_location<glm::vec3> position;
-    attrib_location<glm::vec3> normal;
-    attrib_location<glm::vec2> uv;
+    gl::attrib_location<glm::vec3> position;
+    gl::attrib_location<glm::vec3> normal;
+    gl::attrib_location<glm::vec2> uv;
   };
 
   shader_pipeline();
@@ -35,12 +35,12 @@ public:
       glm::mat4 model, int tex_idx, mesh& mesh, glm::vec2 tex_offset = {});
 
 private:
-  shader_program shader_prog_;
-  uniform_location<glm::mat4> camera_uniform_;
-  uniform_location<glm::mat4> model_world_uniform_;
-  uniform_location<glm::mat3> norm_world_uniform_;
-  uniform_location<glm::vec2> tex_offset_uniform_;
-  uniform_location<GLint> texture_index_uniform_;
+  gl::shader_program shader_prog_;
+  gl::uniform_location<glm::mat4> camera_uniform_;
+  gl::uniform_location<glm::mat4> model_world_uniform_;
+  gl::uniform_location<glm::mat3> norm_world_uniform_;
+  gl::uniform_location<glm::vec2> tex_offset_uniform_;
+  gl::uniform_location<GLint> texture_index_uniform_;
   attributes attributes_;
 };
 

@@ -61,8 +61,8 @@ const GLuint cube_idxs[] = {
 // clang-format on
 
 void apply_model_world_transformation(glm::mat4 transformation,
-    uniform_location<glm::mat4> model_mat_uniform,
-    uniform_location<glm::mat3> normal_mat_uniform) {
+    gl::uniform_location<glm::mat4> model_mat_uniform,
+    gl::uniform_location<glm::mat3> normal_mat_uniform) {
   model_mat_uniform.set_value(transformation);
   normal_mat_uniform.set_value(
       glm::transpose(glm::inverse(glm::mat3(transformation))));
