@@ -160,43 +160,56 @@ void scene_renderer::resize(size sz) {
       glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f);
 }
 
+namespace {
+
+glm::mat4 animate_cube_pos(
+    glm::vec2 planar_pos, frames_clock::time_point ts) noexcept {
+  constexpr auto period = 5s;
+  constexpr auto flyght_period = 7s;
+
+  const GLfloat spin_phase = (ts.time_since_epoch() % period).count() /
+                             GLfloat(frames_clock::duration{period}.count());
+  const GLfloat flyght_phase =
+      (ts.time_since_epoch() % flyght_period).count() /
+      GLfloat(frames_clock::duration{flyght_period}.count());
+
+  const GLfloat angle = 2 * M_PI * spin_phase;
+
+  return glm::translate(
+             glm::mat4{1.}, glm::vec3{planar_pos,
+                                3. + 2. * std::cos(2 * M_PI * flyght_phase)}) *
+         glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
+         glm::scale(glm::mat4{1.}, {.5, .5, .5});
+}
+
+} // namespace
+
 void scene_renderer::draw(clock::time_point ts) {
   FrameMark;
   ZoneScopedN("render frame");
-  constexpr auto period = 5s;
-  constexpr auto spot_period = 7s;
-
-  const GLfloat spin_phase = (ts.time_since_epoch() % period).count() /
-                             GLfloat(clock::duration{period}.count());
-  const GLfloat flyght_phase = (ts.time_since_epoch() % spot_period).count() /
-                               GLfloat(clock::duration{spot_period}.count());
-
-  const GLfloat spot_angle = 2 * M_PI * flyght_phase;
-  const GLfloat angle = 2 * M_PI * spin_phase;
-
-  const glm::mat4 camera = glm::lookAt(glm::vec3{7, 12, 18},
-      glm::vec3{
-          camera_center_integrator_(controller_.current_camera_center(), ts),
-          0},
-      glm::vec3{.0, .0, 1.});
-
+  // fetch phases
   const auto cube_vel = controller_.current_cube_vel();
-  const auto cube_planar_pos = cube_pos_integrator_(cube_vel, ts);
+  const auto camera_center_vel = controller_.current_camera_center();
 
-  const glm::mat4 model =
-      glm::translate(glm::mat4{1.},
-          glm::vec3{cube_planar_pos, 3. + 2. * std::cos(spot_angle)}) *
-      glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
-      glm::scale(glm::mat4{1.}, {.5, .5, .5});
-
+  // fetch animations
   if (const auto tex_offset = controller_.cube_tex_offset_update())
     cube_tex_offset_.reset(ts, tex_offset.value());
+
+  // calculate uniforms
+  const glm::mat4 model =
+      animate_cube_pos(cube_pos_integrator_(cube_vel, ts), ts);
+
+  const glm::mat4 camera =
+      projection_ *
+      glm::lookAt(glm::vec3{7, 12, 18},
+          glm::vec3{camera_center_integrator_(camera_center_vel, ts), 0},
+          glm::vec3{.0, .0, 1.});
 
   {
     ZoneScopedN("draw calls");
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    pipeline_.start_rendering(projection_ * camera);
+    pipeline_.start_rendering(camera);
     pipeline_.draw(model, gl::samplers[0], cube_, cube_tex_offset_.animate(ts));
     pipeline_.draw(glm::mat4{1.}, gl::samplers[1], landscape_);
   }
