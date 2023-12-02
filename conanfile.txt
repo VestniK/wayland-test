@@ -6,6 +6,7 @@ asio/1.28.1
 spdlog/1.12.0
 libpng/1.6.40
 ms-gsl/4.0.0
+tracy/0.10
 
 [options]
 

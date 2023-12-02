@@ -3,6 +3,8 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
+#include <tracy/Tracy.hpp>
+
 #include <scene/landscape.hpp>
 #include <scene/mesh_data.hpp>
 
@@ -159,6 +161,8 @@ void scene_renderer::resize(size sz) {
 }
 
 void scene_renderer::draw(clock::time_point ts) {
+  FrameMark;
+  ZoneScopedN("render frame");
   constexpr auto period = 5s;
   constexpr auto spot_period = 7s;
 
@@ -188,11 +192,17 @@ void scene_renderer::draw(clock::time_point ts) {
   if (const auto tex_offset = controller_.cube_tex_offset_update())
     cube_tex_offset_.reset(ts, tex_offset.value());
 
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  {
+    ZoneScopedN("draw calls");
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  pipeline_.start_rendering(projection_ * camera);
-  pipeline_.draw(model, gl::samplers[0], cube_, cube_tex_offset_.animate(ts));
-  pipeline_.draw(glm::mat4{1.}, gl::samplers[1], landscape_);
+    pipeline_.start_rendering(projection_ * camera);
+    pipeline_.draw(model, gl::samplers[0], cube_, cube_tex_offset_.animate(ts));
+    pipeline_.draw(glm::mat4{1.}, gl::samplers[1], landscape_);
+  }
 
-  glFlush();
+  {
+    ZoneScopedN("glFlush");
+    glFlush();
+  }
 }
