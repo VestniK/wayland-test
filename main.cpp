@@ -1,4 +1,4 @@
-#include <fstream>
+#include <iostream>
 #include <span>
 
 #include <fmt/format.h>
@@ -13,7 +13,7 @@
 #include <asio/experimental/use_promise.hpp>
 #include <asio/static_thread_pool.hpp>
 
-#include <util/get_option.hpp>
+#include <util/struct_args.hpp>
 #include <util/xdg.hpp>
 
 #include <gamepad/udev_gamepads.hpp>
@@ -51,6 +51,13 @@ asio::awaitable<img::image> load(std::filesystem::path path) {
   co_return img::load(in);
 }
 
+struct opts {
+  const char* display = args::option<const char*>{"-d", "--display",
+      "Specify wayland display. Current session default is used if nothing is "
+      "specified."}
+                            .default_value(nullptr);
+};
+
 } // namespace
 
 namespace co {
@@ -60,12 +67,12 @@ unsigned min_threads = 3;
 asio::awaitable<int> main(asio::io_context::executor_type io_exec,
     asio::thread_pool::executor_type pool_exec, std::span<char*> args) {
   if (get_flag(args, "-h")) {
-    fmt::print("Usage: {} [-d DISPLAY]\n"
-               "\t-d DISPLAY\tSpecify wayland display. Current session default "
-               "is used if nothing is specified.\n",
-        args[0]);
+    args::usage<opts>(args[0], std::cout);
+    std::cout << '\n';
+    args::args_help<opts>(std::cout);
     co_return EXIT_SUCCESS;
   }
+  const auto opt = args::parse<opts>(args);
   setup_logger();
 
   auto cube_tex =
@@ -75,7 +82,7 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
       asio::co_spawn(pool_exec, load(xdg::find_data("resources/grass-tex.png")),
           asio::experimental::use_promise);
 
-  event_loop eloop{get_option(args, "-d")};
+  event_loop eloop{opt.display};
   wl::gui_shell shell{eloop};
 
   scene::controller controller;
