@@ -202,8 +202,9 @@ private:
 
 } // namespace
 
-TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks", "[bench]",
-    mutex_value_update_channel<int>, value_update_channel<int>) {
+TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks",
+    "[!benchmark]", mutex_value_update_channel<int>,
+    value_update_channel<int>) {
   TestType channel;
 
   BENCHMARK_ADVANCED("check for empty update without thread contention")
