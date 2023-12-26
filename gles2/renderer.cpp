@@ -198,6 +198,7 @@ void scene_renderer::draw(clock::time_point ts) {
   // calculate uniforms
   const glm::mat4 model =
       animate_cube_pos(cube_pos_integrator_(cube_vel, ts), ts);
+  const glm::vec2 cube_tex_offset = cube_tex_offset_.animate(ts);
 
   const glm::mat4 camera =
       projection_ *
@@ -210,7 +211,7 @@ void scene_renderer::draw(clock::time_point ts) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     pipeline_.start_rendering(camera);
-    pipeline_.draw(model, gl::samplers[0], cube_, cube_tex_offset_.animate(ts));
+    pipeline_.draw(model, gl::samplers[0], cube_, cube_tex_offset);
     pipeline_.draw(glm::mat4{1.}, gl::samplers[1], landscape_);
   }
 
