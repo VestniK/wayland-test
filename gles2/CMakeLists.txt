@@ -1,4 +1,4 @@
-add_subdirectory(shaders)
+include(target_shaders)
 
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
@@ -12,7 +12,6 @@ cpp_unit(
   LIBS
     util
     scene
-    shaders
     OpenGL::OpenGL
     glm::glm
     Tracy::TracyClient
@@ -21,6 +20,10 @@ cpp_unit(
     Catch2::Catch2WithMain
     fmt::fmt
   TEST_ARGS --order rand --rng-seed time
+)
+target_shaders(gles2 shaders
+  shaders/basic_vert.glsl
+  shaders/basic_frag.glsl
 )
 
 option(TRACY_ENABLE "Enable tracy telemetry" Off)

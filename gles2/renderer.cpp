@@ -9,7 +9,7 @@
 #include <scene/mesh_data.hpp>
 
 #include <gles2/renderer.hpp>
-#include <gles2/shaders/shaders.hpp>
+#include <gles2/shaders.hpp>
 
 using namespace std::literals;
 
