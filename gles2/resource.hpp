@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <string_view>
 #include <utility>
 
 #include <GLES2/gl2.h>
@@ -60,7 +61,8 @@ enum class shader_type : GLenum {
   fragment = GL_FRAGMENT_SHADER
 };
 shader compile(shader_type type, const char* src);
-shader compile(shader_type type, std::span<const char*> srcs);
+shader compile(shader_type type, std::span<const char* const> srcs);
+shader compile(shader_type type, std::string_view src);
 
 // shader program
 using shader_program_handle = basic_handle<handle_type::shader_program>;
@@ -76,6 +78,10 @@ public:
   explicit shader_program(shader_handle vertex, shader_handle fragment);
   explicit shader_program(
       const char* vertex_shader_sources, const char* fragment_shader_sources);
+  explicit shader_program(std::span<const char* const> vertex_shader_sources,
+      std::span<const char* const> fragment_shader_sources);
+  explicit shader_program(std::string_view vertex_shader_sources,
+      std::string_view fragment_shader_sources);
 
   void use() { glUseProgram(native_handle()); }
 
