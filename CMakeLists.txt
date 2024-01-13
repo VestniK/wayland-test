@@ -22,6 +22,7 @@ FetchContent_Declare(
   OVERRIDE_FIND_PACKAGE
 )
 
+add_subdirectory(testing)
 add_subdirectory(corort)
 add_subdirectory(util)
 add_subdirectory(gamepad)
