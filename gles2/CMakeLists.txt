@@ -21,9 +21,11 @@ cpp_unit(
     fmt::fmt
   TEST_ARGS --order rand --rng-seed time
 )
-target_shaders(gles2 shaders
-  shaders/basic_vert.glsl
-  shaders/basic_frag.glsl
+target_shaders(gles2
+  INCLUDE_DIR shaders
+  SOURCES
+    shaders/basic_vert.glsl
+    shaders/basic_frag.glsl
 )
 
 option(TRACY_ENABLE "Enable tracy telemetry" Off)
