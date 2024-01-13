@@ -94,7 +94,7 @@ void mesh::draw(shader_pipeline::attributes attrs) {
 }
 
 shader_pipeline::shader_pipeline()
-    : shader_prog_{shaders::main_vert, shaders::main_frag},
+    : shader_prog_{shaders::basic_vert, shaders::basic_frag},
       attributes_{.position = shader_prog_.get_attrib<glm::vec3>("position"),
           .normal = shader_prog_.get_attrib<glm::vec3>("normal"),
           .uv = shader_prog_.get_attrib<glm::vec2>("uv")} {

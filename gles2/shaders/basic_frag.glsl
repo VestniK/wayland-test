@@ -1,7 +1,7 @@
 #version 100
 precision mediump float;
 
-@include(phong.frag)
+@include "phong.frag"
 
 uniform light_source light;
 uniform mat4 model;
