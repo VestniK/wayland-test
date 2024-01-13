@@ -19,6 +19,8 @@
 namespace fs = std::filesystem;
 using namespace std::literals;
 
+namespace {
+
 struct opts {
   std::vector<fs::path> input = args::option<std::vector<fs::path>>(
       "-i", "--input", "input GLSL shader file to process");
@@ -49,19 +51,86 @@ std::ofstream ofopen(const fs::path& path) {
   return out;
 }
 
-void include_content(std::ostream& out, const fs::path& file) {
-  auto in = ifopen(file);
-  std::copy(std::istreambuf_iterator{in.rdbuf()}, {},
-      std::ostreambuf_iterator{out.rdbuf()});
-  out << '\n';
-}
-
 std::string filename_without_extensions(const fs::path& path) {
   auto res = path.filename();
   while (res.has_extension())
     res.replace_extension();
   return res;
 }
+
+struct shaders {
+  std::vector<std::string> strings;
+  std::map<std::string, std::vector<size_t>> inputs;
+};
+
+shaders split_shaders(std::span<const fs::path> inputs, const fs::path& incdir,
+    std::optional<std::ofstream>& depfile) {
+  auto resolver = [&](const std::filesystem::path& inc) {
+    const auto resolved = incdir / inc;
+    if (depfile)
+      depfile.value() << ' ' << fs::absolute(resolved).string();
+    return ifopen(resolved);
+  };
+
+  shaders res;
+  shader_pieces_builder builder;
+  for (const auto& input : inputs) {
+    std::ifstream in = ifopen(input);
+    res.inputs[filename_without_extensions(input)] =
+        builder.parse_shader(in, resolver);
+  }
+  res.strings = std::move(builder).finish();
+  return res;
+}
+
+void write_src(const shaders& shaders, const fs::path& output) {
+  std::ofstream out = ofopen(output);
+
+  out << "#include <span>\n\n";
+  out << "namespace shaders {\n\n";
+  out << "namespace {\n";
+
+  fmt::print(out, R"FMT(
+constexpr const char* shader_strings[] = {{
+  {}
+}};
+)FMT",
+      fmt::join(shaders.strings | std::views::transform([](auto&& v) {
+        return fmt::format("R\"GLSL({})GLSL\"", v);
+      }),
+          ",\n\n  "));
+
+  for (const auto& [name, idxs] : shaders.inputs) {
+    fmt::print(out, R"FMT(
+constexpr const char* {}_arr[] = {{{}}};
+)FMT",
+        name,
+        fmt::join(idxs | std::views::transform([](size_t i) {
+          return fmt::format("shader_strings[{}]", i);
+        }),
+            ", "));
+  }
+
+  out << "\n} // namespace\n\n";
+
+  for (const auto& [name, _] : shaders.inputs) {
+    fmt::print(out, "std::span<const char* const> {0}{{{0}_arr}};\n", name);
+  }
+
+  out << "\n} // namespace shaders\n";
+}
+
+void write_hdr(const shaders& shaders, const fs::path& output) {
+  auto out = ofopen(output);
+  out << "#include <span>\n\n";
+  out << "namespace shaders {\n\n";
+  for (const auto& [name, _] : shaders.inputs) {
+    fmt::print(out, "extern std::span<const char* const> {0};\n", name);
+  }
+  out << "\n} // namespace shaders\n";
+}
+
+} // namespace
 
 int main(int argc, char** argv) {
   std::span<char*> args{argv, static_cast<size_t>(argc)};
@@ -77,64 +146,10 @@ int main(int argc, char** argv) {
     res << opts.output.string() << ':';
     return res;
   });
-  std::ofstream out = ofopen(opts.output);
 
-  auto resolver = [&](const std::filesystem::path& inc) {
-    const auto resolved = opts.incdir / inc;
-    if (depfile)
-      depfile.value() << ' ' << fs::absolute(resolved).string();
-    return ifopen(resolved);
-  };
-  shader_pieces_builder builder;
-
-  std::map<std::string, std::vector<size_t>> inputs;
-  for (const auto& input : opts.input) {
-    std::ifstream in = ifopen(input);
-    inputs[filename_without_extensions(input)] =
-        builder.parse_shader(in, resolver);
-  }
-  const auto strings = std::move(builder).finish();
-
-  out << "#include <span>\n\n";
-  out << "namespace shaders {\n\n";
-  out << "namespace {\n";
-
-  fmt::print(out, R"FMT(
-constexpr const char* shader_strings[] = {{
-  {}
-}};
-)FMT",
-      fmt::join(strings | std::views::transform([](auto&& v) {
-        return fmt::format("R\"GLSL({})GLSL\"", v);
-      }),
-          ",\n\n  "));
-
-  for (const auto& [name, idxs] : inputs) {
-    fmt::print(out, R"FMT(
-constexpr const char* {}_arr[] = {{{}}};
-)FMT",
-        name,
-        fmt::join(idxs | std::views::transform([](size_t i) {
-          return fmt::format("shader_strings[{}]", i);
-        }),
-            ", "));
-  }
-
-  out << "\n} // namespace\n\n";
-
-  for (const auto& [name, _] : inputs) {
-    fmt::print(out, "std::span<const char* const> {0}{{{0}_arr}};\n", name);
-  }
-
-  out << "\n} // namespace shaders\n";
-
-  out = ofopen(opts.header);
-  out << "#include <span>\n\n";
-  out << "namespace shaders {\n\n";
-  for (const auto& [name, _] : inputs) {
-    fmt::print(out, "extern std::span<const char* const> {0};\n", name);
-  }
-  out << "\n} // namespace shaders\n";
+  const auto spltted = split_shaders(opts.input, opts.incdir, depfile);
+  write_src(spltted, opts.output);
+  write_hdr(spltted, opts.header);
 
   if (depfile)
     depfile.value() << '\n';
