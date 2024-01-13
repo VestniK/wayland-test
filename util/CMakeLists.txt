@@ -14,5 +14,5 @@ cpp_unit(
   TEST_ARGS --order rand --rng-seed time
 )
 
-target_compile_options(util PUBLIC -Wno-error=interference-size)
+target_compile_options(util PUBLIC -Wno-error=interference-size -Wno-interference-size)
 
