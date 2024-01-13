@@ -73,7 +73,8 @@ public:
   usage_parser(std::ostream& out) noexcept : out_{out} {}
 
   const char* get_option(const option_info& opt) override {
-    out_ << " [" << opt.long_name << " VAL]";
+    out_ << " [" << (opt.short_name.empty() ? opt.long_name : opt.short_name)
+         << " VAL]";
     return nullptr;
   }
   const char* get_required_option(const option_info& opt) override {
@@ -85,6 +86,13 @@ public:
 private:
   std::ostream& out_;
 };
+
+template <typename T>
+concept sequential_container =
+    std::ranges::forward_range<T> && std::default_initializable<T> &&
+    requires(T& t, std::ranges::range_value_t<T> val) {
+      { t.push_back(std::move(val)) };
+    };
 
 } // namespace detail
 
@@ -107,10 +115,17 @@ public:
   }
 
   operator T() const {
-    const char* val = default_
-                          ? detail::current_parser->get_option(*this)
-                          : detail::current_parser->get_required_option(*this);
-    return val ? T{val} : default_.value_or(T{});
+    if constexpr (detail::sequential_container<T>) {
+      T res;
+      while (const char* argval = detail::current_parser->get_option(*this))
+        res.push_back(std::ranges::range_value_t<T>{argval});
+      return res;
+    } else {
+      const char* val =
+          default_ ? detail::current_parser->get_option(*this)
+                   : detail::current_parser->get_required_option(*this);
+      return val ? T{val} : default_.value_or(T{});
+    }
   }
 
 private:
