@@ -1,8 +1,0 @@
-cxx_library(
-  name = "corort",
-  headers = glob(["*.hpp"], exclude = ["*.test.hpp"]),
-  srcs = glob(["*.cpp"], exclude = ["*.test.cpp"]),
-  deps = ["//.buck/contrib/conan:asio", "//.buck/contrib/conan:fmt"],
-  visibility = ["PUBLIC"],
-)
-
