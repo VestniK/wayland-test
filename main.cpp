@@ -9,6 +9,7 @@
 
 #include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
+#include <asio/experimental/awaitable_operators.hpp>
 #include <asio/experimental/promise.hpp>
 #include <asio/experimental/use_promise.hpp>
 #include <asio/static_thread_pool.hpp>
@@ -31,6 +32,7 @@
 #include <img/load.hpp>
 
 using namespace std::literals;
+using namespace asio::experimental::awaitable_operators;
 
 namespace {
 
@@ -49,6 +51,42 @@ void setup_logger() {
 asio::awaitable<img::image> load(std::filesystem::path path) {
   auto in = thinsys::io::open(path, thinsys::io::mode::read_only);
   co_return img::load(in);
+}
+
+asio::awaitable<void> draw_scene(asio::io_context::executor_type io_exec,
+    asio::thread_pool::executor_type pool_exec,
+    const scene::controller& controller, const char* wl_display) {
+  auto cube_tex =
+      asio::co_spawn(pool_exec, load(xdg::find_data("resources/cube-tex.png")),
+          asio::experimental::use_promise);
+  auto land_tex =
+      asio::co_spawn(pool_exec, load(xdg::find_data("resources/grass-tex.png")),
+          asio::experimental::use_promise);
+
+  event_loop eloop{wl_display};
+  wl::gui_shell shell{eloop};
+
+  gles_window wnd{eloop, pool_exec,
+      co_await shell.create_maximized_window(eloop, io_exec),
+      make_render_func<scene_renderer>(co_await std::move(cube_tex),
+          co_await std::move(land_tex), std::cref(controller))};
+
+  co_await eloop.dispatch_while(io_exec, [&] {
+    if (auto ec = shell.check()) {
+      spdlog::error("Wayland services state error: {}", ec.message());
+      return false;
+    }
+    return !wnd.is_closed();
+  });
+
+  spdlog::debug("window is closed exit the app");
+}
+
+asio::awaitable<void> handle_user_input(
+    asio::io_context::executor_type io_exec, scene::controller& controller) {
+  udev_gamepads gamepads{
+      std::ref(controller), std::ref(controller), std::ref(controller)};
+  co_await gamepads.watch(io_exec);
 }
 
 struct opts {
@@ -75,36 +113,10 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   const auto opt = args::parse<opts>(args);
   setup_logger();
 
-  auto cube_tex =
-      asio::co_spawn(pool_exec, load(xdg::find_data("resources/cube-tex.png")),
-          asio::experimental::use_promise);
-  auto land_tex =
-      asio::co_spawn(pool_exec, load(xdg::find_data("resources/grass-tex.png")),
-          asio::experimental::use_promise);
-
-  event_loop eloop{opt.display};
-  wl::gui_shell shell{eloop};
-
   scene::controller controller;
-  udev_gamepads gamepads{
-      std::ref(controller), std::ref(controller), std::ref(controller)};
-  auto contr_coro = asio::co_spawn(
-      io_exec, gamepads.watch(io_exec), asio::experimental::use_promise);
+  co_await (draw_scene(io_exec, pool_exec, controller, opt.display) ||
+            handle_user_input(io_exec, controller));
 
-  gles_window wnd{eloop, pool_exec,
-      co_await shell.create_maximized_window(eloop, io_exec),
-      make_render_func<scene_renderer>(co_await std::move(cube_tex),
-          co_await std::move(land_tex), std::cref(controller))};
-
-  co_await eloop.dispatch_while(io_exec, [&] {
-    if (auto ec = shell.check()) {
-      spdlog::error("Wayland services state error: {}", ec.message());
-      return false;
-    }
-    return !wnd.is_closed();
-  });
-
-  spdlog::debug("window is closed exit the app");
   co_return EXIT_SUCCESS;
 }
 
