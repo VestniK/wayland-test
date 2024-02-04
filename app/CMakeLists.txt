@@ -1,6 +1,7 @@
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(asio REQUIRED)
 
 find_package(PkgConfig)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
@@ -9,6 +10,7 @@ cpp_unit(
   NAME wayland-test
   STD cxx_std_23
   LIBS
+    asio::asio
     spdlog::spdlog
     PkgConfig::SYSTEMD
     wlwnd

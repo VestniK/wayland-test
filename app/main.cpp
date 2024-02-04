@@ -1,93 +1,24 @@
 #include <iostream>
 #include <span>
 
-#include <fmt/format.h>
-#include <spdlog/cfg/env.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/systemd_sink.h>
 #include <spdlog/spdlog.h>
 
 #include <asio/awaitable.hpp>
-#include <asio/co_spawn.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
-#include <asio/experimental/promise.hpp>
-#include <asio/experimental/use_promise.hpp>
 #include <asio/static_thread_pool.hpp>
 
 #include <util/struct_args.hpp>
-#include <util/xdg.hpp>
-
-#include <gamepad/udev_gamepads.hpp>
-
-#include <gles2/renderer.hpp>
 
 #include <scene/controller.hpp>
 
-#include <xdg-shell.h>
-
-#include <wayland/event_loop.hpp>
-#include <wayland/gles_window.hpp>
-#include <wayland/gui_shell.hpp>
-
-#include <img/load.hpp>
+#include <app/draw_scene.hpp>
+#include <app/listen_gamepad.hpp>
+#include <app/setup_logger.hpp>
 
 using namespace std::literals;
 using namespace asio::experimental::awaitable_operators;
 
 namespace {
-
-void setup_logger() {
-  auto journald =
-      std::make_shared<spdlog::sinks::systemd_sink_mt>("wayland-test", true);
-  spdlog::default_logger()->sinks() = {journald};
-#if !defined(NDEBUG)
-  auto term = std::make_shared<spdlog::sinks::stderr_color_sink_mt>(
-      spdlog::color_mode::automatic);
-  spdlog::default_logger()->sinks().push_back(term);
-#endif
-  spdlog::cfg::load_env_levels();
-}
-
-asio::awaitable<img::image> load(std::filesystem::path path) {
-  auto in = thinsys::io::open(path, thinsys::io::mode::read_only);
-  co_return img::load(in);
-}
-
-asio::awaitable<void> draw_scene(asio::io_context::executor_type io_exec,
-    asio::thread_pool::executor_type pool_exec,
-    const scene::controller& controller, const char* wl_display) {
-  auto cube_tex =
-      asio::co_spawn(pool_exec, load(xdg::find_data("resources/cube-tex.png")),
-          asio::experimental::use_promise);
-  auto land_tex =
-      asio::co_spawn(pool_exec, load(xdg::find_data("resources/grass-tex.png")),
-          asio::experimental::use_promise);
-
-  event_loop eloop{wl_display};
-  wl::gui_shell shell{eloop};
-
-  gles_window wnd{eloop, pool_exec,
-      co_await shell.create_maximized_window(eloop, io_exec),
-      make_render_func<scene_renderer>(co_await std::move(cube_tex),
-          co_await std::move(land_tex), std::cref(controller))};
-
-  co_await eloop.dispatch_while(io_exec, [&] {
-    if (auto ec = shell.check()) {
-      spdlog::error("Wayland services state error: {}", ec.message());
-      return false;
-    }
-    return !wnd.is_closed();
-  });
-
-  spdlog::debug("window is closed exit the app");
-}
-
-asio::awaitable<void> handle_user_input(
-    asio::io_context::executor_type io_exec, scene::controller& controller) {
-  udev_gamepads gamepads{
-      std::ref(controller), std::ref(controller), std::ref(controller)};
-  co_await gamepads.watch(io_exec);
-}
 
 struct opts {
   const char* display = args::option<const char*>{"-d", "--display",
@@ -115,7 +46,7 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
 
   scene::controller controller;
   co_await (draw_scene(io_exec, pool_exec, controller, opt.display) ||
-            handle_user_input(io_exec, controller));
+            listen_gamepad(io_exec, controller));
 
   co_return EXIT_SUCCESS;
 }
