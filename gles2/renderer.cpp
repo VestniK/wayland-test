@@ -3,7 +3,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
-#include <tracy/Tracy.hpp>
+#include <Tracy/tracy/Tracy.hpp>
 
 #include <scene/landscape.hpp>
 #include <scene/mesh_data.hpp>
