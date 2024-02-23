@@ -12,20 +12,19 @@
 namespace co {
 
 extern asio::awaitable<int> main(asio::io_context::executor_type io_exec,
-                                 asio::thread_pool::executor_type pool_exec,
-                                 std::span<char *> args);
+    asio::thread_pool::executor_type pool_exec, std::span<char*> args);
 extern unsigned min_threads;
 
 } // namespace co
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   asio::io_service io;
   asio::static_thread_pool pool{
       std::max(co::min_threads, std::thread::hardware_concurrency()) - 1};
 
   std::variant<std::monostate, int, std::exception_ptr> rc;
-  asio::co_spawn(
-      io, co::main(io.get_executor(), pool.get_executor(), {argv, argv + argc}),
+  asio::co_spawn(io,
+      co::main(io.get_executor(), pool.get_executor(), {argv, argv + argc}),
       [&rc](std::exception_ptr err, int ec) {
         if (err)
           rc = std::move(err);

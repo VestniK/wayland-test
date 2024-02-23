@@ -9,14 +9,14 @@
 class task_guard {
 public:
   template <typename F>
-  requires std::is_invocable_v<F, std::stop_token>
-  task_guard(asio::static_thread_pool::executor_type exec, F &&task) {
-    asio::post(exec,
-               [task = std::forward<F>(task), tok = stop_sorce_.get_token(),
-                &done_flag = done_flag_]() mutable {
-                 task(std::move(tok));
-                 done_flag.count_down();
-               });
+    requires std::is_invocable_v<F, std::stop_token>
+  task_guard(asio::static_thread_pool::executor_type exec, F&& task) {
+    asio::post(
+        exec, [task = std::forward<F>(task), tok = stop_sorce_.get_token(),
+                  &done_flag = done_flag_]() mutable {
+          task(std::move(tok));
+          done_flag.count_down();
+        });
   }
 
   ~task_guard() noexcept {

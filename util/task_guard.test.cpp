@@ -41,8 +41,8 @@ SCENARIO("task guard") {
     }
 
     WHEN("worker function stops") {
-      task_guard task{executors_environment::pool_executor(),
-                      [](std::stop_token) {}};
+      task_guard task{
+          executors_environment::pool_executor(), [](std::stop_token) {}};
       executors_environment::wait_pool_tasks_done();
       THEN("task is done") { REQUIRE(task.is_finished() == true); }
     }

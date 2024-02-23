@@ -79,6 +79,7 @@ public:
   clamped_integrator(bounding_box bounds, glm::vec2 start_val,
       frames_clock::time_point start_time) noexcept
       : bounds_{bounds}, current_{start_val}, last_ts_{start_time} {}
+
   glm::vec2 operator()(
       glm::vec2 velocity, frames_clock::time_point ts) noexcept {
     current_ += velocity * std::chrono::duration_cast<float_time::seconds>(

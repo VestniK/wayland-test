@@ -19,8 +19,8 @@ TEST_CASE("get_option") {
   char arg4[] = "wayland-1";
   char arg5[] = "-m";
   char arg6[] = "msk";
-  char *args_arr[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
-  std::span<char *> args = args_arr;
+  char* args_arr[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
+  std::span<char*> args = args_arr;
 
   SECTION("returns nullptr when there is no requested option") {
     REQUIRE(get_option(args, "-s") == nullptr);
@@ -35,7 +35,7 @@ TEST_CASE("get_option") {
   }
   SECTION("returns repeating options preserving order") {
     arg_views maps;
-    while (const char *map = get_option(args, "-m"))
+    while (const char* map = get_option(args, "-m"))
       maps.push_back(map);
     REQUIRE(maps == arg_views{{"nsk"sv, "msk"sv}});
   }

@@ -6,21 +6,26 @@
 
 using namespace fmt::literals;
 
-template <typename Per> struct prefix;
+template <typename Per>
+struct prefix;
 
-template <> struct prefix<std::ratio<1>> {
-  static constexpr const char *value = "";
+template <>
+struct prefix<std::ratio<1>> {
+  static constexpr const char* value = "";
 };
 
-template <> struct prefix<std::centi> {
-  static constexpr const char *value = "centi";
+template <>
+struct prefix<std::centi> {
+  static constexpr const char* value = "centi";
 };
 
-template <> struct prefix<std::milli> {
-  static constexpr const char *value = "milli";
+template <>
+struct prefix<std::milli> {
+  static constexpr const char* value = "milli";
 };
 
-template <typename Per> constexpr const char *prefix_v = prefix<Per>::value;
+template <typename Per>
+constexpr const char* prefix_v = prefix<Per>::value;
 
 namespace Catch {
 
@@ -55,8 +60,8 @@ template <typename L, typename R, typename = void>
 struct can_multiply : std::false_type {};
 
 template <typename L, typename R>
-struct can_multiply<
-    L, R, std::void_t<decltype(std::declval<L>() * std::declval<R>())>>
+struct can_multiply<L, R,
+    std::void_t<decltype(std::declval<L>() * std::declval<R>())>>
     : std::true_type {};
 
 template <typename L, typename R>
@@ -72,7 +77,7 @@ struct can_divide : std::false_type {};
 
 template <typename L, typename R>
 struct can_divide<L, R,
-                  std::void_t<decltype(std::declval<L>() / std::declval<R>())>>
+    std::void_t<decltype(std::declval<L>() / std::declval<R>())>>
     : std::true_type {};
 
 template <typename L, typename R>

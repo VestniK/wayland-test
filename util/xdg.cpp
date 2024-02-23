@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 namespace xdg {
 
 fs::path config_home() {
-  const char *env = ::getenv("XDG_CONFIG_HOME");
+  const char* env = ::getenv("XDG_CONFIG_HOME");
   if (env && *env != 0)
     return env;
 
@@ -25,11 +25,11 @@ fs::path find_config(fs::path relative) {
   if (fs::exists(user_cfg))
     return user_cfg;
 
-  const char *env = ::getenv("XDG_CONFIG_DIRS");
+  const char* env = ::getenv("XDG_CONFIG_DIRS");
   if (!env || *env == 0)
     env = "/etc/xdg";
 
-  for (const char *p = env; *p != 0; ++p) {
+  for (const char* p = env; *p != 0; ++p) {
     if (*p != ':')
       continue;
     const auto candidate = fs::path{env, p} / relative;
@@ -43,7 +43,7 @@ fs::path find_config(fs::path relative) {
 
 // TODO: уменьшить копипасту
 fs::path cache_home() {
-  const char *env = ::getenv("XDG_CACHE_HOME");
+  const char* env = ::getenv("XDG_CACHE_HOME");
   if (env && *env != 0)
     return env;
 
@@ -61,7 +61,7 @@ fs::path find_cache(fs::path relative) {
 }
 
 fs::path data_home() {
-  const char *env = ::getenv("XDG_DATA_HOME");
+  const char* env = ::getenv("XDG_DATA_HOME");
   if (env && *env != 0)
     return env;
 
@@ -80,11 +80,11 @@ fs::path find_data(fs::path relative) {
   if (fs::exists(user_cfg))
     return user_cfg;
 
-  const char *env = ::getenv("XDG_DATA_DIRS");
+  const char* env = ::getenv("XDG_DATA_DIRS");
   if (!env || *env == 0)
     env = "/usr/local/share/:/usr/share/";
 
-  for (const char *p = env; *p != 0; ++p) {
+  for (const char* p = env; *p != 0; ++p) {
     if (*p != ':')
       continue;
     const auto candidate = fs::path{env, p} / relative;

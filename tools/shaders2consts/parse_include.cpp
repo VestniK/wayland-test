@@ -18,7 +18,7 @@ constexpr std::string_view rtrim(std::string_view in) noexcept {
   return std::string_view{in.begin(), it.base()};
 }
 
-} // namespace detail
+} // namespace
 
 std::expected<std::filesystem::path, include_parse_error> parse_include(
     std::string_view ln) {

@@ -2,9 +2,9 @@
 
 namespace egl {
 
-const std::error_category &category() {
+const std::error_category& category() {
   static const struct : std::error_category {
-    const char *name() const noexcept override { return "EGL"; }
+    const char* name() const noexcept override { return "EGL"; }
     std::string message(int cond) const override {
       switch (cond) {
       case EGL_SUCCESS:

@@ -11,8 +11,8 @@ class executors_environment : public Catch::EventListenerBase {
 public:
   using Catch::EventListenerBase::EventListenerBase;
 
-  void testRunStarting(const Catch::TestRunInfo &) override;
-  void testRunEnded(const Catch::TestRunStats &) override;
+  void testRunStarting(const Catch::TestRunInfo&) override;
+  void testRunEnded(const Catch::TestRunStats&) override;
 
   static asio::static_thread_pool::executor_type pool_executor();
   static void wait_pool_tasks_done();

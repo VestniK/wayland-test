@@ -16,7 +16,7 @@
 
 namespace {
 
-egl::context make_egl_context(wl_display &display) {
+egl::context make_egl_context(wl_display& display) {
   egl::display egl_display{display};
   egl_display.bind_api(EGL_OPENGL_ES_API);
   EGLint count;
@@ -45,10 +45,9 @@ constexpr uint32_t ivi_main_glapp_id = 1337;
 
 } // namespace
 
-gles_context::gles_context(wl_display &display, wl_surface &surf, size sz)
-    : egl_surface_(make_egl_context(display)), egl_wnd_{wl_egl_window_create(
-                                                   &surf, sz.width,
-                                                   sz.height)} {
+gles_context::gles_context(wl_display& display, wl_surface& surf, size sz)
+    : egl_surface_(make_egl_context(display)),
+      egl_wnd_{wl_egl_window_create(&surf, sz.width, sz.height)} {
   egl_surface_.set_window(*egl_wnd_);
   egl_surface_.make_current();
 }
@@ -72,23 +71,21 @@ bool gles_context::resize(size sz) {
 
 struct gles_window::impl : public xdg::delegate {
   impl(asio::static_thread_pool::executor_type exec, event_queue queue,
-       queues_notify_callback cb, wl_surface &surf, size initial_size,
-       render_function render_func)
+      queues_notify_callback cb, wl_surface& surf, size initial_size,
+      render_function render_func)
       : render_task_guard{exec,
-                          [&surf, &resize_channel = resize_channel,
-                           initial_size, queue = std::move(queue),
-                           render_func = std::move(render_func)](
-                              std::stop_token stop) mutable {
-                            gles_context ctx{queue.display(), surf,
-                                             initial_size};
-                            spdlog::debug("OpenGL ES2 context created");
+            [&surf, &resize_channel = resize_channel, initial_size,
+                queue = std::move(queue), render_func = std::move(render_func)](
+                std::stop_token stop) mutable {
+              gles_context ctx{queue.display(), surf, initial_size};
+              spdlog::debug("OpenGL ES2 context created");
 
-                            vsync_frames frames{queue, surf, stop};
-                            ctx.egl_surface().swap_buffers();
+              vsync_frames frames{queue, surf, stop};
+              ctx.egl_surface().swap_buffers();
 
-                            render_func(ctx, frames, resize_channel);
-                            spdlog::debug("rendering finished");
-                          }},
+              render_func(ctx, frames, resize_channel);
+              spdlog::debug("rendering finished");
+            }},
         on_stop{render_task_guard.stop_token(), cb} {}
 
   void resize(size sz) override { resize_channel.update(sz); }
@@ -102,22 +99,21 @@ struct gles_window::impl : public xdg::delegate {
   std::stop_callback<queues_notify_callback> on_stop;
 };
 
-gles_window::gles_window(event_loop &eloop,
-                         asio::thread_pool::executor_type pool_exec,
-                         wl::sized_window<wl::shell_window> &&wnd,
-                         render_function render_func)
+gles_window::gles_window(event_loop& eloop,
+    asio::thread_pool::executor_type pool_exec,
+    wl::sized_window<wl::shell_window>&& wnd, render_function render_func)
     : wnd_{std::move(wnd.window)} {
   event_queue queue = eloop.make_queue();
-  wl_surface &surf = wnd_.get_surface();
-  wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(&surf), &queue.get());
+  wl_surface& surf = wnd_.get_surface();
+  wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(&surf), &queue.get());
   auto cb = queue.notify_callback();
-  impl_ = std::make_unique<impl>(pool_exec, std::move(queue), cb, surf, wnd.sz,
-                                 std::move(render_func));
+  impl_ = std::make_unique<impl>(
+      pool_exec, std::move(queue), cb, surf, wnd.sz, std::move(render_func));
   wnd_.set_delegate(impl_.get());
 }
 
-gles_window::gles_window(gles_window &&) noexcept = default;
-gles_window &gles_window::operator=(gles_window &&) noexcept = default;
+gles_window::gles_window(gles_window&&) noexcept = default;
+gles_window& gles_window::operator=(gles_window&&) noexcept = default;
 
 gles_window::~gles_window() noexcept = default;
 

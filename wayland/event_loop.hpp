@@ -8,7 +8,8 @@
 
 #include <wayland/wayland-client.hpp>
 
-template <typename Service> struct identified {
+template <typename Service>
+struct identified {
   wl::unique_ptr<Service> service;
   uint32_t id = {};
 };
@@ -17,7 +18,7 @@ class event_loop;
 
 class queues_notify_callback {
 public:
-  queues_notify_callback(event_loop &eloop) noexcept : eloop_{eloop} {}
+  queues_notify_callback(event_loop& eloop) noexcept : eloop_{eloop} {}
 
   void operator()() noexcept;
 
@@ -27,12 +28,12 @@ private:
 
 class event_queue {
 public:
-  event_queue(event_loop &eloop) noexcept;
+  event_queue(event_loop& eloop) noexcept;
 
-  wl_event_queue &get() const noexcept { return *queue_; }
+  wl_event_queue& get() const noexcept { return *queue_; }
   void dispatch();
   void dispatch_pending();
-  wl_display &display() const noexcept;
+  wl_display& display() const noexcept;
 
   queues_notify_callback notify_callback() noexcept { return {eloop_.get()}; }
 
@@ -44,9 +45,9 @@ private:
 
 class event_loop {
 public:
-  event_loop(const char *display);
+  event_loop(const char* display);
 
-  [[nodiscard]] wl_display &get_display() const noexcept { return *display_; }
+  [[nodiscard]] wl_display& get_display() const noexcept { return *display_; }
 
   void dispatch() noexcept;
   void dispatch_pending() noexcept;
@@ -55,8 +56,8 @@ public:
 
   asio::awaitable<void> dispatch_once(asio::io_context::executor_type exec);
   template <std::predicate Pred>
-  asio::awaitable<void> dispatch_while(asio::io_context::executor_type exec,
-                                       Pred &&pred) {
+  asio::awaitable<void> dispatch_while(
+      asio::io_context::executor_type exec, Pred&& pred) {
     while (pred())
       co_await dispatch_once(exec);
     co_return;
@@ -75,7 +76,7 @@ private:
   std::atomic<unsigned> read_count_ = 0;
 };
 
-inline event_queue::event_queue(event_loop &eloop) noexcept
+inline event_queue::event_queue(event_loop& eloop) noexcept
     : eloop_{eloop}, queue_{wl_display_create_queue(&eloop.get_display())} {}
 
 inline void event_queue::dispatch() {
@@ -88,7 +89,7 @@ inline void event_queue::dispatch_pending() {
   wl_display_dispatch_queue_pending(&display(), queue_.get());
 }
 
-inline wl_display &event_queue::display() const noexcept {
+inline wl_display& event_queue::display() const noexcept {
   return eloop_.get().get_display();
 }
 
