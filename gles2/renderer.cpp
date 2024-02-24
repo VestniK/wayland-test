@@ -15,8 +15,8 @@ scene_renderer::scene_renderer(const scene::controller& contr)
   std::vector<vertex> vertices;
   std::vector<GLuint> indices;
 
-  constexpr int x_segments = 100;
-  constexpr int y_segments = 100;
+  constexpr int x_segments = 170;
+  constexpr int y_segments = 210;
   auto pos2idx = [](int x, int y) -> GLuint { return y * x_segments + x; };
 
   for (int y = 0; y < y_segments; ++y) {

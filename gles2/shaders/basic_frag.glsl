@@ -12,7 +12,10 @@ varying vec3 frag_pos;
 varying vec2 frag_uv;
 
 void main() {
-  vec3 color = vec3(1., 1., 1.);
+  float net_dist = min(mod(frag_uv.x, 0.5), mod(frag_uv.y, 0.5));
+  float grayfactor = clamp(step(0.02, net_dist), 0.6, 1.0);
+  float bluefactor = clamp(step(0.02, net_dist), 0.9, 1.0);
+  vec3 color = vec3(grayfactor, grayfactor, bluefactor);
   gl_FragColor = vec4(
     phong_reflect(
       light,
