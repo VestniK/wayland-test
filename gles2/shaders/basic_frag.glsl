@@ -11,10 +11,8 @@ varying vec3 frag_normal;
 varying vec3 frag_pos;
 varying vec2 frag_uv;
 
-uniform sampler2D texture_data;
-
 void main() {
-  vec3 color = texture2D(texture_data, frag_uv).rgb;
+  vec3 color = vec3(1., 1., 1.);
   gl_FragColor = vec4(
     phong_reflect(
       light,

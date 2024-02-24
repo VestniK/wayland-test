@@ -4,6 +4,8 @@
 #include <chrono>
 #include <span>
 
+#include <glm/mat4x4.hpp>
+
 #include <util/clock.hpp>
 #include <util/geom.hpp>
 
@@ -25,4 +27,7 @@ public:
 private:
   shader_pipeline pipeline_;
   const scene::controller& controller_;
+
+  mesh paper_;
+  glm::mat4 camera_;
 };

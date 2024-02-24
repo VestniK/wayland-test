@@ -1,7 +1,7 @@
 #include <gles2/shader_pipeline.hpp>
 
-#include <scene/mesh_data.hpp>
 #include <gles2/shaders.hpp>
+#include <scene/mesh_data.hpp>
 
 namespace {
 
@@ -47,10 +47,10 @@ shader_pipeline::shader_pipeline()
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
 
   shader_prog_.use();
-  shader_prog_.get_uniform<float>("light.intense").set_value(0.8);
-  shader_prog_.get_uniform<float>("light.ambient").set_value(0.4);
+  shader_prog_.get_uniform<float>("light.intense").set_value(0.9);
+  shader_prog_.get_uniform<float>("light.ambient").set_value(0.6);
   shader_prog_.get_uniform<float>("light.attenuation").set_value(0.01);
-  shader_prog_.get_uniform<glm::vec3>("light.pos").set_value({2., 5., 15.});
+  shader_prog_.get_uniform<glm::vec3>("light.pos").set_value({5., 20., 60.});
 };
 
 void shader_pipeline::start_rendering(glm::mat4 camera) {
