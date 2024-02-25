@@ -13,12 +13,15 @@
 
 namespace gl {
 
+enum class texel_format { rgb = GL_RGB, rgba = GL_RGBA };
+
 class texture_sampler {
 public:
   struct bind_editor {
-    bind_editor& image_2d(::size sz, std::span<const std::byte> img) noexcept {
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, sz.width, sz.height, 0, GL_RGB,
-          GL_UNSIGNED_BYTE, img.data());
+    bind_editor& image_2d(
+        texel_format fmt, ::size sz, std::span<const std::byte> img) noexcept {
+      glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(fmt), sz.width,
+          sz.height, 0, static_cast<GLint>(fmt), GL_UNSIGNED_BYTE, img.data());
       return *this;
     }
 

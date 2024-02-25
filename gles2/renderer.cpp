@@ -20,7 +20,7 @@ scene_renderer::scene_renderer(const scene::controller& contr)
   std::vector<std::byte> morph_texture_data;
   vertices.reserve(x_segments * y_segments);
   indices.reserve(3 * (x_segments - 1) * (y_segments - 1));
-  morph_texture_data.reserve(3 * x_segments * y_segments);
+  morph_texture_data.reserve(4 * x_segments * y_segments);
 
   auto pos2idx = [](int x, int y) -> GLuint { return y * x_segments + x; };
 
@@ -29,12 +29,14 @@ scene_renderer::scene_renderer(const scene::controller& contr)
       vertices.push_back({.position = {0.1 * x, 0.1 * y, 0.},
           .normal = {0., 0., 1.},
           .uv = {0.1 * x, 0.1 * y},
-          .idxs{x, y}});
+          .idxs{static_cast<float>(x) / x_segments,
+              static_cast<float>(y) / y_segments}});
 
       morph_texture_data.push_back(std::byte{0});
       morph_texture_data.push_back(std::byte{0});
       morph_texture_data.push_back(std::byte{static_cast<std::uint8_t>(
-          0xff * ((1. + std::cos((x + y) / M_PI)) / 2.))});
+          0xff * ((1. + std::cos(M_PI * (x + y) / 60.)) / 2.))});
+      morph_texture_data.push_back(std::byte{0});
 
       if (y > 0 && x < x_segments - 1) {
         indices.push_back(pos2idx(x, y - 1));
@@ -51,7 +53,8 @@ scene_renderer::scene_renderer(const scene::controller& contr)
   paper_ = mesh{vertices, indices};
   gl::samplers[0]
       .bind(morph_[0])
-      .image_2d(size{x_segments, y_segments}, morph_texture_data)
+      .image_2d(gl::texel_format::rgba, size{x_segments, y_segments},
+          morph_texture_data)
       .tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
       .tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
       .tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT)

@@ -19,6 +19,6 @@ void main() {
   frag_pos = position;
   frag_uv = uv;
 
-  vec3 morphed_pos = position + texture2D(morph, idxs.st).xyz;
+  vec3 morphed_pos = position + texture2D(morph, idxs).xyz;
   gl_Position = camera * model * vec4(morphed_pos, 1.);
 }
