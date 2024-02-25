@@ -32,6 +32,7 @@ void mesh::draw(shader_pipeline::attributes attrs) {
   attrs.position.set_pointer(&vertex::position);
   attrs.normal.set_pointer(&vertex::normal);
   attrs.uv.set_pointer(&vertex::uv);
+  attrs.idxs.set_pointer(&vertex::idxs);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo());
   glDrawElements(GL_TRIANGLES, triangles_count_, GL_UNSIGNED_INT, nullptr);
 }
@@ -40,11 +41,13 @@ shader_pipeline::shader_pipeline()
     : shader_prog_{shaders::basic_vert, shaders::basic_frag},
       attributes_{.position = shader_prog_.get_attrib<glm::vec3>("position"),
           .normal = shader_prog_.get_attrib<glm::vec3>("normal"),
-          .uv = shader_prog_.get_attrib<glm::vec2>("uv")} {
+          .uv = shader_prog_.get_attrib<glm::vec2>("uv"),
+          .idxs = shader_prog_.get_attrib<glm::vec2>("idxs")} {
   model_world_uniform_ = shader_prog_.get_uniform<glm::mat4>("model");
   norm_world_uniform_ = shader_prog_.get_uniform<glm::mat3>("norm_rotation");
 
   camera_uniform_ = shader_prog_.get_uniform<glm::mat4>("camera");
+  morph_uniform_ = shader_prog_.get_uniform<gl::texture_sampler>("morph");
 
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.9);
@@ -62,4 +65,8 @@ void shader_pipeline::draw(glm::mat4 model, mesh& mesh) {
   apply_model_world_transformation(
       model, model_world_uniform_, norm_world_uniform_);
   mesh.draw(attributes_);
+}
+
+void shader_pipeline::bind_morph(gl::texture_sampler tex) {
+  morph_uniform_.set_value(tex);
 }

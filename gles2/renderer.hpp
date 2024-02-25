@@ -29,5 +29,6 @@ private:
   const scene::controller& controller_;
 
   mesh paper_;
+  gl::textures<1> morph_ = gl::gen_textures<1>();
   glm::mat4 camera_;
 };
