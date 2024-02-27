@@ -51,7 +51,7 @@ shader_pipeline::shader_pipeline()
 
   shader_prog_.use();
   shader_prog_.get_uniform<float>("light.intense").set_value(0.9);
-  shader_prog_.get_uniform<float>("light.ambient").set_value(0.6);
+  shader_prog_.get_uniform<float>("light.ambient").set_value(0.7);
   shader_prog_.get_uniform<float>("light.attenuation").set_value(0.01);
   shader_prog_.get_uniform<glm::vec3>("light.pos").set_value({5., 20., 60.});
 };
