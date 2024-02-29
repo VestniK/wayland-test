@@ -48,14 +48,25 @@ std::tuple<vk::raii::PhysicalDevice, uint32_t> find_suitable_device(
 
 } // namespace
 
-void prepare_instance() {
+void prepare_instance(wl_display& display, wl_surface& surf) {
   VULKAN_HPP_DEFAULT_DISPATCHER.init();
+
+  for (const auto& ext : vk::enumerateInstanceExtensionProperties()) {
+    spdlog::debug("Vulkan supported extension: {} [ver={}]",
+        std::string_view{ext.extensionName}, ext.specVersion);
+  }
 
   vk::raii::Context context;
 
-  vk::ApplicationInfo app_info(
-      "wayland-test", 1, "no_engine", 1, VK_API_VERSION_1_0);
-  vk::InstanceCreateInfo inst_create_info({}, &app_info);
+  vk::ApplicationInfo app_info{.pApplicationName = "wayland-test",
+      .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+      .pEngineName = "no_engine",
+      .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+      .apiVersion = VK_API_VERSION_1_0};
+  std::array<const char*, 2> exts{"VK_KHR_surface", "VK_KHR_wayland_surface"};
+  const auto inst_create_info =
+      vk::InstanceCreateInfo{.flags = {}, .pApplicationInfo = &app_info}
+          .setPEnabledExtensionNames(exts);
   vk::raii::Instance inst{context, inst_create_info, nullptr};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*inst);
 
@@ -64,10 +75,18 @@ void prepare_instance() {
   spdlog::debug("Using Vulkan device: {}", std::string_view{props.deviceName});
 
   float queue_prio = 1.0f;
-  vk::DeviceQueueCreateInfo dev_queue_create_info{
-      {}, qraphics_queue_idx, 1, &queue_prio};
-  vk::DeviceCreateInfo device_create_info{{}, dev_queue_create_info};
+  vk::DeviceQueueCreateInfo dev_queue_create_info{.flags = {},
+      .queueFamilyIndex = qraphics_queue_idx,
+      .queueCount = 1,
+      .pQueuePriorities = &queue_prio};
+  vk::DeviceCreateInfo device_create_info{
+      .flags = {}, .pQueueCreateInfos = &dev_queue_create_info};
 
   vk::raii::Device device{phis_dev, device_create_info};
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
   vk::raii::Queue queue = device.getQueue(qraphics_queue_idx, 0);
+
+  vk::WaylandSurfaceCreateInfoKHR surf_info{
+      .flags = {}, .display = &display, .surface = &surf};
+  vk::raii::SurfaceKHR vk_surf{inst, surf_info};
 }

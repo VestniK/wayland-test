@@ -10,7 +10,6 @@
 #include <util/struct_args.hpp>
 
 #include <scene/controller.hpp>
-#include <vk/prepare_instance.hpp>
 
 #include <app/draw_scene.hpp>
 #include <app/listen_gamepad.hpp>
@@ -44,8 +43,6 @@ asio::awaitable<int> main(asio::io_context::executor_type io_exec,
   }
   const auto opt = args::parse<opts>(args);
   setup_logger();
-
-  prepare_instance();
 
   scene::controller controller;
   co_await (draw_scene(io_exec, pool_exec, controller, opt.display) ||

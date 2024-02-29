@@ -13,4 +13,8 @@ cpp_unit(
     Catch2::Catch2WithMain
   TEST_ARGS --order rand --rng-seed time
 )
-target_compile_definitions(vk PRIVATE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+target_compile_definitions(vk PRIVATE
+  VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
+  VULKAN_HPP_NO_CONSTRUCTORS
+  VK_USE_PLATFORM_WAYLAND_KHR
+)
