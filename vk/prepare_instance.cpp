@@ -17,6 +17,9 @@ namespace {
 std::array<const char*, 2> REQUIRED_EXTENSIONS{
     "VK_KHR_surface", "VK_KHR_wayland_surface"};
 
+std::array<const char*, 1> REQUIRED_DEVICE_EXTENSIONS{
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
 vk::raii::Instance create_instance() {
   VULKAN_HPP_DEFAULT_DISPATCHER.init();
 
@@ -53,9 +56,12 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
           .queueCount = 1,
           .pQueuePriorities = &queue_prio}};
   vk::DeviceCreateInfo device_create_info{.flags = {},
-      .queueCreateInfoCount =
-          graphics_queue_family == presentation_queue_family ? 1u : 2u,
-      .pQueueCreateInfos = device_queues.data()};
+      .queueCreateInfoCount = graphics_queue_family == presentation_queue_family
+                                  ? 1u
+                                  : 2u, // TODO: better duplication needed
+      .pQueueCreateInfos = device_queues.data(),
+      .enabledExtensionCount = REQUIRED_DEVICE_EXTENSIONS.size(),
+      .ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSIONS.data()};
 
   vk::raii::Device device{dev, device_create_info};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
@@ -92,7 +98,18 @@ render_environment setup_suitable_device(
         presentation_family = idx;
     }
 
-    if (graphics_family && presentation_family) {
+    // TODO: send supported dev extensions to debug log
+    const bool has_swapchain_extension = std::ranges::any_of(
+        dev.enumerateDeviceExtensionProperties(),
+        [](vk::ExtensionProperties prop) {
+          return std::string_view{prop.extensionName} ==
+                 VK_KHR_SWAPCHAIN_EXTENSION_NAME; // TODO: use
+                                                  // REQUIRED_DEVICE_EXTENSIONS
+                                                  // instead of checking ext
+                                                  // directly
+        });
+
+    if (graphics_family && presentation_family && has_swapchain_extension) {
       spdlog::info("Using Vulkan device: {}",
           std::string_view{dev.getProperties().deviceName});
       return {dev, *graphics_family, *presentation_family};
