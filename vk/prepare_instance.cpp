@@ -1,6 +1,7 @@
 #include <vk/prepare_instance.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <ranges>
 #include <tuple>
 
@@ -12,16 +13,6 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace {
-
-template <std::ranges::forward_range Rng, typename Pred>
-  requires std::convertible_to<
-      std::invoke_result_t<Pred, std::ranges::range_reference_t<Rng>>, bool>
-std::ranges::range_difference_t<Rng> index_of(Rng&& rng, Pred&& pred) {
-  const auto it = std::ranges::find_if(rng, std::forward<Pred>(pred));
-  return it == std::ranges::end(rng)
-             ? -1
-             : std::distance(std::ranges::begin(rng), it);
-}
 
 std::array<const char*, 2> REQUIRED_EXTENSIONS{
     "VK_KHR_surface", "VK_KHR_wayland_surface"};
@@ -49,52 +40,78 @@ vk::raii::Instance create_instance() {
   return inst;
 }
 
-std::tuple<vk::raii::PhysicalDevice, uint32_t> find_suitable_device(
-    const vk::raii::Instance& inst) {
+vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
+    uint32_t graphics_queue_family, uint32_t presentation_queue_family) {
+  float queue_prio = 1.0f;
+  std::array<vk::DeviceQueueCreateInfo, 2> device_queues{
+      vk::DeviceQueueCreateInfo{.flags = {},
+          .queueFamilyIndex = graphics_queue_family,
+          .queueCount = 1,
+          .pQueuePriorities = &queue_prio},
+      vk::DeviceQueueCreateInfo{.flags = {},
+          .queueFamilyIndex = presentation_queue_family,
+          .queueCount = 1,
+          .pQueuePriorities = &queue_prio}};
+  vk::DeviceCreateInfo device_create_info{.flags = {},
+      .queueCreateInfoCount =
+          graphics_queue_family == presentation_queue_family ? 1u : 2u,
+      .pQueueCreateInfos = device_queues.data()};
+
+  vk::raii::Device device{dev, device_create_info};
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
+  return device;
+}
+
+class render_environment {
+public:
+  render_environment(const vk::raii::PhysicalDevice& dev,
+      uint32_t graphics_queue_family, uint32_t presentation_queue_family)
+      : device{create_logical_device(
+            dev, graphics_queue_family, presentation_queue_family)},
+        graphics_queue{device.getQueue(graphics_queue_family, 0)},
+        presentation_queue{device.getQueue(presentation_queue_family, 0)} {}
+
+private:
+  vk::raii::Device device;
+  vk::raii::Queue graphics_queue;
+  vk::raii::Queue presentation_queue;
+};
+
+render_environment setup_suitable_device(
+    const vk::raii::Instance& inst, const vk::SurfaceKHR& surf) {
   auto devices = inst.enumeratePhysicalDevices();
 
-  uint32_t queue_idx = 0;
-  const auto it = std::ranges::find_if(
-      devices, [&queue_idx](const vk::raii::PhysicalDevice& dev) {
-        const std::ptrdiff_t idx =
-            index_of(dev.getQueueFamilyProperties(), [](const auto& prop) {
-              return static_cast<bool>(
-                  prop.queueFlags & vk::QueueFlagBits::eGraphics);
-            });
-        if (idx < 0)
-          return false;
-        queue_idx = static_cast<uint32_t>(idx);
-        return true;
-      });
-  if (it == devices.end()) {
-    throw std::runtime_error{"No graphics capable hardware found"};
+  for (const vk::raii::PhysicalDevice& dev : inst.enumeratePhysicalDevices()) {
+    std::optional<uint32_t> graphics_family;
+    std::optional<uint32_t> presentation_family;
+    for (const auto& [idx, queue_family] :
+        std::views::enumerate(dev.getQueueFamilyProperties())) {
+      if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
+        graphics_family = idx;
+      if (dev.getSurfaceSupportKHR(idx, surf))
+        presentation_family = idx;
+    }
+
+    if (graphics_family && presentation_family) {
+      spdlog::info("Using Vulkan device: {}",
+          std::string_view{dev.getProperties().deviceName});
+      return {dev, *graphics_family, *presentation_family};
+    }
+
+    spdlog::debug("Vulkan device '{}' is rejected",
+        std::string_view{dev.getProperties().deviceName});
   }
 
-  spdlog::debug("Using Vulkan device: {}",
-      std::string_view{it->getProperties().deviceName});
-
-  return {std::move(*it), queue_idx};
+  throw std::runtime_error{"No suitable Vulkan device found"};
 }
 
 } // namespace
 
 void prepare_instance(wl_display& display, wl_surface& surf) {
   vk::raii::Instance inst = create_instance();
-  const auto [phis_dev, qraphics_queue_idx] = find_suitable_device(inst);
+  vk::raii::SurfaceKHR vk_surf{
+      inst, vk::WaylandSurfaceCreateInfoKHR{
+                .flags = {}, .display = &display, .surface = &surf}};
 
-  float queue_prio = 1.0f;
-  vk::DeviceQueueCreateInfo dev_queue_create_info{.flags = {},
-      .queueFamilyIndex = qraphics_queue_idx,
-      .queueCount = 1,
-      .pQueuePriorities = &queue_prio};
-  vk::DeviceCreateInfo device_create_info{
-      .flags = {}, .pQueueCreateInfos = &dev_queue_create_info};
-
-  vk::raii::Device device{phis_dev, device_create_info};
-  VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
-  vk::raii::Queue queue = device.getQueue(qraphics_queue_idx, 0);
-
-  vk::WaylandSurfaceCreateInfoKHR surf_info{
-      .flags = {}, .display = &display, .surface = &surf};
-  vk::raii::SurfaceKHR vk_surf{inst, surf_info};
+  render_environment render_env = setup_suitable_device(inst, *vk_surf);
 }
