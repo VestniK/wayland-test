@@ -14,11 +14,18 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace {
 
-std::array<const char*, 2> REQUIRED_EXTENSIONS{
+template <typename T, typename Cmp, typename... A>
+constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
+  std::array<T, sizeof...(A)> res{T{std::forward<A>(a)}...};
+  std::ranges::sort(res, cmp);
+  return res;
+}
+
+constexpr std::array<const char*, 2> REQUIRED_EXTENSIONS{
     "VK_KHR_surface", "VK_KHR_wayland_surface"};
 
-std::array<const char*, 1> REQUIRED_DEVICE_EXTENSIONS{
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+constexpr auto REQUIRED_DEVICE_EXTENSIONS = make_sorted_array<const char*>(
+    std::less<std::string_view>{}, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
 vk::raii::Instance create_instance() {
   VULKAN_HPP_DEFAULT_DISPATCHER.init();
@@ -83,6 +90,42 @@ private:
   vk::raii::Queue presentation_queue;
 };
 
+bool has_required_extensions(const vk::PhysicalDevice& dev) {
+  spdlog::debug("Checking required extensions on suitable device {}",
+      std::string_view{dev.getProperties().deviceName});
+
+  auto exts = dev.enumerateDeviceExtensionProperties();
+  std::ranges::sort(exts,
+      [](const vk::ExtensionProperties& l, const vk::ExtensionProperties& r) {
+        return l.extensionName < r.extensionName;
+      });
+
+  bool has_missing_exts = false;
+  std::span<const char* const> remaining_required{REQUIRED_DEVICE_EXTENSIONS};
+  for (const vk::ExtensionProperties& ext : exts) {
+    std::string_view name{ext.extensionName};
+    spdlog::debug(
+        "\tDevice supported extension {} [ver={}]", name, ext.specVersion);
+    if (remaining_required.empty() || name < remaining_required.front())
+      continue;
+
+    while (
+        !remaining_required.empty() && !(name < remaining_required.front())) {
+      if (name != remaining_required.front()) {
+        has_missing_exts = true;
+        spdlog::debug(
+            "\tMissing required extension {}", remaining_required.front());
+      }
+      remaining_required = remaining_required.subspan(1);
+    }
+  }
+  for (auto missing : remaining_required) {
+    spdlog::debug("\tMissing required extension {}", missing);
+    has_missing_exts = true;
+  }
+  return !has_missing_exts;
+}
+
 render_environment setup_suitable_device(
     const vk::raii::Instance& inst, const vk::SurfaceKHR& surf) {
   auto devices = inst.enumeratePhysicalDevices();
@@ -97,19 +140,8 @@ render_environment setup_suitable_device(
       if (dev.getSurfaceSupportKHR(idx, surf))
         presentation_family = idx;
     }
-
-    // TODO: send supported dev extensions to debug log
-    const bool has_swapchain_extension = std::ranges::any_of(
-        dev.enumerateDeviceExtensionProperties(),
-        [](vk::ExtensionProperties prop) {
-          return std::string_view{prop.extensionName} ==
-                 VK_KHR_SWAPCHAIN_EXTENSION_NAME; // TODO: use
-                                                  // REQUIRED_DEVICE_EXTENSIONS
-                                                  // instead of checking ext
-                                                  // directly
-        });
-
-    if (graphics_family && presentation_family && has_swapchain_extension) {
+    if (graphics_family && presentation_family &&
+        has_required_extensions(*dev)) {
       spdlog::info("Using Vulkan device: {}",
           std::string_view{dev.getProperties().deviceName});
       return {dev, *graphics_family, *presentation_family};
