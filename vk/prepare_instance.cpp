@@ -23,6 +23,32 @@ std::ranges::range_difference_t<Rng> index_of(Rng&& rng, Pred&& pred) {
              : std::distance(std::ranges::begin(rng), it);
 }
 
+std::array<const char*, 2> REQUIRED_EXTENSIONS{
+    "VK_KHR_surface", "VK_KHR_wayland_surface"};
+
+vk::raii::Instance create_instance() {
+  VULKAN_HPP_DEFAULT_DISPATCHER.init();
+
+  for (const auto& ext : vk::enumerateInstanceExtensionProperties()) {
+    spdlog::debug("Vulkan supported extension: {} [ver={}]",
+        std::string_view{ext.extensionName}, ext.specVersion);
+  }
+
+  vk::raii::Context context;
+
+  vk::ApplicationInfo app_info{.pApplicationName = "wayland-test",
+      .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+      .pEngineName = "no_engine",
+      .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+      .apiVersion = VK_API_VERSION_1_0};
+  const auto inst_create_info =
+      vk::InstanceCreateInfo{.flags = {}, .pApplicationInfo = &app_info}
+          .setPEnabledExtensionNames(REQUIRED_EXTENSIONS);
+  vk::raii::Instance inst{context, inst_create_info, nullptr};
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*inst);
+  return inst;
+}
+
 std::tuple<vk::raii::PhysicalDevice, uint32_t> find_suitable_device(
     const vk::raii::Instance& inst) {
   auto devices = inst.enumeratePhysicalDevices();
@@ -43,36 +69,18 @@ std::tuple<vk::raii::PhysicalDevice, uint32_t> find_suitable_device(
   if (it == devices.end()) {
     throw std::runtime_error{"No graphics capable hardware found"};
   }
+
+  spdlog::debug("Using Vulkan device: {}",
+      std::string_view{it->getProperties().deviceName});
+
   return {std::move(*it), queue_idx};
 }
 
 } // namespace
 
 void prepare_instance(wl_display& display, wl_surface& surf) {
-  VULKAN_HPP_DEFAULT_DISPATCHER.init();
-
-  for (const auto& ext : vk::enumerateInstanceExtensionProperties()) {
-    spdlog::debug("Vulkan supported extension: {} [ver={}]",
-        std::string_view{ext.extensionName}, ext.specVersion);
-  }
-
-  vk::raii::Context context;
-
-  vk::ApplicationInfo app_info{.pApplicationName = "wayland-test",
-      .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-      .pEngineName = "no_engine",
-      .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-      .apiVersion = VK_API_VERSION_1_0};
-  std::array<const char*, 2> exts{"VK_KHR_surface", "VK_KHR_wayland_surface"};
-  const auto inst_create_info =
-      vk::InstanceCreateInfo{.flags = {}, .pApplicationInfo = &app_info}
-          .setPEnabledExtensionNames(exts);
-  vk::raii::Instance inst{context, inst_create_info, nullptr};
-  VULKAN_HPP_DEFAULT_DISPATCHER.init(*inst);
-
+  vk::raii::Instance inst = create_instance();
   const auto [phis_dev, qraphics_queue_idx] = find_suitable_device(inst);
-  const auto props = phis_dev.getProperties();
-  spdlog::debug("Using Vulkan device: {}", std::string_view{props.deviceName});
 
   float queue_prio = 1.0f;
   vk::DeviceQueueCreateInfo dev_queue_create_info{.flags = {},
