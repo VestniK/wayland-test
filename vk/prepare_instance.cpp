@@ -75,6 +75,28 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
   return device;
 }
 
+std::vector<vk::raii::ImageView> make_image_views(const vk::raii::Device& dev,
+    std::span<const vk::Image> images, vk::Format fmt) {
+  std::vector<vk::raii::ImageView> res;
+  res.reserve(images.size());
+  for (const auto& img : images) {
+    vk::ImageViewCreateInfo inf{.image = img,
+        .viewType = vk::ImageViewType::e2D,
+        .format = fmt,
+        .components = {.r = vk::ComponentSwizzle::eIdentity,
+            .g = vk::ComponentSwizzle::eIdentity,
+            .b = vk::ComponentSwizzle::eIdentity,
+            .a = vk::ComponentSwizzle::eIdentity},
+        .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1}};
+    res.push_back(vk::raii::ImageView{dev, inf});
+  }
+  return res;
+}
+
 class render_environment {
 public:
   render_environment(const vk::raii::PhysicalDevice& dev,
@@ -84,13 +106,18 @@ public:
             dev, graphics_queue_family, presentation_queue_family)},
         graphics_queue{device.getQueue(graphics_queue_family, 0)},
         presentation_queue{device.getQueue(presentation_queue_family, 0)},
-        swapchain{device, swapchain_info} {}
+        swapchain{device, swapchain_info},
+        swapchain_images{swapchain.getImages()},
+        image_views{make_image_views(
+            device, swapchain_images, swapchain_info.imageFormat)} {}
 
 private:
   vk::raii::Device device;
   vk::raii::Queue graphics_queue;
   vk::raii::Queue presentation_queue;
   vk::raii::SwapchainKHR swapchain;
+  std::vector<vk::Image> swapchain_images;
+  std::vector<vk::raii::ImageView> image_views;
 };
 
 bool has_required_extensions(const vk::PhysicalDevice& dev) {
