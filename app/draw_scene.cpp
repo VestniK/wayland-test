@@ -29,7 +29,7 @@ asio::awaitable<void> draw_scene(asio::io_context::executor_type io_exec,
   } delegate;
   auto [vkwnd, sz] = co_await shell.create_maximized_window(eloop, io_exec);
   vkwnd.set_delegate(&delegate);
-  prepare_instance(eloop.get_display(), vkwnd.get_surface());
+  prepare_instance(eloop.get_display(), vkwnd.get_surface(), sz);
 
   gles_window wnd{eloop, pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),

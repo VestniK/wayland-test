@@ -78,16 +78,19 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
 class render_environment {
 public:
   render_environment(const vk::raii::PhysicalDevice& dev,
-      uint32_t graphics_queue_family, uint32_t presentation_queue_family)
+      uint32_t graphics_queue_family, uint32_t presentation_queue_family,
+      vk::SwapchainCreateInfoKHR swapchain_info)
       : device{create_logical_device(
             dev, graphics_queue_family, presentation_queue_family)},
         graphics_queue{device.getQueue(graphics_queue_family, 0)},
-        presentation_queue{device.getQueue(presentation_queue_family, 0)} {}
+        presentation_queue{device.getQueue(presentation_queue_family, 0)},
+        swapchain{device, swapchain_info} {}
 
 private:
   vk::raii::Device device;
   vk::raii::Queue graphics_queue;
   vk::raii::Queue presentation_queue;
+  vk::raii::SwapchainKHR swapchain;
 };
 
 bool has_required_extensions(const vk::PhysicalDevice& dev) {
@@ -126,8 +129,51 @@ bool has_required_extensions(const vk::PhysicalDevice& dev) {
   return !has_missing_exts;
 }
 
-render_environment setup_suitable_device(
-    const vk::raii::Instance& inst, const vk::SurfaceKHR& surf) {
+std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
+    const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf,
+    vk::Extent2D sz) {
+  const auto capabilities = dev.getSurfaceCapabilitiesKHR(surf);
+  const auto formats = dev.getSurfaceFormatsKHR(surf);
+  const auto modes = dev.getSurfacePresentModesKHR(surf);
+
+  const auto fmt_it =
+      std::ranges::find_if(formats, [](vk::SurfaceFormatKHR fmt) {
+        return fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear &&
+               (fmt.format == vk::Format::eR8G8B8A8Srgb ||
+                   fmt.format == vk::Format::eB8G8R8A8Srgb);
+      });
+  if (fmt_it == formats.end())
+    return std::nullopt;
+
+  // TODO: choose eFifo if it's available while eMailbox is not
+  const auto mode_it = std::ranges::find(modes, vk::PresentModeKHR::eMailbox);
+  if (mode_it == modes.end())
+    return std::nullopt;
+
+  return vk::SwapchainCreateInfoKHR{.flags = {},
+      .surface = surf,
+      .minImageCount = {},
+      .imageFormat = fmt_it->format,
+      .imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
+      .imageExtent = vk::Extent2D{.width = std::clamp(sz.width,
+                                      capabilities.minImageExtent.width,
+                                      capabilities.maxImageExtent.width),
+          .height = std::clamp(sz.height, capabilities.minImageExtent.height,
+              capabilities.maxImageExtent.height)},
+      .imageArrayLayers = {},
+      .imageUsage = {},
+      .imageSharingMode = vk::SharingMode::eExclusive,
+      .queueFamilyIndexCount = {},
+      .pQueueFamilyIndices = {},
+      .preTransform = capabilities.currentTransform,
+      .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+      .presentMode = *mode_it,
+      .clipped = true,
+      .oldSwapchain = {}};
+}
+
+render_environment setup_suitable_device(const vk::raii::Instance& inst,
+    const vk::SurfaceKHR& surf, vk::Extent2D sz) {
   auto devices = inst.enumeratePhysicalDevices();
 
   for (const vk::raii::PhysicalDevice& dev : inst.enumeratePhysicalDevices()) {
@@ -142,9 +188,20 @@ render_environment setup_suitable_device(
     }
     if (graphics_family && presentation_family &&
         has_required_extensions(*dev)) {
-      spdlog::info("Using Vulkan device: {}",
-          std::string_view{dev.getProperties().deviceName});
-      return {dev, *graphics_family, *presentation_family};
+      if (auto swapchain_info = choose_swapchain_params(*dev, surf, sz)) {
+        spdlog::info("Using Vulkan device: {}",
+            std::string_view{dev.getProperties().deviceName});
+
+        // TODO: get rid of this strange patching
+        std::array<uint32_t, 2> queues{*graphics_family, *presentation_family};
+        if (graphics_family != presentation_family) {
+          swapchain_info->imageSharingMode = vk::SharingMode::eConcurrent;
+          swapchain_info->queueFamilyIndexCount = queues.size();
+          swapchain_info->pQueueFamilyIndices = queues.data();
+        }
+
+        return {dev, *graphics_family, *presentation_family, *swapchain_info};
+      }
     }
 
     spdlog::debug("Vulkan device '{}' is rejected",
@@ -156,11 +213,13 @@ render_environment setup_suitable_device(
 
 } // namespace
 
-void prepare_instance(wl_display& display, wl_surface& surf) {
+void prepare_instance(wl_display& display, wl_surface& surf, size sz) {
   vk::raii::Instance inst = create_instance();
   vk::raii::SurfaceKHR vk_surf{
       inst, vk::WaylandSurfaceCreateInfoKHR{
                 .flags = {}, .display = &display, .surface = &surf}};
 
-  render_environment render_env = setup_suitable_device(inst, *vk_surf);
+  render_environment render_env = setup_suitable_device(inst, *vk_surf,
+      vk::Extent2D{.width = static_cast<uint32_t>(sz.width),
+          .height = static_cast<uint32_t>(sz.height)});
 }
