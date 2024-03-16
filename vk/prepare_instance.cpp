@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <optional>
 #include <ranges>
-#include <tuple>
+#include <span>
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
@@ -110,6 +110,8 @@ public:
         swapchain_images{swapchain.getImages()},
         image_views{make_image_views(
             device, swapchain_images, swapchain_info.imageFormat)} {}
+
+  const vk::raii::Device& get_device() const noexcept { return device; }
 
 private:
   vk::raii::Device device;
@@ -238,7 +240,22 @@ render_environment setup_suitable_device(const vk::raii::Instance& inst,
   throw std::runtime_error{"No suitable Vulkan device found"};
 }
 
+vk::raii::ShaderModule load_shader(
+    const vk::raii::Device& dev, std::span<const std::byte> data) {
+  return vk::raii::ShaderModule{
+      dev, vk::ShaderModuleCreateInfo{.codeSize = data.size(),
+               .pCode = reinterpret_cast<const uint32_t*>(data.data())}};
+}
+
 } // namespace
+
+extern "C" {
+extern const std::byte _binary_triangle_vert_spv_start[];
+extern const std::byte _binary_triangle_vert_spv_end[];
+
+extern const std::byte _binary_triangle_frag_spv_start[];
+extern const std::byte _binary_triangle_frag_spv_end[];
+}
 
 void prepare_instance(wl_display& display, wl_surface& surf, size sz) {
   vk::raii::Instance inst = create_instance();
@@ -249,4 +266,17 @@ void prepare_instance(wl_display& display, wl_surface& surf, size sz) {
   render_environment render_env = setup_suitable_device(inst, *vk_surf,
       vk::Extent2D{.width = static_cast<uint32_t>(sz.width),
           .height = static_cast<uint32_t>(sz.height)});
+
+  vk::raii::ShaderModule vert_mod = load_shader(render_env.get_device(),
+      {_binary_triangle_vert_spv_start, _binary_triangle_vert_spv_end});
+  vk::raii::ShaderModule frag_mod = load_shader(render_env.get_device(),
+      {_binary_triangle_frag_spv_start, _binary_triangle_frag_spv_end});
+
+  [[maybe_unused]] vk::PipelineShaderStageCreateInfo shaderStages[] = {
+      {.stage = vk::ShaderStageFlagBits::eVertex,
+          .module = *vert_mod,
+          .pName = "main"},
+      {.stage = vk::ShaderStageFlagBits::eFragment,
+          .module = *frag_mod,
+          .pName = "main"}};
 }

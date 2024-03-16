@@ -3,7 +3,6 @@ asio/1.29.0
 catch2/3.5.2
 fmt/10.2.1
 glm/cci.20230113
-glslang/11.7.0
 libpng/1.6.42
 ms-gsl/4.0.0
 spdlog/1.13.0
