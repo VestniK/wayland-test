@@ -109,9 +109,14 @@ public:
         swapchain{device, swapchain_info},
         swapchain_images{swapchain.getImages()},
         image_views{make_image_views(
-            device, swapchain_images, swapchain_info.imageFormat)} {}
+            device, swapchain_images, swapchain_info.imageFormat)},
+        swapchain_image_format{swapchain_info.imageFormat} {}
 
   const vk::raii::Device& get_device() const noexcept { return device; }
+
+  vk::Format get_image_format() const noexcept {
+    return swapchain_image_format;
+  }
 
 private:
   vk::raii::Device device;
@@ -120,6 +125,7 @@ private:
   vk::raii::SwapchainKHR swapchain;
   std::vector<vk::Image> swapchain_images;
   std::vector<vk::raii::ImageView> image_views;
+  vk::Format swapchain_image_format;
 };
 
 bool has_required_extensions(const vk::PhysicalDevice& dev) {
@@ -263,20 +269,115 @@ void prepare_instance(wl_display& display, wl_surface& surf, size sz) {
       inst, vk::WaylandSurfaceCreateInfoKHR{
                 .flags = {}, .display = &display, .surface = &surf}};
 
-  render_environment render_env = setup_suitable_device(inst, *vk_surf,
-      vk::Extent2D{.width = static_cast<uint32_t>(sz.width),
-          .height = static_cast<uint32_t>(sz.height)});
+  const vk::Extent2D swapchain_extent{.width = static_cast<uint32_t>(sz.width),
+      .height = static_cast<uint32_t>(sz.height)};
+  render_environment render_env =
+      setup_suitable_device(inst, *vk_surf, swapchain_extent);
 
   vk::raii::ShaderModule vert_mod = load_shader(render_env.get_device(),
       {_binary_triangle_vert_spv_start, _binary_triangle_vert_spv_end});
   vk::raii::ShaderModule frag_mod = load_shader(render_env.get_device(),
       {_binary_triangle_frag_spv_start, _binary_triangle_frag_spv_end});
 
-  [[maybe_unused]] vk::PipelineShaderStageCreateInfo shaderStages[] = {
+  [[maybe_unused]] vk::PipelineShaderStageCreateInfo shader_stages[] = {
       {.stage = vk::ShaderStageFlagBits::eVertex,
           .module = *vert_mod,
           .pName = "main"},
       {.stage = vk::ShaderStageFlagBits::eFragment,
           .module = *frag_mod,
           .pName = "main"}};
+
+  [[maybe_unused]] vk::PipelineVertexInputStateCreateInfo vertex_input_info{
+      .vertexBindingDescriptionCount = 0,
+      .pVertexBindingDescriptions = nullptr,
+      .vertexAttributeDescriptionCount = 0,
+      .pVertexAttributeDescriptions = nullptr};
+
+  [[maybe_unused]] vk::PipelineInputAssemblyStateCreateInfo input_info{
+      .topology = vk::PrimitiveTopology::eTriangleList,
+      .primitiveRestartEnable = false};
+
+  vk::Viewport viewport{.x = .0,
+      .y = .0,
+      .width = static_cast<float>(sz.width),
+      .height = static_cast<float>(sz.height),
+      .minDepth = .0,
+      .maxDepth = 1.};
+  vk::Rect2D scisors{.offset = {0, 0}, .extent = swapchain_extent};
+
+  [[maybe_unused]] vk::PipelineViewportStateCreateInfo viewportState{
+      .viewportCount = 1,
+      .pViewports = &viewport,
+      .scissorCount = 1,
+      .pScissors = &scisors};
+
+  [[maybe_unused]] vk::PipelineRasterizationStateCreateInfo rasterizer_info{
+      .depthClampEnable = false,
+      .rasterizerDiscardEnable = false,
+      .polygonMode = vk::PolygonMode::eFill,
+      .cullMode = vk::CullModeFlagBits::eBack,
+      .frontFace = vk::FrontFace::eClockwise,
+      .depthBiasEnable = false,
+      .depthBiasConstantFactor = .0,
+      .depthBiasClamp = .0,
+      .depthBiasSlopeFactor = .0,
+      .lineWidth = 1.};
+
+  [[maybe_unused]] vk::PipelineMultisampleStateCreateInfo multisampling_info{
+      .rasterizationSamples = vk::SampleCountFlagBits::e1,
+      .sampleShadingEnable = false,
+      .minSampleShading = 1.,
+      .pSampleMask = nullptr,
+      .alphaToCoverageEnable = false,
+      .alphaToOneEnable = false};
+
+  vk::PipelineColorBlendAttachmentState blend_attachment{
+      .blendEnable = false,
+      .srcColorBlendFactor = vk::BlendFactor::eOne,
+      .dstColorBlendFactor = vk::BlendFactor::eZero,
+      .colorBlendOp = vk::BlendOp::eAdd,
+      .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+      .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+      .alphaBlendOp = vk::BlendOp::eAdd,
+      .colorWriteMask =
+          vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
+  };
+  [[maybe_unused]] vk::PipelineColorBlendStateCreateInfo color_blending{
+      .logicOpEnable = false,
+      .logicOp = vk::LogicOp::eCopy,
+      .attachmentCount = 1,
+      .pAttachments = &blend_attachment,
+      .blendConstants = std::array{.0f, .0f, .0f, .0f}};
+
+  vk::raii::PipelineLayout pipeline_layout{
+      render_env.get_device(), vk::PipelineLayoutCreateInfo{
+                                   .setLayoutCount = 0,
+                                   .pSetLayouts = nullptr,
+                                   .pushConstantRangeCount = 0,
+                                   .pPushConstantRanges = nullptr,
+                               }};
+
+  [[maybe_unused]] vk::AttachmentDescription attachment_desc{
+      .format = render_env.get_image_format(),
+      .samples = vk::SampleCountFlagBits::e1,
+      .loadOp = vk::AttachmentLoadOp::eClear,
+      .storeOp = vk::AttachmentStoreOp::eStore,
+      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+      .initialLayout = vk::ImageLayout::eUndefined,
+      .finalLayout = vk::ImageLayout::ePresentSrcKHR};
+
+  vk::AttachmentReference attachement_ref{
+      .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
+  [[maybe_unused]] vk::SubpassDescription subpass{
+      .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+      .inputAttachmentCount = 0,
+      .pInputAttachments = nullptr,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &attachement_ref,
+      .pResolveAttachments = 0,
+      .pDepthStencilAttachment = nullptr,
+      .preserveAttachmentCount = 0,
+      .pPreserveAttachments = nullptr};
 }
