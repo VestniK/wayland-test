@@ -38,11 +38,6 @@ constexpr auto REQUIRED_DEVICE_EXTENSIONS = make_sorted_array<const char*>(
 vk::raii::Instance create_instance() {
   VULKAN_HPP_DEFAULT_DISPATCHER.init();
 
-  for (const auto& ext : vk::enumerateInstanceExtensionProperties()) {
-    spdlog::debug("Vulkan supported extension: {} [ver={}]",
-        std::string_view{ext.extensionName}, ext.specVersion);
-  }
-
   vk::raii::Context context;
 
   vk::ApplicationInfo app_info{.pApplicationName = "wayland-test",
@@ -150,8 +145,6 @@ bool has_required_extensions(const vk::PhysicalDevice& dev) {
   std::span<const char* const> remaining_required{REQUIRED_DEVICE_EXTENSIONS};
   for (const vk::ExtensionProperties& ext : exts) {
     std::string_view name{ext.extensionName};
-    spdlog::debug(
-        "\tDevice supported extension {} [ver={}]", name, ext.specVersion);
     if (remaining_required.empty() || name < remaining_required.front())
       continue;
 
