@@ -117,6 +117,10 @@ public:
 
   const vk::raii::Device& get_device() const noexcept { return device; }
 
+  const std::vector<vk::raii::ImageView>& get_image_views() const noexcept {
+    return image_views;
+  }
+
   vk::Format get_image_format() const noexcept {
     return swapchain_image_format;
   }
@@ -208,8 +212,9 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
       .oldSwapchain = {}};
 }
 
-render_environment setup_suitable_device(const vk::raii::Instance& inst,
-    const vk::SurfaceKHR& surf, vk::Extent2D sz) {
+std::tuple<render_environment, uint32_t> setup_suitable_device(
+    const vk::raii::Instance& inst, const vk::SurfaceKHR& surf,
+    vk::Extent2D sz) {
   auto devices = inst.enumeratePhysicalDevices();
 
   for (const vk::raii::PhysicalDevice& dev : inst.enumeratePhysicalDevices()) {
@@ -236,7 +241,9 @@ render_environment setup_suitable_device(const vk::raii::Instance& inst,
           swapchain_info->pQueueFamilyIndices = queues.data();
         }
 
-        return {dev, *graphics_family, *presentation_family, *swapchain_info};
+        return {render_environment{dev, *graphics_family, *presentation_family,
+                    *swapchain_info},
+            *graphics_family};
       }
     }
 
@@ -385,20 +392,58 @@ vk::raii::Pipeline make_pipeline(const vk::raii::Device& dev,
           .basePipelineIndex = -1}};
 }
 
+std::vector<vk::raii::Framebuffer> make_framebuffers(
+    const vk::raii::Device& dev, const vk::raii::RenderPass& render_pass,
+    const vk::Extent2D& swapchain_extent,
+    std::span<const vk::raii::ImageView> views) {
+  std::vector<vk::raii::Framebuffer> framebuffers;
+  framebuffers.reserve(views.size());
+  std::ranges::transform(views, std::back_inserter(framebuffers),
+      [&render_pass, &swapchain_extent, &dev](const vk::raii::ImageView& view) {
+        return vk::raii::Framebuffer{
+            dev, vk::FramebufferCreateInfo{.renderPass = *render_pass,
+                     .attachmentCount = 1,
+                     .pAttachments = &(*view),
+                     .width = swapchain_extent.width,
+                     .height = swapchain_extent.height,
+                     .layers = 1}};
+      });
+  return framebuffers;
+}
+
+void record_cmd_buffer(const vk::CommandBuffer& cmd,
+    const vk::RenderPass& render_pass, const vk::Pipeline& pipeline,
+    const vk::Extent2D& extent, const vk::Framebuffer& fb) {
+  cmd.begin(
+      vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
+  vk::ClearValue clear_val{
+      .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}}};
+  cmd.beginRenderPass(vk::RenderPassBeginInfo{.renderPass = render_pass,
+                          .framebuffer = fb,
+                          .renderArea = {.offset = {0, 0}, .extent = extent},
+                          .clearValueCount = 1,
+                          .pClearValues = &clear_val},
+      vk::SubpassContents::eInline);
+  cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+  cmd.draw(3, 1, 0, 0);
+  cmd.endRenderPass();
+  cmd.end();
+}
+
 } // namespace
 
 void prepare_instance(wl_display& display, wl_surface& surf, size sz) {
-  vk::raii::Instance inst = create_instance();
-  vk::raii::SurfaceKHR vk_surf{
+  const vk::raii::Instance inst = create_instance();
+  const vk::raii::SurfaceKHR vk_surf{
       inst, vk::WaylandSurfaceCreateInfoKHR{
                 .flags = {}, .display = &display, .surface = &surf}};
 
   const vk::Extent2D swapchain_extent{.width = static_cast<uint32_t>(sz.width),
       .height = static_cast<uint32_t>(sz.height)};
-  render_environment render_env =
+  const auto [render_env, graphics_qeue_family] =
       setup_suitable_device(inst, *vk_surf, swapchain_extent);
 
-  vk::raii::PipelineLayout pipeline_layout{
+  const vk::raii::PipelineLayout pipeline_layout{
       render_env.get_device(), vk::PipelineLayoutCreateInfo{
                                    .setLayoutCount = 0,
                                    .pSetLayouts = nullptr,
@@ -406,9 +451,26 @@ void prepare_instance(wl_display& display, wl_surface& surf, size sz) {
                                    .pPushConstantRanges = nullptr,
                                }};
 
-  vk::raii::RenderPass render_pass =
+  const vk::raii::RenderPass render_pass =
       make_render_pass(render_env.get_device(), render_env.get_image_format());
 
-  vk::raii::Pipeline pipeline = make_pipeline(render_env.get_device(),
+  const vk::raii::Pipeline pipeline = make_pipeline(render_env.get_device(),
       *render_pass, *pipeline_layout, swapchain_extent);
+
+  const std::vector<vk::raii::Framebuffer> framebuffers =
+      make_framebuffers(render_env.get_device(), render_pass, swapchain_extent,
+          render_env.get_image_views());
+
+  const vk::raii::CommandPool cmd_pool{render_env.get_device(),
+      vk::CommandPoolCreateInfo{
+          .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+          .queueFamilyIndex = graphics_qeue_family}};
+
+  const vk::raii::CommandBuffers cmd_buffs{render_env.get_device(),
+      vk::CommandBufferAllocateInfo{.commandPool = *cmd_pool,
+          .level = vk::CommandBufferLevel::ePrimary,
+          .commandBufferCount = 1}};
+
+  record_cmd_buffer(*cmd_buffs.front(), *render_pass, *pipeline,
+      swapchain_extent, *framebuffers.front());
 }
