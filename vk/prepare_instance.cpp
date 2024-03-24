@@ -192,7 +192,7 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
 
   return vk::SwapchainCreateInfoKHR{.flags = {},
       .surface = surf,
-      .minImageCount = {},
+      .minImageCount = 2,
       .imageFormat = fmt_it->format,
       .imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
       .imageExtent = vk::Extent2D{.width = std::clamp(sz.width,
@@ -238,6 +238,9 @@ std::tuple<render_environment, uint32_t> setup_suitable_device(
         if (graphics_family != presentation_family) {
           swapchain_info->imageSharingMode = vk::SharingMode::eConcurrent;
           swapchain_info->queueFamilyIndexCount = queues.size();
+          swapchain_info->pQueueFamilyIndices = queues.data();
+        } else {
+          swapchain_info->queueFamilyIndexCount = 1;
           swapchain_info->pQueueFamilyIndices = queues.data();
         }
 
