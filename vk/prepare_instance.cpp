@@ -45,9 +45,19 @@ vk::raii::Instance create_instance() {
       .pEngineName = "no_engine",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
       .apiVersion = VK_API_VERSION_1_0};
-  const auto inst_create_info =
-      vk::InstanceCreateInfo{.flags = {}, .pApplicationInfo = &app_info}
-          .setPEnabledExtensionNames(REQUIRED_EXTENSIONS);
+  auto inst_create_info = vk::InstanceCreateInfo{.pApplicationInfo = &app_info}
+                              .setPEnabledExtensionNames(REQUIRED_EXTENSIONS);
+
+#if !defined(NDEBUG)
+  std::array<const char*, 1> debug_layers{"VK_LAYER_KHRONOS_validation"};
+  if (std::ranges::contains(
+          vk::enumerateInstanceLayerProperties(VULKAN_HPP_DEFAULT_DISPATCHER),
+          std::string_view{debug_layers.front()},
+          &vk::LayerProperties::layerName)) {
+    inst_create_info.setPEnabledLayerNames(debug_layers);
+  }
+#endif
+
   vk::raii::Instance inst{context, inst_create_info, nullptr};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*inst);
   return inst;
