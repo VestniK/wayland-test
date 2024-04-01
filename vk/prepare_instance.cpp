@@ -441,7 +441,9 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
 
   return vk::SwapchainCreateInfoKHR{.flags = {},
       .surface = surf,
-      .minImageCount = 2,
+      .minImageCount = std::min(capabilities.minImageCount + 1,
+          capabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max()
+                                          : capabilities.maxImageCount),
       .imageFormat = fmt_it->format,
       .imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
       .imageExtent = vk::Extent2D{.width = std::clamp(sz.width,
@@ -449,8 +451,8 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
                                       capabilities.maxImageExtent.width),
           .height = std::clamp(sz.height, capabilities.minImageExtent.height,
               capabilities.maxImageExtent.height)},
-      .imageArrayLayers = {},
-      .imageUsage = {},
+      .imageArrayLayers = 1,
+      .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
       .imageSharingMode = vk::SharingMode::eExclusive,
       .queueFamilyIndexCount = {},
       .pQueueFamilyIndices = {},
@@ -515,6 +517,8 @@ std::move_only_function<void(frames_clock::time_point)> prepare_instance(
 
   const vk::Extent2D swapchain_extent{.width = static_cast<uint32_t>(sz.width),
       .height = static_cast<uint32_t>(sz.height)};
-  return [render_env = setup_suitable_device(inst, *vk_surf, swapchain_extent)](
-             frames_clock::time_point ts) { render_env.draw_frame(ts); };
+  auto render_func =
+      [render_env = setup_suitable_device(inst, *vk_surf, swapchain_extent)](
+          frames_clock::time_point ts) { render_env.draw_frame(ts); };
+  return {};
 }
