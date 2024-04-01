@@ -269,14 +269,16 @@ std::vector<vk::raii::Framebuffer> make_framebuffers(
 
 class render_environment {
 public:
-  render_environment(const vk::raii::PhysicalDevice& dev,
+  render_environment(vk::raii::Instance inst,
+      const vk::raii::PhysicalDevice& dev, vk::raii::SurfaceKHR surf,
       uint32_t graphics_queue_family, uint32_t presentation_queue_family,
       vk::SwapchainCreateInfoKHR swapchain_info)
-      : device{create_logical_device(
+      : instance{std::move(inst)},
+        device{create_logical_device(
             dev, graphics_queue_family, presentation_queue_family)},
         graphics_queue{device.getQueue(graphics_queue_family, 0)},
         presentation_queue{device.getQueue(presentation_queue_family, 0)},
-        swapchain{device, swapchain_info},
+        surf{std::move(surf)}, swapchain{device, swapchain_info},
         swapchain_images{swapchain.getImages()},
         image_views{make_image_views(
             device, swapchain_images, swapchain_info.imageFormat)},
@@ -363,9 +365,11 @@ private:
   }
 
 private:
+  vk::raii::Instance instance;
   vk::raii::Device device;
   vk::raii::Queue graphics_queue;
   vk::raii::Queue presentation_queue;
+  vk::raii::SurfaceKHR surf;
   vk::raii::SwapchainKHR swapchain;
   std::vector<vk::Image> swapchain_images;
   std::vector<vk::raii::ImageView> image_views;
@@ -463,8 +467,8 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
       .oldSwapchain = {}};
 }
 
-render_environment setup_suitable_device(const vk::raii::Instance& inst,
-    const vk::SurfaceKHR& surf, vk::Extent2D sz) {
+render_environment setup_suitable_device(
+    vk::raii::Instance inst, vk::raii::SurfaceKHR surf, vk::Extent2D sz) {
   auto devices = inst.enumeratePhysicalDevices();
 
   for (const vk::raii::PhysicalDevice& dev : inst.enumeratePhysicalDevices()) {
@@ -474,12 +478,12 @@ render_environment setup_suitable_device(const vk::raii::Instance& inst,
         std::views::enumerate(dev.getQueueFamilyProperties())) {
       if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
         graphics_family = idx;
-      if (dev.getSurfaceSupportKHR(idx, surf))
+      if (dev.getSurfaceSupportKHR(idx, *surf))
         presentation_family = idx;
     }
     if (graphics_family && presentation_family &&
         has_required_extensions(*dev)) {
-      if (auto swapchain_info = choose_swapchain_params(*dev, surf, sz)) {
+      if (auto swapchain_info = choose_swapchain_params(*dev, *surf, sz)) {
         spdlog::info("Using Vulkan device: {}",
             std::string_view{dev.getProperties().deviceName});
 
@@ -494,8 +498,8 @@ render_environment setup_suitable_device(const vk::raii::Instance& inst,
           swapchain_info->pQueueFamilyIndices = queues.data();
         }
 
-        return render_environment{
-            dev, *graphics_family, *presentation_family, *swapchain_info};
+        return render_environment{std::move(inst), dev, std::move(surf),
+            *graphics_family, *presentation_family, *swapchain_info};
       }
     }
 
@@ -506,19 +510,21 @@ render_environment setup_suitable_device(const vk::raii::Instance& inst,
   throw std::runtime_error{"No suitable Vulkan device found"};
 }
 
+constexpr vk::Extent2D as_extent(size sz) noexcept {
+  return {.width = static_cast<uint32_t>(sz.width),
+      .height = static_cast<uint32_t>(sz.height)};
+}
+
 } // namespace
 
 std::move_only_function<void(frames_clock::time_point)> prepare_instance(
     wl_display& display, wl_surface& surf, size sz) {
-  const vk::raii::Instance inst = create_instance();
-  const vk::raii::SurfaceKHR vk_surf{
+  vk::raii::Instance inst = create_instance();
+  vk::raii::SurfaceKHR vk_surf{
       inst, vk::WaylandSurfaceCreateInfoKHR{
                 .flags = {}, .display = &display, .surface = &surf}};
 
-  const vk::Extent2D swapchain_extent{.width = static_cast<uint32_t>(sz.width),
-      .height = static_cast<uint32_t>(sz.height)};
-  auto render_func =
-      [render_env = setup_suitable_device(inst, *vk_surf, swapchain_extent)](
-          frames_clock::time_point ts) { render_env.draw_frame(ts); };
-  return {};
+  return [render_env = setup_suitable_device(
+              std::move(inst), std::move(vk_surf), as_extent(sz))](
+             frames_clock::time_point ts) { render_env.draw_frame(ts); };
 }
