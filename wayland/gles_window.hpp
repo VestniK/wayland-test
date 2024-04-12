@@ -10,6 +10,8 @@
 #include <wayland/shell_window.hpp>
 #include <wayland/vsync_frames.hpp>
 
+#include <corort/executors.hpp>
+
 namespace wl {
 class gui_shell;
 }
@@ -39,7 +41,7 @@ public:
       vsync_frames& frames, value_update_channel<size>& resize_channel)>;
 
   gles_window() noexcept = default;
-  gles_window(event_loop& eloop, asio::thread_pool::executor_type pool_exec,
+  gles_window(event_loop& eloop, co::pool_executor pool_exec,
       wl::sized_window<wl::shell_window>&& wnd, render_function render_func);
 
   gles_window(const gles_window&) = delete;

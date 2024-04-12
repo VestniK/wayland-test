@@ -15,9 +15,9 @@
 #include <wayland/gles_window.hpp>
 #include <wayland/gui_shell.hpp>
 
-asio::awaitable<void> draw_scene(asio::io_context::executor_type io_exec,
-    asio::thread_pool::executor_type pool_exec,
-    const scene::controller& controller, const char* wl_display) {
+asio::awaitable<void> draw_scene(co::io_executor io_exec,
+    co::pool_executor pool_exec, const scene::controller& controller,
+    const char* wl_display) {
   event_loop eloop{wl_display};
   wl::gui_shell shell{eloop};
 

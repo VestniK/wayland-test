@@ -15,6 +15,8 @@
 #include <app/listen_gamepad.hpp>
 #include <app/setup_logger.hpp>
 
+#include <corort/executors.hpp>
+
 using namespace std::literals;
 using namespace asio::experimental::awaitable_operators;
 
@@ -33,8 +35,8 @@ namespace co {
 
 unsigned min_threads = 3;
 
-asio::awaitable<int> main(asio::io_context::executor_type io_exec,
-    asio::thread_pool::executor_type pool_exec, std::span<char*> args) {
+asio::awaitable<int> main(
+    io_executor io_exec, pool_executor pool_exec, std::span<char*> args) {
   if (get_flag(args, "-h")) {
     args::usage<opts>(args[0], std::cout);
     std::cout << '\n';

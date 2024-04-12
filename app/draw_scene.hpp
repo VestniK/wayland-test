@@ -6,6 +6,8 @@
 
 #include <scene/controller.hpp>
 
-asio::awaitable<void> draw_scene(asio::io_context::executor_type io_exec,
-    asio::thread_pool::executor_type pool_exec,
-    const scene::controller& controller, const char* wl_display);
+#include <corort/executors.hpp>
+
+asio::awaitable<void> draw_scene(co::io_executor io_exec,
+    co::pool_executor pool_exec, const scene::controller& controller,
+    const char* wl_display);

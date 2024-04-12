@@ -9,10 +9,12 @@
 #include <asio/io_service.hpp>
 #include <asio/static_thread_pool.hpp>
 
+#include <corort/executors.hpp>
+
 namespace co {
 
-extern asio::awaitable<int> main(asio::io_context::executor_type io_exec,
-    asio::thread_pool::executor_type pool_exec, std::span<char*> args);
+extern asio::awaitable<int> main(
+    io_executor io_exec, pool_executor pool_exec, std::span<char*> args);
 extern unsigned min_threads;
 
 } // namespace co

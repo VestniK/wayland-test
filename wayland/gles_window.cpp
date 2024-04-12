@@ -70,9 +70,8 @@ bool gles_context::resize(size sz) {
 }
 
 struct gles_window::impl : public xdg::delegate {
-  impl(asio::static_thread_pool::executor_type exec, event_queue queue,
-      queues_notify_callback cb, wl_surface& surf, size initial_size,
-      render_function render_func)
+  impl(co::pool_executor exec, event_queue queue, queues_notify_callback cb,
+      wl_surface& surf, size initial_size, render_function render_func)
       : render_task_guard{exec,
             [&surf, &resize_channel = resize_channel, initial_size,
                 queue = std::move(queue), render_func = std::move(render_func)](
@@ -99,8 +98,7 @@ struct gles_window::impl : public xdg::delegate {
   std::stop_callback<queues_notify_callback> on_stop;
 };
 
-gles_window::gles_window(event_loop& eloop,
-    asio::thread_pool::executor_type pool_exec,
+gles_window::gles_window(event_loop& eloop, co::pool_executor pool_exec,
     wl::sized_window<wl::shell_window>&& wnd, render_function render_func)
     : wnd_{std::move(wnd.window)} {
   event_queue queue = eloop.make_queue();
