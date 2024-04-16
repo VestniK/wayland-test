@@ -8,8 +8,6 @@
 #include <asio/io_context.hpp>
 #include <asio/posix/stream_descriptor.hpp>
 
-#include <glm/vec2.hpp>
-
 #include <util/channel.hpp>
 
 #include <gamepad/types/axis.hpp>

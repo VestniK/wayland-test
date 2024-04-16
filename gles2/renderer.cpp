@@ -1,6 +1,6 @@
 #include <vector>
 
-#include <Tracy/tracy/Tracy.hpp>
+#include <Tracy.hpp>
 
 #include <scene/mesh_data.hpp>
 
