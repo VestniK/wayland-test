@@ -1,7 +1,3 @@
-#include <iterator>
-#include <numeric>
-#include <optional>
-
 #include <spdlog/spdlog.h>
 
 #include <util/clock.hpp>

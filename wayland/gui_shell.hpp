@@ -1,8 +1,5 @@
 #pragma once
 
-#include <concepts>
-#include <tuple>
-
 #include <util/geom.hpp>
 
 #include <wayland/event_loop.hpp>

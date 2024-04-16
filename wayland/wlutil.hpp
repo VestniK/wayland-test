@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string_view>
-#include <type_traits>
 
 #include <ivi-application.h>
 #include <wayland-client.h>
