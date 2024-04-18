@@ -15,7 +15,7 @@ class event_loop;
 
 class queues_notify_callback {
 public:
-  queues_notify_callback(event_loop& eloop) noexcept : eloop_{eloop} {}
+  explicit queues_notify_callback(event_loop& eloop) noexcept : eloop_{eloop} {}
 
   void operator()() noexcept;
 
@@ -31,8 +31,6 @@ public:
   void dispatch();
   void dispatch_pending();
   wl_display& display() const noexcept;
-
-  queues_notify_callback notify_callback() noexcept { return {eloop_.get()}; }
 
 private:
   std::reference_wrapper<event_loop> eloop_;
@@ -63,6 +61,9 @@ public:
   void notify_queues() noexcept {
     ++read_count_;
     read_count_.notify_all();
+  }
+  queues_notify_callback notify_queues_callback() noexcept {
+    return queues_notify_callback{*this};
   }
 
 private:

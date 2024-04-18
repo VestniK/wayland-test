@@ -100,7 +100,7 @@ gles_window::gles_window(event_loop& eloop, co::pool_executor pool_exec,
   event_queue queue = eloop.make_queue();
   wl_surface& surf = wnd_.get_surface();
   wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(&surf), &queue.get());
-  auto cb = queue.notify_callback();
+  auto cb = eloop.notify_queues_callback();
   impl_ = std::make_unique<impl>(
       pool_exec, std::move(queue), cb, surf, wnd.sz, std::move(render_func));
   wnd_.set_delegate(impl_.get());
