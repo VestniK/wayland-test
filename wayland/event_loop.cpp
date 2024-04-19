@@ -29,7 +29,7 @@ asio::awaitable<void> event_loop::dispatch_once(
       asio::posix::stream_descriptor::wait_read, asio::use_awaitable);
   conn.release();
   wl_display_read_events(&get_display());
-  notify_queues();
+  heartbeat_.beat();
   // TODO `wl_display_cancel_read(display);` on wait failure!!!
   dispatch_pending();
   co_return;
