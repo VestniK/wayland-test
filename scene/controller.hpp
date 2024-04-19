@@ -1,6 +1,6 @@
 #pragma once
 
-#include <util/channel.hpp>
+#include <libs/sync/channel.hpp>
 
 #include <gamepad/types/axis_state.hpp>
 #include <gamepad/types/kyes.hpp>

@@ -3,7 +3,7 @@
 
 #include <asio/static_thread_pool.hpp>
 
-#include <util/channel.hpp>
+#include <libs/sync/channel.hpp>
 #include <util/geom.hpp>
 
 #include <wayland/egl.hpp>

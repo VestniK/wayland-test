@@ -25,6 +25,7 @@ FetchContent_Declare(
 add_subdirectory(tools)
 add_subdirectory(testing)
 add_subdirectory(corort)
+add_subdirectory(libs)
 add_subdirectory(util)
 add_subdirectory(gamepad)
 add_subdirectory(gles2)

@@ -8,7 +8,7 @@
 #include <asio/io_context.hpp>
 #include <asio/posix/stream_descriptor.hpp>
 
-#include <util/channel.hpp>
+#include <libs/sync/channel.hpp>
 
 #include <gamepad/types/axis.hpp>
 #include <gamepad/types/axis_state.hpp>

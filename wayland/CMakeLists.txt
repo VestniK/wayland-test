@@ -7,6 +7,7 @@ cpp_unit(
   NAME wlwnd
   STD cxx_std_23
   LIBS
+    sync
     util
     Wayland::client Wayland::egl
     OpenGL::EGL

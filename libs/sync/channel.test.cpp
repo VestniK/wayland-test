@@ -11,9 +11,10 @@
 
 #include <asio/post.hpp>
 
+#include <util/geom.hpp>
+
 #include "channel.hpp"
 #include "executors_environment.test.hpp"
-#include "geom.hpp"
 
 namespace {
 

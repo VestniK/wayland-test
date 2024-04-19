@@ -14,6 +14,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     util
+    sync
     thinsys-io
     PkgConfig::UDEV
     fmt::fmt
