@@ -66,12 +66,14 @@ bool gles_context::resize(size sz) {
 }
 
 struct gles_window::impl : public xdg::delegate {
-  impl(co::pool_executor exec, event_queue queue, queues_notify_callback cb,
-      wl_surface& surf, size initial_size, render_function render_func)
+  impl(co::pool_executor exec, event_queue queue, wl_surface& surf,
+      size initial_size, render_function render_func)
       : render_task_guard{exec,
             [&surf, &resize_channel = resize_channel, initial_size,
                 queue = std::move(queue), render_func = std::move(render_func)](
                 std::stop_token stop) mutable {
+              std::stop_callback wake_queue_on_stop{
+                  stop, [&queue] { queue.wake(); }};
               gles_context ctx{queue.display(), surf, initial_size};
               spdlog::debug("OpenGL ES2 context created");
 
@@ -80,8 +82,7 @@ struct gles_window::impl : public xdg::delegate {
 
               render_func(ctx, frames, resize_channel);
               spdlog::debug("rendering finished");
-            }},
-        on_stop{render_task_guard.stop_token(), cb} {}
+            }} {}
 
   void resize(size sz) override { resize_channel.update(sz); }
   void close() override {
@@ -91,18 +92,15 @@ struct gles_window::impl : public xdg::delegate {
 
   value_update_channel<size> resize_channel;
   task_guard render_task_guard;
-  std::stop_callback<queues_notify_callback> on_stop;
 };
 
-gles_window::gles_window(event_loop& eloop, co::pool_executor pool_exec,
+gles_window::gles_window(event_queue queue, co::pool_executor pool_exec,
     wl::sized_window<wl::shell_window>&& wnd, render_function render_func)
     : wnd_{std::move(wnd.window)} {
-  event_queue queue = eloop.make_queue();
   wl_surface& surf = wnd_.get_surface();
   wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(&surf), &queue.get());
-  auto cb = eloop.notify_queues_callback();
   impl_ = std::make_unique<impl>(
-      pool_exec, std::move(queue), cb, surf, wnd.sz, std::move(render_func));
+      pool_exec, std::move(queue), surf, wnd.sz, std::move(render_func));
   wnd_.set_delegate(impl_.get());
 }
 

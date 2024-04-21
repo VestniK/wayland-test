@@ -31,7 +31,7 @@ asio::awaitable<void> draw_scene(co::io_executor io_exec,
   vkwnd.set_delegate(&delegate);
   prepare_instance(eloop.get_display(), vkwnd.get_surface(), sz);
 
-  gles_window wnd{eloop, pool_exec,
+  gles_window wnd{eloop.make_queue(), pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
       make_render_func<scene_renderer>(std::cref(controller))};
 

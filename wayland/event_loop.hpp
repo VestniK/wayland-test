@@ -15,17 +15,6 @@ struct identified {
 
 class event_loop;
 
-class queues_notify_callback {
-public:
-  explicit queues_notify_callback(heartbeat& hbeat) noexcept
-      : heartbeat_{hbeat} {}
-
-  void operator()() noexcept;
-
-private:
-  std::reference_wrapper<heartbeat> heartbeat_;
-};
-
 class event_queue {
 public:
   event_queue(event_loop& eloop) noexcept;
@@ -34,6 +23,8 @@ public:
   void dispatch();
   void dispatch_pending();
   wl_display& display() const noexcept { return *display_; }
+
+  void wake() const noexcept { waiter_.wake(); }
 
 private:
   heartbeat_waiter waiter_;
@@ -61,10 +52,6 @@ public:
     co_return;
   }
 
-  queues_notify_callback notify_queues_callback() noexcept {
-    return queues_notify_callback{heartbeat_};
-  }
-
 private:
   friend class event_queue;
 
@@ -78,14 +65,10 @@ inline event_queue::event_queue(event_loop& eloop) noexcept
       queue_{wl_display_create_queue(&eloop.get_display())} {}
 
 inline void event_queue::dispatch() {
-  waiter_.wait_new_beats();
-  dispatch_pending();
+  if (waiter_.wait_new_beats() != 0)
+    dispatch_pending();
 }
 
 inline void event_queue::dispatch_pending() {
   wl_display_dispatch_queue_pending(display_, queue_.get());
-}
-
-inline void queues_notify_callback::operator()() noexcept {
-  heartbeat_.get().beat();
 }
