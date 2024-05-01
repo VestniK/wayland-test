@@ -9,15 +9,15 @@
 #include <util/clock.hpp>
 
 struct animate_to {
-  glm::vec2 dest;
+  glm::vec3 dest;
   std::chrono::milliseconds duration;
 
   bool operator==(const animate_to&) const noexcept = default;
 };
 struct linear_animation {
-  glm::vec2 start;
+  glm::vec3 start;
   frames_clock::time_point start_time;
-  glm::vec2 end;
+  glm::vec3 end;
   frames_clock::time_point end_time;
 
   void reset(frames_clock::time_point now, animate_to animation) noexcept {
@@ -27,7 +27,7 @@ struct linear_animation {
     end_time = now + animation.duration;
   }
 
-  glm::vec2 animate(frames_clock::time_point now) const noexcept {
+  glm::vec3 animate(frames_clock::time_point now) const noexcept {
     if (now >= end_time)
       return end;
     const auto factor = float_time::milliseconds{now - start_time} /

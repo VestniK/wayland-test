@@ -2,6 +2,7 @@
 
 #include <array>
 #include <span>
+#include <vector>
 
 #include <util/concat.hpp>
 #include <util/unit.hpp>

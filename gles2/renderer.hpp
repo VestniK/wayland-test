@@ -9,6 +9,8 @@
 #include <util/clock.hpp>
 #include <util/geom.hpp>
 
+#include <scene/anime.hpp>
+
 #include <gles2/shader_pipeline.hpp>
 
 namespace scene {
@@ -28,7 +30,12 @@ private:
   shader_pipeline pipeline_;
   const scene::controller& controller_;
 
-  mesh paper_;
-  gl::textures<1> morph_ = gl::gen_textures<1>();
+  mesh cube_;
+  mesh landscape_;
   glm::mat4 camera_;
+
+  linear_animation landscape_color_;
+  linear_animation cube_color_;
+  clamped_integrator cube_pos_integrator_{
+      {.min = {-0.5, -1.}, .max = {7.5, 7.}}, {}, {}};
 };

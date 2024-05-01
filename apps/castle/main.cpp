@@ -9,11 +9,8 @@
 
 #include <util/struct_args.hpp>
 
-#include <scene/controller.hpp>
-
-#include <app/draw_scene.hpp>
-#include <app/listen_gamepad.hpp>
-#include <app/setup_logger.hpp>
+#include <apps/castle/draw_scene.hpp>
+#include <apps/castle/setup_logger.hpp>
 
 #include <corort/executors.hpp>
 
@@ -46,9 +43,7 @@ asio::awaitable<int> main(
   const auto opt = args::parse<opts>(args);
   setup_logger();
 
-  scene::controller controller;
-  co_await (draw_scene(io_exec, pool_exec, controller, opt.display) ||
-            listen_gamepad(io_exec, controller));
+  co_await draw_scene(io_exec, pool_exec, opt.display);
 
   co_return EXIT_SUCCESS;
 }

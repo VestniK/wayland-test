@@ -1,4 +1,4 @@
-#include <app/draw_scene.hpp>
+#include "draw_scene.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -6,9 +6,6 @@
 
 #include <util/xdg.hpp>
 
-#include <img/load.hpp>
-
-#include <gles2/renderer.hpp>
 #include <vk/prepare_instance.hpp>
 
 #include <wayland/event_loop.hpp>
@@ -16,8 +13,7 @@
 #include <wayland/vk_window.hpp>
 
 asio::awaitable<void> draw_scene(co::io_executor io_exec,
-    co::pool_executor pool_exec, const scene::controller& controller,
-    const char* wl_display) {
+    co::pool_executor pool_exec, const char* wl_display) {
   event_loop eloop{wl_display};
   wl::gui_shell shell{eloop};
 

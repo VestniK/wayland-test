@@ -14,23 +14,20 @@ public:
   struct attributes {
     gl::attrib_location<glm::vec3> position;
     gl::attrib_location<glm::vec3> normal;
-    gl::attrib_location<glm::vec2> uv;
-    gl::attrib_location<glm::vec2> idxs;
   };
 
   shader_pipeline();
 
   void start_rendering(glm::mat4 camera);
-  void draw(glm::mat4 model, mesh& mesh);
-
-  void bind_morph(gl::texture_sampler tex);
+  void draw(glm::mat4 model, glm::vec3 color, mesh& mesh);
 
 private:
   gl::shader_program shader_prog_;
   gl::uniform_location<glm::mat4> camera_uniform_;
   gl::uniform_location<glm::mat4> model_world_uniform_;
   gl::uniform_location<glm::mat3> norm_world_uniform_;
-  gl::uniform_location<gl::texture_sampler> morph_uniform_;
+  gl::uniform_location<glm::vec3> color_uniform_;
+  ;
   attributes attributes_;
 };
 

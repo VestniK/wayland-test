@@ -7,7 +7,7 @@ find_package(PkgConfig)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 
 cpp_unit(
-  NAME wayland-test
+  NAME castle
   STD cxx_std_23
   LIBS
     asio::asio
@@ -16,10 +16,7 @@ cpp_unit(
     wlwnd
     vk
     util
-    gles2
-    scene
     corort
-    gamepad
     fmt::fmt
   TEST_LIBS
     Catch2::Catch2
@@ -27,13 +24,13 @@ cpp_unit(
   TEST_ARGS --order rand --rng-seed time
 )
 
-target_sources(wayland-test PRIVATE
+target_sources(castle PRIVATE
   ${CMAKE_SOURCE_DIR}/conanfile.txt
   ${CMAKE_SOURCE_DIR}/.clang-format
   ${CMAKE_SOURCE_DIR}/.clangd
 )
-add_custom_command(TARGET wayland-test POST_BUILD
-  COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:wayland-test> $<TARGET_FILE:wayland-test>.dbg
-  COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:wayland-test>
-  COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:wayland-test>.dbg $<TARGET_FILE:wayland-test>
+add_custom_command(TARGET castle POST_BUILD
+  COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:castle> $<TARGET_FILE:castle>.dbg
+  COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:castle>
+  COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:castle>.dbg $<TARGET_FILE:castle>
 )
