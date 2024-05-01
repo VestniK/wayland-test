@@ -308,6 +308,17 @@ public:
         frame_done{device, vk::FenceCreateInfo{}},
         swapchain_extent{swapchain_info.imageExtent} {}
 
+  render_environment(const render_environment&) = delete;
+  render_environment& operator=(const render_environment&) = delete;
+
+  render_environment(render_environment&&) noexcept = default;
+  render_environment& operator=(render_environment&&) noexcept = default;
+
+  ~render_environment() noexcept {
+    if (*device != nullptr)
+      device.waitIdle();
+  }
+
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
     const auto [res, idx] = swapchain.acquireNextImage(
         std::numeric_limits<uint32_t>::max(), *image_available);
@@ -319,11 +330,15 @@ public:
     record_cmd_buffer(*cmd_buffs.front(), *framebuffers[idx]);
     submit_cmd_buf(*cmd_buffs.front());
 
-    ec = make_error_code(device.waitForFences(
-        {*frame_done}, true, std::numeric_limits<uint64_t>::max()));
+    ec = make_error_code(presentation_queue.presentKHR(
+        vk::PresentInfoKHR{.waitSemaphoreCount = 1,
+            .pWaitSemaphores = &*render_finished,
+            .swapchainCount = 1,
+            .pSwapchains = &*swapchain,
+            .pImageIndices = &idx,
+            .pResults = nullptr}));
     if (ec)
-      throw std::system_error(ec, "vkWaitForFence");
-    device.resetFences({*frame_done});
+      throw std::system_error(ec, "vkQueuePresentKHR");
   }
 
 private:
@@ -349,19 +364,21 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    const auto sig_sem = *render_finished;
-    const auto wait_sem = *image_available;
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     std::array<vk::SubmitInfo, 1> submit_infos{
         vk::SubmitInfo{.waitSemaphoreCount = 1,
-            .pWaitSemaphores = &wait_sem,
+            .pWaitSemaphores = &*image_available,
             .pWaitDstStageMask = &wait_stage,
             .commandBufferCount = 1,
             .pCommandBuffers = &cmd,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &sig_sem}};
+            .pSignalSemaphores = &*render_finished}};
     graphics_queue.submit(submit_infos, *frame_done);
+    if (auto ec = make_error_code(device.waitForFences(
+            {*frame_done}, true, std::numeric_limits<uint64_t>::max())))
+      throw std::system_error(ec, "vkWaitForFence");
+    device.resetFences({*frame_done});
   }
 
 private:
