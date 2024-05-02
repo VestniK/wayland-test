@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include <util/get_option.hpp>
+#include <libs/cli/get_option.hpp>
 
 bool get_flag(std::span<char*>& args, std::string_view flag) noexcept {
   assert(!args.empty());

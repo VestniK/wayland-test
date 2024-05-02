@@ -14,6 +14,7 @@ cpp_unit(
     spdlog::spdlog
     PkgConfig::SYSTEMD
     wlwnd
+    cli
     vk
     util
     corort

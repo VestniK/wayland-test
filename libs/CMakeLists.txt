@@ -1,3 +1,4 @@
+add_subdirectory(cli)
 add_subdirectory(corort)
 add_subdirectory(gamepad)
 add_subdirectory(img)

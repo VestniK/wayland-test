@@ -14,6 +14,7 @@ cpp_unit(
     spdlog::spdlog
     PkgConfig::SYSTEMD
     wlwnd
+    cli
     util
     gles2
     scene

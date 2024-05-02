@@ -7,7 +7,7 @@
 #include <asio/experimental/awaitable_operators.hpp>
 #include <asio/static_thread_pool.hpp>
 
-#include <util/struct_args.hpp>
+#include <libs/cli/struct_args.hpp>
 
 #include <apps/castle/draw_scene.hpp>
 #include <apps/castle/setup_logger.hpp>

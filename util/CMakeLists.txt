@@ -11,6 +11,3 @@ cpp_unit(
     Catch2::Catch2WithMain
   TEST_ARGS --order rand --rng-seed time
 )
-
-target_compile_options(util PUBLIC -Wno-error=interference-size -Wno-interference-size)
-

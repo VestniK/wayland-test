@@ -11,7 +11,7 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include <util/struct_args.hpp>
+#include <libs/cli/struct_args.hpp>
 
 #include "parse_include.hpp"
 #include "split_shaders.hpp"
