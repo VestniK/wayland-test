@@ -8,8 +8,8 @@
 
 #include <util/geom.hpp>
 
-#include <gles2/resource.hpp>
-#include <gles2/uniform.hpp>
+#include <libs/gles2/resource.hpp>
+#include <libs/gles2/uniform.hpp>
 
 namespace gl {
 

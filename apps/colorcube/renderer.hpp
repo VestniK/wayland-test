@@ -11,7 +11,7 @@
 
 #include <scene/anime.hpp>
 
-#include <gles2/shader_pipeline.hpp>
+#include <apps/colorcube/shader_pipeline.hpp>
 
 namespace scene {
 class controller;

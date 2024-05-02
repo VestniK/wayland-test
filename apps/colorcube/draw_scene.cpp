@@ -8,7 +8,7 @@
 
 #include <libs/img/load.hpp>
 
-#include <gles2/renderer.hpp>
+#include <apps/colorcube/renderer.hpp>
 
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>

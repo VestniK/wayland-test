@@ -3,8 +3,8 @@
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 
-#include <gles2/resource.hpp>
-#include <gles2/textures.hpp>
+#include <libs/gles2/resource.hpp>
+#include <libs/gles2/textures.hpp>
 
 struct vertex;
 class mesh;

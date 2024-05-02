@@ -1,6 +1,6 @@
-#include <gles2/shader_pipeline.hpp>
+#include "shader_pipeline.hpp"
 
-#include <gles2/shaders.hpp>
+#include <apps/colorcube/shaders.hpp>
 #include <scene/mesh_data.hpp>
 
 namespace {

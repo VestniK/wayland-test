@@ -7,7 +7,7 @@ function(target_shaders Tgt)
     "${oneValueArgs}"
     "${multiValueArgs}"
     ${ARGN}
-)
+  )
 
   foreach(Arg ${TGT_SHADERS_SOURCES})
     list(APPEND InputArgs "-i" ${Arg})

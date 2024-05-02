@@ -1,5 +1,6 @@
 add_subdirectory(cli)
 add_subdirectory(corort)
 add_subdirectory(gamepad)
+add_subdirectory(gles2)
 add_subdirectory(img)
 add_subdirectory(sync)

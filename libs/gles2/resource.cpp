@@ -1,6 +1,6 @@
 #include <stdexcept>
 
-#include <gles2/resource.hpp>
+#include <libs/gles2/resource.hpp>
 
 namespace gl {
 

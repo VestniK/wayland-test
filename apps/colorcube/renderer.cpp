@@ -1,4 +1,4 @@
-#include <vector>
+#include "renderer.hpp"
 
 #include <Tracy.hpp>
 
@@ -6,9 +6,9 @@
 #include <scene/landscape.hpp>
 #include <scene/mesh_data.hpp>
 
-#include <gles2/renderer.hpp>
-#include <gles2/shaders.hpp>
-#include <gles2/textures.hpp>
+#include <libs/gles2/textures.hpp>
+
+#include <apps/colorcube/shaders.hpp>
 
 using namespace std::literals;
 

@@ -6,7 +6,7 @@
 #include <catch2/matchers/catch_matchers_container_properties.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 
-#include <gles2/resource.hpp>
+#include <libs/gles2/resource.hpp>
 
 using namespace Catch::Matchers;
 

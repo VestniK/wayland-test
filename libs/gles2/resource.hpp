@@ -9,9 +9,9 @@
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
 
-#include <gles2/attrib.hpp>
-#include <gles2/resource_handle.hpp>
-#include <gles2/uniform.hpp>
+#include <libs/gles2/attrib.hpp>
+#include <libs/gles2/resource_handle.hpp>
+#include <libs/gles2/uniform.hpp>
 
 namespace gl {
 
