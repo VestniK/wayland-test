@@ -11,7 +11,7 @@
 #include <asio/awaitable.hpp>
 #include <asio/io_context.hpp>
 
-#include <gamepad/evdev_gamepad.hpp>
+#include <libs/gamepad/evdev_gamepad.hpp>
 
 namespace detail::udev {
 

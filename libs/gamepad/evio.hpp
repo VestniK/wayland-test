@@ -8,8 +8,8 @@
 #include <asio/experimental/coro.hpp>
 #include <asio/posix/stream_descriptor.hpp>
 
-#include <gamepad/evio_codes.hpp>
-#include <gamepad/types/axis.hpp>
+#include <libs/gamepad/evio_codes.hpp>
+#include <libs/gamepad/types/axis.hpp>
 
 namespace evio {
 

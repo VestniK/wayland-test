@@ -16,7 +16,7 @@
 
 #include <thinsys/io/io.hpp>
 
-#include <gamepad/types/axis_state.hpp>
+#include <libs/gamepad/types/axis_state.hpp>
 
 using namespace std::literals;
 

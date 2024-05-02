@@ -10,9 +10,9 @@
 
 #include <libs/sync/channel.hpp>
 
-#include <gamepad/types/axis.hpp>
-#include <gamepad/types/axis_state.hpp>
-#include <gamepad/types/kyes.hpp>
+#include <libs/gamepad/types/axis.hpp>
+#include <libs/gamepad/types/axis_state.hpp>
+#include <libs/gamepad/types/kyes.hpp>
 
 class evdev_gamepad {
 public:

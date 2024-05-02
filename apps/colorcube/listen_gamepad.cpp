@@ -1,6 +1,6 @@
 #include "listen_gamepad.hpp"
 
-#include <gamepad/udev_gamepads.hpp>
+#include <libs/gamepad/udev_gamepads.hpp>
 
 asio::awaitable<void> listen_gamepad(
     co::io_executor io_exec, scene::controller& controller) {

@@ -7,8 +7,8 @@
 #include <optional>
 #include <string_view>
 
-#include <gamepad/types/axis.hpp>
-#include <gamepad/types/kyes.hpp>
+#include <libs/gamepad/types/axis.hpp>
+#include <libs/gamepad/types/kyes.hpp>
 
 namespace evio {
 
