@@ -6,7 +6,7 @@
 
 #include <util/xdg.hpp>
 
-#include <img/load.hpp>
+#include <libs/img/load.hpp>
 
 #include <gles2/renderer.hpp>
 
