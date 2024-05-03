@@ -1,4 +1,4 @@
-#include <scene/triangular_net.hpp>
+#include <libs/geom/triangular_net.hpp>
 
 namespace triangular {
 

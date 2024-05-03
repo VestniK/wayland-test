@@ -1,6 +1,6 @@
 #pragma once
 
-#include <util/geom.hpp>
+#include <libs/geom/geom.hpp>
 
 #include <wayland/event_loop.hpp>
 #include <wayland/ivi_window.hpp>

@@ -8,7 +8,7 @@
 #include <wayland-egl.h>
 #include <xdg-shell.h>
 
-#include <util/geom.hpp>
+#include <libs/geom/geom.hpp>
 
 namespace wl {
 

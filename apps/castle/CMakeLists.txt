@@ -15,6 +15,7 @@ cpp_unit(
     PkgConfig::SYSTEMD
     wlwnd
     cli
+    xdg
     vk
     util
     corort

@@ -6,7 +6,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-#include <util/clock.hpp>
+#include <wayland/clock.hpp>
 
 struct animate_to {
   glm::vec3 dest;

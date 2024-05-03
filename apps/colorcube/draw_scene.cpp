@@ -4,7 +4,7 @@
 
 #include <asio/co_spawn.hpp>
 
-#include <util/xdg.hpp>
+#include <libs/xdg/xdg.hpp>
 
 #include <libs/img/load.hpp>
 

@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <utility>
 
-#include <util/geom.hpp>
+#include <libs/geom/geom.hpp>
 
 struct wl_surface;
 namespace xdg {

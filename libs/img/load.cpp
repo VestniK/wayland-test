@@ -6,7 +6,7 @@
 
 #include <png.h>
 
-#include <util/geom.hpp>
+#include <libs/geom/geom.hpp>
 
 namespace {
 namespace png {

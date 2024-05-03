@@ -8,6 +8,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     util
+    memtricks
     OpenGL::OpenGL
     glm::glm
   TEST_LIBS

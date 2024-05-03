@@ -6,10 +6,10 @@
 
 #include <glm/mat4x4.hpp>
 
-#include <util/clock.hpp>
-#include <util/geom.hpp>
+#include <libs/geom/geom.hpp>
 
 #include <scene/anime.hpp>
+#include <wayland/clock.hpp>
 
 #include <apps/colorcube/shader_pipeline.hpp>
 

@@ -8,7 +8,7 @@
 
 #include <fmt/format.h>
 
-#include <scene/triangular_net.hpp>
+#include <libs/geom/triangular_net.hpp>
 
 using Catch::Generators::random;
 using namespace fmt::literals;

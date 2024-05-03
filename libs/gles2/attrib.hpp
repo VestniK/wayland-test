@@ -5,7 +5,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-#include <util/member.hpp>
+#include <libs/memtricks/member.hpp>
 
 namespace gl {
 

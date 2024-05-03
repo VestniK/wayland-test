@@ -3,10 +3,10 @@
 
 #include <glm/ext.hpp>
 
-#include <util/morton.hpp>
+#include <libs/geom/morton.hpp>
+#include <libs/geom/triangular_net.hpp>
 
 #include <scene/landscape.hpp>
-#include <scene/triangular_net.hpp>
 
 namespace {
 

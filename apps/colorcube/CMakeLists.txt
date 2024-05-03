@@ -17,6 +17,8 @@ cpp_unit(
     spdlog::spdlog
     PkgConfig::SYSTEMD
     wlwnd
+    xdg
+    geom
     cli
     util
     gles2

@@ -9,6 +9,7 @@ cpp_unit(
   LIBS
     sync
     util
+    geom
     vk
     Wayland::client Wayland::egl
     OpenGL::EGL

@@ -3,8 +3,7 @@
 #include <optional>
 #include <stop_token>
 
-#include <util/clock.hpp>
-
+#include <wayland/clock.hpp>
 #include <wayland/wlutil.hpp>
 
 class event_queue;

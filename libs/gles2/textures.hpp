@@ -6,8 +6,7 @@
 
 #include <GLES2/gl2.h>
 
-#include <util/geom.hpp>
-
+#include <libs/geom/geom.hpp>
 #include <libs/gles2/resource.hpp>
 #include <libs/gles2/uniform.hpp>
 

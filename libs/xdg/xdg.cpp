@@ -1,6 +1,6 @@
 #include <cstdlib>
 
-#include <util/xdg.hpp>
+#include <libs/xdg/xdg.hpp>
 
 namespace fs = std::filesystem;
 

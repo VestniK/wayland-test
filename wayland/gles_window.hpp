@@ -3,14 +3,14 @@
 
 #include <asio/static_thread_pool.hpp>
 
+#include <libs/corort/executors.hpp>
+#include <libs/geom/geom.hpp>
 #include <libs/sync/channel.hpp>
-#include <util/geom.hpp>
 
 #include <wayland/egl.hpp>
 #include <wayland/shell_window.hpp>
 #include <wayland/vsync_frames.hpp>
 
-#include <libs/corort/executors.hpp>
 
 namespace wl {
 class gui_shell;

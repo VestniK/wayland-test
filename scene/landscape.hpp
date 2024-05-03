@@ -4,7 +4,7 @@
 #include <span>
 #include <vector>
 
-#include <util/concat.hpp>
+#include <libs/memtricks/concat.hpp>
 #include <util/unit.hpp>
 
 #include <scene/mesh_data.hpp>

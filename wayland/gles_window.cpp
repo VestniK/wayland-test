@@ -1,8 +1,8 @@
 #include <spdlog/spdlog.h>
 
 #include <libs/sync/task_guard.hpp>
-#include <util/clock.hpp>
 
+#include <wayland/clock.hpp>
 #include <wayland/egl.hpp>
 #include <wayland/event_loop.hpp>
 #include <wayland/gles_window.hpp>
