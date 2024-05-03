@@ -1,11 +1,11 @@
 [requires]
-asio/1.29.0
-catch2/3.5.2
+asio/1.30.2
+catch2/3.5.4
 fmt/10.2.1
 glm/cci.20230113
-libpng/1.6.42
+libpng/1.6.43
 ms-gsl/4.0.0
-spdlog/1.13.0
+spdlog/1.14.0
 tracy/cci.20220130
 vulkan-headers/1.3.268.0
 
