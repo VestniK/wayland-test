@@ -2,8 +2,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <gsl/narrow>
-
 #include <png.h>
 
 #include <libs/geom/geom.hpp>
@@ -60,9 +58,9 @@ image load(thinsys::io::file_descriptor& in) {
 
   png_read_info(png_struct.get(), png_struct.get_deleter().info);
 
-  const size img_size{gsl::narrow<int>(png_get_image_width(
+  const size img_size{static_cast<int>(png_get_image_width(
                           png_struct.get(), png_struct.get_deleter().info)),
-      gsl::narrow<int>(png_get_image_height(
+      static_cast<int>(png_get_image_height(
           png_struct.get(), png_struct.get_deleter().info))};
 
   const auto bits =

@@ -12,7 +12,6 @@ cpp_unit(
     thinsys-io
     PNG::PNG
     spdlog::spdlog
-    Microsoft.GSL::GSL
   TEST_LIBS
     Catch2::Catch2
     Catch2::Catch2WithMain
