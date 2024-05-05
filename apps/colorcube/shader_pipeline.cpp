@@ -1,7 +1,7 @@
 #include "shader_pipeline.hpp"
 
+#include <apps/colorcube/mesh_data.hpp>
 #include <apps/colorcube/shaders.hpp>
-#include <scene/mesh_data.hpp>
 
 namespace {
 

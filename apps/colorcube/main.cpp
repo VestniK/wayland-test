@@ -9,8 +9,7 @@
 
 #include <libs/cli/struct_args.hpp>
 
-#include <scene/controller.hpp>
-
+#include <apps/colorcube/controller.hpp>
 #include <apps/colorcube/draw_scene.hpp>
 #include <apps/colorcube/listen_gamepad.hpp>
 #include <apps/colorcube/setup_logger.hpp>

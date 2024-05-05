@@ -2,12 +2,11 @@
 
 #include <Tracy.hpp>
 
-#include <scene/controller.hpp>
-#include <scene/mesh_data.hpp>
-
 #include <libs/geom/hexagon_tiles.hpp>
 #include <libs/gles2/textures.hpp>
 
+#include <apps/colorcube/controller.hpp>
+#include <apps/colorcube/mesh_data.hpp>
 #include <apps/colorcube/shaders.hpp>
 
 using namespace std::literals;

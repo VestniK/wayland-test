@@ -22,9 +22,10 @@ cpp_unit(
     geom
     cli
     gles2
-    scene
     corort
+    memtricks
     gamepad
+    gamepad-types
     fmt::fmt
     Tracy::TracyClient
   TEST_LIBS
