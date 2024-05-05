@@ -3,9 +3,9 @@
 #include <Tracy.hpp>
 
 #include <scene/controller.hpp>
-#include <scene/landscape.hpp>
 #include <scene/mesh_data.hpp>
 
+#include <libs/geom/hexagon_tiles.hpp>
 #include <libs/gles2/textures.hpp>
 
 #include <apps/colorcube/shaders.hpp>
@@ -86,7 +86,10 @@ glm::mat4 animate_cube_pos(
 scene_renderer::scene_renderer(const scene::controller& contr)
     : controller_{contr}, cube_{cube_vertices, cube_idxs} {
   using namespace mp_units::si::unit_symbols;
-  landscape land{5 * cm, 120, 80};
+  const auto land =
+      hexagon_tiles<vertex>::generate(5 * cm, 120, 80, [](glm::vec2 pt) {
+        return vertex{.position = {pt, 0.}, .normal = {0., 0., 1.}};
+      });
   landscape_ = mesh{land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
