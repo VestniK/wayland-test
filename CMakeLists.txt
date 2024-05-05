@@ -25,7 +25,6 @@ FetchContent_Declare(
 add_subdirectory(tools)
 add_subdirectory(testing)
 add_subdirectory(libs)
-add_subdirectory(util)
 add_subdirectory(vk)
 add_subdirectory(scene)
 add_subdirectory(wayland)

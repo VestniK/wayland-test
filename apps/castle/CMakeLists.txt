@@ -17,7 +17,6 @@ cpp_unit(
     cli
     xdg
     vk
-    util
     corort
     fmt::fmt
   TEST_LIBS
@@ -27,7 +26,7 @@ cpp_unit(
 )
 
 target_sources(castle PRIVATE
-  ${CMAKE_SOURCE_DIR}/conanfile.txt
+  ${CMAKE_SOURCE_DIR}/conanfile.py
   ${CMAKE_SOURCE_DIR}/.clang-format
   ${CMAKE_SOURCE_DIR}/.clangd
 )

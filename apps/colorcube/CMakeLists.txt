@@ -20,7 +20,6 @@ cpp_unit(
     xdg
     geom
     cli
-    util
     gles2
     scene
     corort
@@ -40,7 +39,7 @@ target_shaders(colorcube.lib
 )
 
 target_sources(colorcube PRIVATE
-  ${CMAKE_SOURCE_DIR}/conanfile.txt
+  ${CMAKE_SOURCE_DIR}/conanfile.py
   ${CMAKE_SOURCE_DIR}/.clang-format
   ${CMAKE_SOURCE_DIR}/.clangd
 )

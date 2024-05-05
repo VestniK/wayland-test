@@ -4,14 +4,18 @@
 #include <span>
 #include <vector>
 
+#include <mp-units/systems/si/si.h>
+
 #include <libs/memtricks/concat.hpp>
-#include <util/unit.hpp>
 
 #include <scene/mesh_data.hpp>
 
 class landscape {
 public:
-  explicit landscape(meters cell_radius, int columns, int rows);
+  using radius_t =
+      mp_units::quantity<mp_units::isq::radius[mp_units::si::metre], float>;
+
+  explicit landscape(radius_t cell_radius, int columns, int rows);
 
   ~landscape() noexcept = default;
 

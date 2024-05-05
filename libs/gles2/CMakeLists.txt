@@ -7,7 +7,6 @@ cpp_unit(
   NAME gles2
   STD cxx_std_23
   LIBS
-    util
     memtricks
     OpenGL::OpenGL
     glm::glm

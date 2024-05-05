@@ -2,6 +2,9 @@
 #include <array>
 #include <numeric>
 
+#include <mp-units/format.h>
+#include <mp-units/systems/si/si.h>
+
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators_range.hpp>
@@ -12,6 +15,7 @@
 #include <scene/landscape.hpp>
 
 using namespace fmt::literals;
+using namespace mp_units::si::unit_symbols;
 
 namespace test {
 
@@ -69,8 +73,8 @@ box bounding_box(InputIt first, InputIt last) noexcept {
 TEST_CASE("generate_flat_landscape", "[landscape]") {
   const auto columns = GENERATE(range(1, 4));
   const auto rows = GENERATE(range(2, 4));
-  const meters radius = centimeters{10} * GENERATE(range(9, 11));
-  INFO(fmt::format("{}x{} hexagons of size {}", columns, rows, radius.count()));
+  const auto radius = (10.f * cm) * GENERATE(range(9, 11));
+  INFO(fmt::format("{}x{} hexagons of size {}", columns, rows, radius));
   landscape land{radius, columns, rows};
 
   SECTION("covers flat rectangular area") {
@@ -81,13 +85,16 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
           landscape_bounds.height(), Catch::Matchers::WithinAbs(0., 0.0001));
     }
     SECTION("mesh has proper x dimensions") {
-      CHECK(landscape_bounds.length() ==
-            Catch::Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) *
-                          radius.count()));
+      CHECK(
+          landscape_bounds.length() ==
+          Catch::Approx((2 + (1 + std::cos(M_PI / 3)) * (columns - 1)) *
+                        radius.numerical_value_in(landscape::radius_t::unit)));
     }
     SECTION("mesh has proper y dimensions") {
       CHECK(landscape_bounds.width() ==
-            Catch::Approx(rows * 2 * radius.count() * std::sin(M_PI / 3)));
+            Catch::Approx(rows * 2 *
+                          radius.numerical_value_in(landscape::radius_t::unit) *
+                          std::sin(M_PI / 3)));
     }
   }
 
@@ -110,15 +117,19 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
 
           SECTION(fmt::format("triangle {} is equilateral",
               triangle_offset / triangles_in_hexagon)) {
+            const auto equilateral_triangle_sides_dot_prod =
+                (0.5 * radius * radius)
+                    .numerical_value_in(
+                        landscape::radius_t::unit * landscape::radius_t::unit);
             CHECK(glm::dot(
                       triangle[1] - triangle[0], triangle[2] - triangle[0]) ==
-                  Catch::Approx(0.5 * radius.count() * radius.count()));
+                  Catch::Approx(equilateral_triangle_sides_dot_prod));
             CHECK(glm::dot(
                       triangle[0] - triangle[1], triangle[2] - triangle[1]) ==
-                  Catch::Approx(0.5 * radius.count() * radius.count()));
+                  Catch::Approx(equilateral_triangle_sides_dot_prod));
             CHECK(glm::dot(
                       triangle[0] - triangle[2], triangle[1] - triangle[2]) ==
-                  Catch::Approx(0.5 * radius.count() * radius.count()));
+                  Catch::Approx(equilateral_triangle_sides_dot_prod));
           }
 
           SECTION("there are 7 unique points (center and hexagon perimeter)") {

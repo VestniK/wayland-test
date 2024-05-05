@@ -8,7 +8,6 @@ cpp_unit(
   NAME shaders2consts
   STD cxx_std_23
   LIBS
-    util
     cli
     thinsys-io
     fmt::fmt

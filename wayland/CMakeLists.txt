@@ -8,7 +8,6 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     sync
-    util
     geom
     vk
     Wayland::client Wayland::egl

@@ -19,13 +19,13 @@ struct morton_hash {
 
 } // namespace
 
-landscape::landscape(meters cell_radius, int columns, int rows) {
+landscape::landscape(radius_t cell_radius, int columns, int rows) {
   std::unordered_map<triangular::point, unsigned, morton_hash> idxs;
   auto idx = [&](triangular::point pt) {
     auto [it, success] = idxs.insert({pt, verticies_.size()});
     if (success) {
       verticies_.push_back(
-          {.position = {cell_radius.count() *
+          {.position = {cell_radius.numerical_value_in(mp_units::si::metre) *
                             triangular::to_cartesian(it->first),
                0.},
               .normal = {0., 0., 1.}});

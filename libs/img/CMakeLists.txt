@@ -1,7 +1,6 @@
 find_package(Catch2 REQUIRED)
 find_package(PNG NO_MODULE REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(Microsoft.GSL REQUIRED)
 find_package(thinsys REQUIRED)
 
 cpp_unit(

@@ -13,7 +13,6 @@ cpp_unit(
   NAME gamepad
   STD cxx_std_23
   LIBS
-    util
     sync
     thinsys-io
     PkgConfig::UDEV

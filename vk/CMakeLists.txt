@@ -7,7 +7,6 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     geom
-    util
     vulkan-headers::vulkan-headers
     spdlog::spdlog
   TEST_LIBS

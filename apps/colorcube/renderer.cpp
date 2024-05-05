@@ -85,7 +85,8 @@ glm::mat4 animate_cube_pos(
 
 scene_renderer::scene_renderer(const scene::controller& contr)
     : controller_{contr}, cube_{cube_vertices, cube_idxs} {
-  landscape land{centimeters{5}, 120, 80};
+  using namespace mp_units::si::unit_symbols;
+  landscape land{5 * cm, 120, 80};
   landscape_ = mesh{land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
