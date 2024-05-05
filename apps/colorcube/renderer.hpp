@@ -8,8 +8,8 @@
 
 #include <libs/geom/geom.hpp>
 
-#include <scene/anime.hpp>
-#include <wayland/clock.hpp>
+#include <libs/anime/anime.hpp>
+#include <libs/anime/clock.hpp>
 
 #include <apps/colorcube/shader_pipeline.hpp>
 

@@ -2,8 +2,8 @@
 
 #include <functional>
 
+#include <libs/anime/clock.hpp>
 #include <libs/geom/geom.hpp>
-#include <wayland/clock.hpp>
 
 struct wl_display;
 struct wl_surface;

@@ -1,11 +1,9 @@
 #pragma once
 
-#include <libs/sync/channel.hpp>
-
+#include <libs/anime/anime.hpp>
 #include <libs/gamepad/types/axis_state.hpp>
 #include <libs/gamepad/types/kyes.hpp>
-
-#include <scene/anime.hpp>
+#include <libs/sync/channel.hpp>
 
 namespace scene {
 

@@ -13,6 +13,7 @@ cpp_unit(
   NAME colorcube
   STD cxx_std_23
   LIBS
+    anime
     asio::asio
     spdlog::spdlog
     PkgConfig::SYSTEMD
