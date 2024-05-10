@@ -5,12 +5,12 @@
 #include <libs/anime/clock.hpp>
 #include <libs/eglctx/egl.hpp>
 
-#include <wayland/animation_window.hpp>
-#include <wayland/event_loop.hpp>
-#include <wayland/gui_shell.hpp>
-#include <wayland/ui_category.hpp>
-#include <wayland/vsync_frames.hpp>
-#include <wayland/xdg_window.hpp>
+#include <libs/wlwnd/animation_window.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/gui_shell.hpp>
+#include <libs/wlwnd/ui_category.hpp>
+#include <libs/wlwnd/vsync_frames.hpp>
+#include <libs/wlwnd/xdg_window.hpp>
 
 struct animation_window::impl : public xdg::delegate {
   impl(co::pool_executor exec, event_queue& queue, wl_surface& surf,

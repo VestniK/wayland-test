@@ -2,8 +2,8 @@
 
 #include <xdg-shell.h>
 
-#include <wayland/gui_shell.hpp>
-#include <wayland/ui_category.hpp>
+#include <libs/wlwnd/gui_shell.hpp>
+#include <libs/wlwnd/ui_category.hpp>
 
 namespace wl {
 

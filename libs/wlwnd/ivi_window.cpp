@@ -2,8 +2,8 @@
 
 #include <ivi-application.h>
 
-#include <wayland/ivi_window.hpp>
-#include <wayland/wlutil.hpp>
+#include <libs/wlwnd/ivi_window.hpp>
+#include <libs/wlwnd/wlutil.hpp>
 
 namespace ivi {
 

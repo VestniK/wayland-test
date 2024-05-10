@@ -5,9 +5,9 @@
 #include <libs/eglctx/egl.hpp>
 #include <libs/sync/channel.hpp>
 
-#include <wayland/renderer.hpp>
-#include <wayland/vsync_frames.hpp>
-#include <wayland/wlutil.hpp>
+#include <libs/wlwnd/renderer.hpp>
+#include <libs/wlwnd/vsync_frames.hpp>
+#include <libs/wlwnd/wlutil.hpp>
 
 class gles_context {
 public:

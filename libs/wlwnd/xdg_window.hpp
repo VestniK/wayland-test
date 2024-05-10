@@ -1,7 +1,7 @@
 #pragma once
 
-#include <wayland/window_delegate.hpp>
-#include <wayland/wlutil.hpp>
+#include <libs/wlwnd/window_delegate.hpp>
+#include <libs/wlwnd/wlutil.hpp>
 
 struct xdg_wm_base;
 

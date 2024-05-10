@@ -1,6 +1,6 @@
 #include <xdg-shell.h>
 
-#include <wayland/xdg_window.hpp>
+#include <libs/wlwnd/xdg_window.hpp>
 
 namespace xdg {
 

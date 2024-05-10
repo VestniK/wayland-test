@@ -4,7 +4,7 @@
 #include <stop_token>
 
 #include <libs/anime/clock.hpp>
-#include <wayland/wlutil.hpp>
+#include <libs/wlwnd/wlutil.hpp>
 
 class event_queue;
 class event_loop;

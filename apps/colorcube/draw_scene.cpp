@@ -10,9 +10,9 @@
 
 #include <apps/colorcube/renderer.hpp>
 
-#include <wayland/animation_window.hpp>
-#include <wayland/event_loop.hpp>
-#include <wayland/gui_shell.hpp>
+#include <libs/wlwnd/animation_window.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/gui_shell.hpp>
 
 asio::awaitable<void> draw_scene(co::io_executor io_exec,
     co::pool_executor pool_exec, const scene::controller& controller,

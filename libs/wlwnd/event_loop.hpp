@@ -5,7 +5,7 @@
 
 #include <libs/sync/heartbeat.hpp>
 
-#include <wayland/wlutil.hpp>
+#include <libs/wlwnd/wlutil.hpp>
 
 template <typename Service>
 struct identified {

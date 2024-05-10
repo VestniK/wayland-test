@@ -1,5 +1,5 @@
-#include <wayland/event_loop.hpp>
-#include <wayland/vsync_frames.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/vsync_frames.hpp>
 
 vsync_frames::vsync_frames(
     event_queue& queue, wl_surface& surf, std::stop_token& stop)

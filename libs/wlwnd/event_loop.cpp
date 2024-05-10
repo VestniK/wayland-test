@@ -1,8 +1,8 @@
 #include <asio/posix/stream_descriptor.hpp>
 #include <asio/use_awaitable.hpp>
 
-#include <wayland/event_loop.hpp>
-#include <wayland/ui_category.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/ui_category.hpp>
 
 event_loop::event_loop(const char* display)
     : display_{wl_display_connect(display)} {

@@ -2,10 +2,10 @@
 
 #include <libs/geom/geom.hpp>
 
-#include <wayland/event_loop.hpp>
-#include <wayland/ivi_window.hpp>
-#include <wayland/shell_window.hpp>
-#include <wayland/xdg_window.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/ivi_window.hpp>
+#include <libs/wlwnd/shell_window.hpp>
+#include <libs/wlwnd/xdg_window.hpp>
 
 namespace wl {
 

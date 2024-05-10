@@ -8,10 +8,10 @@
 
 #include <vk/prepare_instance.hpp>
 
-#include <wayland/animation_window.hpp>
-#include <wayland/event_loop.hpp>
-#include <wayland/gui_shell.hpp>
-#include <wayland/vsync_frames.hpp>
+#include <libs/wlwnd/animation_window.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/gui_shell.hpp>
+#include <libs/wlwnd/vsync_frames.hpp>
 
 animation_function make_vk_animation_function() {
   return [](wl_display& display, wl_surface& surf, vsync_frames& frames,

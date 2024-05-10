@@ -1,9 +1,9 @@
 #include <libs/corort/executors.hpp>
 #include <libs/sync/channel.hpp>
 
-#include <wayland/event_loop.hpp>
-#include <wayland/renderer.hpp>
-#include <wayland/shell_window.hpp>
+#include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/renderer.hpp>
+#include <libs/wlwnd/shell_window.hpp>
 
 namespace wl {
 class gui_shell;
