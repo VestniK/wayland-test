@@ -4,14 +4,14 @@
 
 #include <asio/co_spawn.hpp>
 
-#include <libs/xdg/xdg.hpp>
-
+#include <libs/eglctx/gles_context.hpp>
 #include <libs/img/load.hpp>
+#include <libs/xdg/xdg.hpp>
 
 #include <apps/colorcube/renderer.hpp>
 
+#include <wayland/animation_window.hpp>
 #include <wayland/event_loop.hpp>
-#include <wayland/gles_window.hpp>
 #include <wayland/gui_shell.hpp>
 
 asio::awaitable<void> draw_scene(co::io_executor io_exec,
@@ -20,9 +20,9 @@ asio::awaitable<void> draw_scene(co::io_executor io_exec,
   event_loop eloop{wl_display};
   wl::gui_shell shell{eloop};
 
-  gles_window wnd{eloop.make_queue(), pool_exec,
+  animation_window wnd{eloop.make_queue(), pool_exec,
       co_await shell.create_maximized_window(eloop, io_exec),
-      make_render_func<scene_renderer>(std::cref(controller))};
+      make_gles_animation_function<scene_renderer>(std::cref(controller))};
 
   co_await eloop.dispatch_while(io_exec, [&] {
     if (auto ec = shell.check()) {

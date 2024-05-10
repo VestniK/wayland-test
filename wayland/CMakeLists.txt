@@ -1,4 +1,3 @@
-find_package(OpenGL REQUIRED COMPONENTS EGL)
 find_package(Catch2 REQUIRED)
 find_package(asio REQUIRED)
 find_package(spdlog REQUIRED)
@@ -10,9 +9,7 @@ cpp_unit(
     anime
     sync
     geom
-    vk
-    Wayland::client Wayland::egl
-    OpenGL::EGL
+    Wayland::client
     asio::asio
     spdlog::spdlog
   TEST_LIBS

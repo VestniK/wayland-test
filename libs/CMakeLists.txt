@@ -1,6 +1,7 @@
 add_subdirectory(anime)
 add_subdirectory(cli)
 add_subdirectory(corort)
+add_subdirectory(eglctx)
 add_subdirectory(gamepad)
 add_subdirectory(geom)
 add_subdirectory(gles2)

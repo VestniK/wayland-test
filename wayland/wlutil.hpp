@@ -5,10 +5,14 @@
 
 #include <ivi-application.h>
 #include <wayland-client.h>
-#include <wayland-egl.h>
 #include <xdg-shell.h>
 
 #include <libs/geom/geom.hpp>
+
+struct wl_egl_window;
+extern "C" {
+void wl_egl_window_destroy(struct wl_egl_window* egl_window);
+}
 
 namespace wl {
 

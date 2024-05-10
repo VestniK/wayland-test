@@ -20,6 +20,7 @@ cpp_unit(
     wlwnd
     xdg
     geom
+    eglctx
     cli
     gles2
     corort

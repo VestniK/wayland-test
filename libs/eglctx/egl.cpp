@@ -1,4 +1,4 @@
-#include <wayland/egl.hpp>
+#include "egl.hpp"
 
 namespace egl {
 
