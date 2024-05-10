@@ -66,13 +66,13 @@ bool gles_context::resize(size sz) {
 }
 
 struct gles_window::impl : public xdg::delegate {
-  impl(co::pool_executor exec, event_queue queue, wl_surface& surf,
+  impl(co::pool_executor exec, event_queue& queue, wl_surface& surf,
       size initial_size, render_function render_func)
       : resize_channel{initial_size},
-        render_task_guard{exec,
-            [&surf, &resize_channel = resize_channel, queue = std::move(queue),
-                render_func = std::move(render_func)](
-                std::stop_token stop) mutable {
+        render_task_guard{
+            exec, [&surf, &resize_channel = resize_channel, &queue,
+                      render_func = std::move(render_func)](
+                      std::stop_token stop) mutable {
               const auto initial_size = resize_channel.get_current();
               std::stop_callback wake_queue_on_stop{
                   stop, [&queue] { queue.wake(); }};
@@ -99,11 +99,11 @@ struct gles_window::impl : public xdg::delegate {
 
 gles_window::gles_window(event_queue queue, co::pool_executor pool_exec,
     wl::sized_window<wl::shell_window>&& wnd, render_function render_func)
-    : wnd_{std::move(wnd.window)} {
+    : wnd_{std::move(wnd.window)}, queue_{std::move(queue)} {
   wl_surface& surf = wnd_.get_surface();
-  wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(&surf), &queue.get());
+  wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(&surf), &queue_.get());
   impl_ = std::make_unique<impl>(
-      pool_exec, std::move(queue), surf, wnd.sz, std::move(render_func));
+      pool_exec, queue_, surf, wnd.sz, std::move(render_func));
   wnd_.set_delegate(impl_.get());
 }
 

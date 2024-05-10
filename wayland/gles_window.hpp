@@ -8,6 +8,7 @@
 #include <libs/sync/channel.hpp>
 
 #include <wayland/egl.hpp>
+#include <wayland/event_loop.hpp>
 #include <wayland/shell_window.hpp>
 #include <wayland/vsync_frames.hpp>
 
@@ -59,6 +60,7 @@ private:
 
 private:
   wl::shell_window wnd_;
+  event_queue queue_;
   std::unique_ptr<impl> impl_;
 };
 
