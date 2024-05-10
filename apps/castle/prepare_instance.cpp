@@ -349,7 +349,7 @@ private:
     cmd.begin(
         vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
     vk::ClearValue clear_val{
-        .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}}};
+        .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
     cmd.beginRenderPass(
         vk::RenderPassBeginInfo{.renderPass = *render_pass,
             .framebuffer = fb,
@@ -478,7 +478,7 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
       .queueFamilyIndexCount = {},
       .pQueueFamilyIndices = {},
       .preTransform = capabilities.currentTransform,
-      .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+      .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::ePreMultiplied,
       .presentMode = *mode_it,
       .clipped = true,
       .oldSwapchain = {}};
