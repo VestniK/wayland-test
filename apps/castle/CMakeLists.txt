@@ -50,7 +50,12 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/triangle.vert
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-target_sources(castle PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/triangle.frag.o ${CMAKE_CURRENT_BINARY_DIR}/triangle.vert.o)
+target_sources(castle PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}/triangle.frag.o
+  ${CMAKE_CURRENT_BINARY_DIR}/triangle.vert.o
+  shaders/triangle.frag
+  shaders/triangle.vert
+)
 
 
 target_sources(castle PRIVATE
