@@ -25,5 +25,4 @@ FetchContent_Declare(
 add_subdirectory(tools)
 add_subdirectory(testing)
 add_subdirectory(libs)
-add_subdirectory(vk)
 add_subdirectory(apps)

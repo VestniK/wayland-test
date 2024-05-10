@@ -6,12 +6,12 @@
 
 #include <libs/xdg/xdg.hpp>
 
-#include <vk/prepare_instance.hpp>
-
 #include <libs/wlwnd/animation_window.hpp>
 #include <libs/wlwnd/event_loop.hpp>
 #include <libs/wlwnd/gui_shell.hpp>
 #include <libs/wlwnd/vsync_frames.hpp>
+
+#include <apps/castle/prepare_instance.hpp>
 
 animation_function make_vk_animation_function() {
   return [](wl_display& display, wl_surface& surf, vsync_frames& frames,

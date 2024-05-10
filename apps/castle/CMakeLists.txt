@@ -1,7 +1,8 @@
+find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(asio REQUIRED)
+find_package(VulkanHeaders REQUIRED)
 
 find_package(PkgConfig)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
@@ -16,7 +17,7 @@ cpp_unit(
     wlwnd
     cli
     xdg
-    vk
+    vulkan-headers::vulkan-headers
     corort
     fmt::fmt
   TEST_LIBS
@@ -24,6 +25,33 @@ cpp_unit(
     Catch2::Catch2WithMain
   TEST_ARGS --order rand --rng-seed time
 )
+target_compile_definitions(castle.lib PRIVATE
+  VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
+  VULKAN_HPP_NO_CONSTRUCTORS
+  VK_USE_PLATFORM_WAYLAND_KHR
+)
+
+find_program(GLSLC NAMES glslc REQUIRED)
+find_program(LD NAMES ld lld REQUIRED)
+find_program(OBJCOPY NAMES objcopy llvm-objcopy REQUIRED)
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/triangle.frag.o
+  COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/triangle.frag -o ${CMAKE_CURRENT_BINARY_DIR}/triangle.frag.spv
+  COMMAND ${LD} --format=binary -z noexecstack -r -o triangle.frag.o triangle.frag.spv
+  COMMAND ${OBJCOPY} --rename-section .data=.rodata,alloc,load,readonly,data,contents triangle.frag.o
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/triangle.frag
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/triangle.vert.o
+  COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/triangle.vert -o ${CMAKE_CURRENT_BINARY_DIR}/triangle.vert.spv
+  COMMAND ${LD} --format=binary -z noexecstack -r -o triangle.vert.o triangle.vert.spv
+  COMMAND ${OBJCOPY} --rename-section .data=.rodata,alloc,load,readonly,data,contents triangle.vert.o
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/triangle.vert
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+target_sources(castle PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/triangle.frag.o ${CMAKE_CURRENT_BINARY_DIR}/triangle.vert.o)
+
 
 target_sources(castle PRIVATE
   ${CMAKE_SOURCE_DIR}/conanfile.py
