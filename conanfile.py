@@ -7,7 +7,6 @@ class Deps(ConanFile):
 
     def requirements(self):
         self.requires("asio/1.30.2")
-        self.requires("catch2/3.5.4")
         self.requires("fmt/10.2.1", override=True)
         self.requires("glm/cci.20230113")
         self.requires("libpng/1.6.43")
@@ -17,4 +16,4 @@ class Deps(ConanFile):
         self.requires("vulkan-headers/1.3.268.0")
 
     def build_requirements(self):
-        pass
+        self.test_requires("catch2/3.5.4")
