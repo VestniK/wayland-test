@@ -20,6 +20,12 @@ private:
   };
 
 public:
+  value_update_channel() noexcept = default;
+  explicit value_update_channel(const T& initial) noexcept(
+      std::is_nothrow_copy_constructible_v<T>) {
+    update(initial);
+  }
+
   std::optional<T> get_update() const
       noexcept(std::is_nothrow_copy_constructible_v<T>) {
     const T val = consumer_val();

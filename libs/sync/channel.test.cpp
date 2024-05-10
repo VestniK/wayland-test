@@ -21,6 +21,12 @@ namespace {
 template <std::regular T>
 class mutex_value_update_channel {
 public:
+  mutex_value_update_channel() noexcept = default;
+  explicit mutex_value_update_channel(const T& init) noexcept(
+      std::is_nothrow_copy_constructible_v<T>) {
+    update(init);
+  }
+
   std::optional<T> get_update() {
     const T val = (std::lock_guard{mutex_}, current_);
     if (val == prev_)
@@ -168,6 +174,38 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
         while (val != size{100, 500})
           val = channel.get_current();
         REQUIRE(val == size{100, 500});
+      }
+    }
+  }
+
+  GIVEN("Some channel with initial value") {
+    TestType channel{size{100, 500}};
+    THEN("channel is in updated state with initial value") {
+      REQUIRE(channel.get_update() == size{100, 500});
+    }
+    THEN("current value is equal to initial one") {
+      REQUIRE(channel.get_current() == size{100, 500});
+    }
+
+    WHEN("initial update is received") {
+      channel.get_update();
+      THEN("channel is not in updagetd state anymore") {
+        REQUIRE(channel.get_update() == std::nullopt);
+      }
+
+      THEN("current value remains the same") {
+        REQUIRE(channel.get_current() == size{100, 500});
+      }
+    }
+
+    WHEN("new value is set") {
+      channel.update(size{42, 42});
+      THEN("channel is in updated state with new value") {
+        REQUIRE(channel.get_update() == size{42, 42});
+      }
+
+      THEN("current value is the new one") {
+        REQUIRE(channel.get_current() == size{42, 42});
       }
     }
   }
