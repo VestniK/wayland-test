@@ -13,8 +13,11 @@
 struct vk_window::impl : public xdg::delegate {
   impl(co::pool_executor exec, event_queue& queue, wl_surface& surf,
       size initial_size)
-      : render_task_guard{
-            exec, [&queue, &surf, initial_size](std::stop_token stop) mutable {
+      : resize_channel{initial_size},
+        render_task_guard{
+            exec, [&queue, &surf, &resize_channel = resize_channel](
+                      std::stop_token stop) mutable {
+              const auto initial_size = resize_channel.get_current();
               std::stop_callback wake_queue_on_stop{
                   stop, [&queue] { queue.wake(); }};
               vsync_frames frames{queue, surf, stop};

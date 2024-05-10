@@ -68,16 +68,19 @@ bool gles_context::resize(size sz) {
 struct gles_window::impl : public xdg::delegate {
   impl(co::pool_executor exec, event_queue queue, wl_surface& surf,
       size initial_size, render_function render_func)
-      : render_task_guard{exec,
-            [&surf, &resize_channel = resize_channel, initial_size,
-                queue = std::move(queue), render_func = std::move(render_func)](
+      : resize_channel{initial_size},
+        render_task_guard{exec,
+            [&surf, &resize_channel = resize_channel, queue = std::move(queue),
+                render_func = std::move(render_func)](
                 std::stop_token stop) mutable {
+              const auto initial_size = resize_channel.get_current();
               std::stop_callback wake_queue_on_stop{
                   stop, [&queue] { queue.wake(); }};
+              vsync_frames frames{queue, surf, stop};
+
               gles_context ctx{queue.display(), surf, initial_size};
               spdlog::debug("OpenGL ES2 context created");
 
-              vsync_frames frames{queue, surf, stop};
               ctx.egl_surface().swap_buffers();
 
               render_func(ctx, frames, resize_channel);

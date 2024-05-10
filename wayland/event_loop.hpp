@@ -17,6 +17,7 @@ class event_loop;
 
 class event_queue {
 public:
+  event_queue() noexcept = default;
   event_queue(event_loop& eloop) noexcept;
 
   wl_event_queue& get() const noexcept { return *queue_; }
