@@ -13,13 +13,19 @@
 
 #include <apps/castle/prepare_instance.hpp>
 
+static_assert(renderer<renderer_iface>);
+
 animation_function make_vk_animation_function() {
   return [](wl_display& display, wl_surface& surf, vsync_frames& frames,
              value_update_channel<size>& resize_channel) {
     auto render = prepare_instance(display, surf, resize_channel.get_current());
-    render({});
+    render->draw({});
     for (auto ts : frames) {
-      render(ts);
+      if (const auto sz = resize_channel.get_update()) {
+        render->resize(sz.value());
+      }
+
+      render->draw(ts);
     }
   };
 }
