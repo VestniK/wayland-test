@@ -249,7 +249,7 @@ vk::raii::Pipeline make_pipeline(const vk::raii::Device& dev,
 }
 
 std::vector<vk::raii::Framebuffer> make_framebuffers(
-    const vk::raii::Device& dev, const vk::raii::RenderPass& render_pass,
+    const vk::raii::Device& dev, const vk::RenderPass& render_pass,
     const vk::Extent2D& swapchain_extent,
     std::span<const vk::raii::ImageView> views) {
   std::vector<vk::raii::Framebuffer> framebuffers;
@@ -257,7 +257,7 @@ std::vector<vk::raii::Framebuffer> make_framebuffers(
   std::ranges::transform(views, std::back_inserter(framebuffers),
       [&render_pass, &swapchain_extent, &dev](const vk::raii::ImageView& view) {
         return vk::raii::Framebuffer{
-            dev, vk::FramebufferCreateInfo{.renderPass = *render_pass,
+            dev, vk::FramebufferCreateInfo{.renderPass = render_pass,
                      .attachmentCount = 1,
                      .pAttachments = &(*view),
                      .width = swapchain_extent.width,
@@ -397,6 +397,52 @@ struct device_rendering_params {
   }
 };
 
+class swapchain_env {
+public:
+  swapchain_env(const vk::raii::Device& device, const vk::SurfaceKHR& surf,
+      const vk::SwapchainCreateInfoKHR& swapchain_info,
+      const vk::RenderPass& render_pass)
+      : swapchain_{device, swapchain_info},
+        swapchain_image_format_{swapchain_info.imageFormat},
+        swapchain_images_{swapchain_.getImages()},
+        image_views_{make_image_views(
+            device, swapchain_images_, swapchain_image_format_)},
+        framebuffers_{make_framebuffers(
+            device, render_pass, swapchain_info.imageExtent, image_views_)},
+        swapchain_extent_{swapchain_info.imageExtent} {}
+
+  void clear() noexcept {
+    framebuffers_.clear();
+    image_views_.clear();
+    swapchain_images_.clear();
+    swapchain_.clear();
+  }
+
+  vk::Format image_format() const noexcept { return swapchain_image_format_; }
+  vk::Extent2D extent() const noexcept { return swapchain_extent_; }
+
+  const vk::SwapchainKHR& swapchain() const noexcept { return *swapchain_; }
+
+  std::pair<vk::Framebuffer, uint32_t> acqure_framebuffer(
+      const vk::Semaphore& image_available) const {
+    const auto [res, idx] = swapchain_.acquireNextImage(
+        std::numeric_limits<uint32_t>::max(), image_available);
+    auto ec = make_error_code(res);
+    if (ec)
+      throw std::system_error(ec, "vkAcquireNextImageKHR");
+    assert(idx < framebuffers_.size());
+    return {*framebuffers_[idx], idx};
+  }
+
+private:
+  vk::raii::SwapchainKHR swapchain_;
+  vk::Format swapchain_image_format_;
+  std::vector<vk::Image> swapchain_images_;
+  std::vector<vk::raii::ImageView> image_views_;
+  std::vector<vk::raii::Framebuffer> framebuffers_;
+  vk::Extent2D swapchain_extent_;
+};
+
 class render_environment : public renderer_iface {
 public:
   render_environment(vk::raii::Instance inst, vk::raii::PhysicalDevice dev,
@@ -408,11 +454,9 @@ public:
             phydev, graphics_queue_family, presentation_queue_family)},
         graphics_queue{device.getQueue(graphics_queue_family, 0)},
         presentation_queue{device.getQueue(presentation_queue_family, 0)},
-        surf{std::move(surf)}, swapchain{device, swapchain_info},
-        swapchain_image_format{swapchain_info.imageFormat},
-        swapchain_images{swapchain.getImages()},
-        image_views{
-            make_image_views(device, swapchain_images, swapchain_image_format)},
+        surf{std::move(surf)},
+        render_pass{make_render_pass(device, swapchain_info.imageFormat)},
+        swapchain_environ{device, *surf, swapchain_info, *render_pass},
         pipeline_layout{device,
             vk::PipelineLayoutCreateInfo{
                 .setLayoutCount = 0,
@@ -420,11 +464,8 @@ public:
                 .pushConstantRangeCount = 0,
                 .pPushConstantRanges = nullptr,
             }},
-        render_pass{make_render_pass(device, swapchain_image_format)},
         pipeline{make_pipeline(device, *render_pass, *pipeline_layout,
             swapchain_info.imageExtent)},
-        framebuffers{make_framebuffers(
-            device, render_pass, swapchain_info.imageExtent, image_views)},
         cmd_pool{device,
             vk::CommandPoolCreateInfo{
                 .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -435,8 +476,7 @@ public:
                         .commandBufferCount = 1}},
         render_finished{device, vk::SemaphoreCreateInfo{}},
         image_available{device, vk::SemaphoreCreateInfo{}},
-        frame_done{device, vk::FenceCreateInfo{}},
-        swapchain_extent{swapchain_info.imageExtent} {}
+        frame_done{device, vk::FenceCreateInfo{}} {}
 
   render_environment(const render_environment&) = delete;
   render_environment& operator=(const render_environment&) = delete;
@@ -452,9 +492,7 @@ public:
   void resize(size sz) override {
     device.waitIdle();
 
-    framebuffers.clear();
-    image_views.clear();
-    swapchain.clear();
+    swapchain_environ.clear();
 
     auto params =
         device_rendering_params::choose(*phydev, *surf, as_extent(sz));
@@ -462,38 +500,28 @@ public:
       throw std::runtime_error{
           "Restore swapchain params after resise have failed"};
 
-    swapchain = vk::raii::SwapchainKHR{device, params->swapchain_info};
-    swapchain_images = swapchain.getImages();
-
     // render_pass is keept untoched but was created with old image format
     // choosin new format might be not safe
-    assert(swapchain_image_format == params->swapchain_info.imageFormat);
-    swapchain_image_format = params->swapchain_info.imageFormat;
-    image_views =
-        make_image_views(device, swapchain_images, swapchain_image_format);
-    swapchain_extent = params->swapchain_info.imageExtent;
-    framebuffers =
-        make_framebuffers(device, render_pass, swapchain_extent, image_views);
+    assert(
+        swapchain_environ.image_format() == params->swapchain_info.imageFormat);
+    swapchain_environ =
+        swapchain_env{device, *surf, params->swapchain_info, *render_pass};
   }
 
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
 
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
-    const auto [res, idx] = swapchain.acquireNextImage(
-        std::numeric_limits<uint32_t>::max(), *image_available);
-    auto ec = make_error_code(res);
-    if (ec)
-      throw std::system_error(ec, "vkAcquireNextImageKHR");
-    assert(idx < framebuffers.size());
+    const auto [fb, idx] =
+        swapchain_environ.acqure_framebuffer(*image_available);
 
-    record_cmd_buffer(*cmd_buffs.front(), *framebuffers[idx]);
+    record_cmd_buffer(*cmd_buffs.front(), fb);
     submit_cmd_buf(*cmd_buffs.front());
 
-    ec = make_error_code(presentation_queue.presentKHR(
+    const auto ec = make_error_code(presentation_queue.presentKHR(
         vk::PresentInfoKHR{.waitSemaphoreCount = 1,
             .pWaitSemaphores = &*render_finished,
             .swapchainCount = 1,
-            .pSwapchains = &*swapchain,
+            .pSwapchains = &swapchain_environ.swapchain(),
             .pImageIndices = &idx,
             .pResults = nullptr}));
     if (ec)
@@ -509,12 +537,12 @@ private:
         vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
     vk::ClearValue clear_val{
         .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
-    cmd.beginRenderPass(
-        vk::RenderPassBeginInfo{.renderPass = *render_pass,
-            .framebuffer = fb,
-            .renderArea = {.offset = {0, 0}, .extent = swapchain_extent},
-            .clearValueCount = 1,
-            .pClearValues = &clear_val},
+    cmd.beginRenderPass(vk::RenderPassBeginInfo{.renderPass = *render_pass,
+                            .framebuffer = fb,
+                            .renderArea = {.offset = {0, 0},
+                                .extent = swapchain_environ.extent()},
+                            .clearValueCount = 1,
+                            .pClearValues = &clear_val},
         vk::SubpassContents::eInline);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
     cmd.draw(3, 1, 0, 0);
@@ -547,22 +575,16 @@ private:
   vk::raii::Queue graphics_queue;
   vk::raii::Queue presentation_queue;
   vk::raii::SurfaceKHR surf;
-  vk::raii::SwapchainKHR swapchain;
-  vk::Format swapchain_image_format;
-  std::vector<vk::Image> swapchain_images;
-  std::vector<vk::raii::ImageView> image_views;
-  vk::raii::PipelineLayout pipeline_layout;
   vk::raii::RenderPass render_pass;
+  swapchain_env swapchain_environ;
+  vk::raii::PipelineLayout pipeline_layout;
   vk::raii::Pipeline pipeline;
-  std::vector<vk::raii::Framebuffer> framebuffers;
   vk::raii::CommandPool cmd_pool;
   vk::raii::CommandBuffers cmd_buffs;
 
   vk::raii::Semaphore render_finished;
   vk::raii::Semaphore image_available;
   vk::raii::Fence frame_done;
-
-  vk::Extent2D swapchain_extent;
 };
 
 render_environment setup_suitable_device(
