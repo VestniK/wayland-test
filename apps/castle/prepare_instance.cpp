@@ -423,7 +423,42 @@ public:
 
   const vk::SwapchainKHR& swapchain() const noexcept { return *swapchain_; }
 
-  std::pair<vk::Framebuffer, uint32_t> acqure_framebuffer(
+  class available_framebuffer {
+  public:
+    available_framebuffer(vk::Framebuffer fb, uint32_t idx) noexcept
+        : fb_{std::move(fb)}, idx_{idx} {}
+
+    available_framebuffer(const available_framebuffer&) = delete;
+    available_framebuffer& operator=(const available_framebuffer&) = delete;
+
+    available_framebuffer(available_framebuffer&&) noexcept = default;
+    available_framebuffer& operator=(
+        available_framebuffer&&) noexcept = default;
+
+    ~available_framebuffer() noexcept = default;
+
+    const vk::Framebuffer& framebuffer() const noexcept { return fb_; }
+
+    void present(const vk::SwapchainKHR& swpchain,
+        const vk::Queue& presentation_queue,
+        const vk::Semaphore& done_sem) const {
+      const auto ec = make_error_code(presentation_queue.presentKHR(
+          vk::PresentInfoKHR{.waitSemaphoreCount = 1,
+              .pWaitSemaphores = &done_sem,
+              .swapchainCount = 1,
+              .pSwapchains = &swpchain,
+              .pImageIndices = &idx_,
+              .pResults = nullptr}));
+      if (ec)
+        throw std::system_error(ec, "vkQueuePresentKHR");
+    }
+
+  private:
+    vk::Framebuffer fb_;
+    uint32_t idx_;
+  };
+
+  available_framebuffer acqure_framebuffer(
       const vk::Semaphore& image_available) const {
     const auto [res, idx] = swapchain_.acquireNextImage(
         std::numeric_limits<uint32_t>::max(), image_available);
@@ -432,6 +467,11 @@ public:
       throw std::system_error(ec, "vkAcquireNextImageKHR");
     assert(idx < framebuffers_.size());
     return {*framebuffers_[idx], idx};
+  }
+
+  void present(available_framebuffer&& fb, const vk::Queue& presentation_queue,
+      const vk::Semaphore& done_sem) const {
+    fb.present(*swapchain_, presentation_queue, done_sem);
   }
 
 private:
@@ -511,21 +551,13 @@ public:
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
 
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
-    const auto [fb, idx] =
-        swapchain_environ.acqure_framebuffer(*image_available);
+    auto fb = swapchain_environ.acqure_framebuffer(*image_available);
 
-    record_cmd_buffer(*cmd_buffs.front(), fb);
+    record_cmd_buffer(*cmd_buffs.front(), fb.framebuffer());
     submit_cmd_buf(*cmd_buffs.front());
 
-    const auto ec = make_error_code(presentation_queue.presentKHR(
-        vk::PresentInfoKHR{.waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*render_finished,
-            .swapchainCount = 1,
-            .pSwapchains = &swapchain_environ.swapchain(),
-            .pImageIndices = &idx,
-            .pResults = nullptr}));
-    if (ec)
-      throw std::system_error(ec, "vkQueuePresentKHR");
+    swapchain_environ.present(
+        std::move(fb), *presentation_queue, *render_finished);
   }
 
 private:
