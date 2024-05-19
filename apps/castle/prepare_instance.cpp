@@ -10,6 +10,11 @@
 
 #include <spdlog/spdlog.h>
 
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+
+#include <libs/memtricks/member.hpp>
+
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 extern "C" {
@@ -21,6 +26,33 @@ extern const std::byte _binary_triangle_frag_spv_end[];
 }
 
 namespace {
+
+struct vertex {
+  glm::vec2 pos;
+  glm::vec3 color;
+
+  constexpr static vk::VertexInputBindingDescription
+  binding_description() noexcept {
+    return vk::VertexInputBindingDescription{.binding = 0,
+        .stride = sizeof(vertex),
+        .inputRate = vk::VertexInputRate::eVertex};
+  }
+
+  constexpr static std::array<vk::VertexInputAttributeDescription, 2>
+  attribute_description() noexcept {
+    return {vk::VertexInputAttributeDescription{.location = 0,
+                .binding = 0,
+                .format = vk::Format::eR32G32Sfloat,
+                .offset = static_cast<uint32_t>(member_offset(&vertex::pos))},
+        vk::VertexInputAttributeDescription{.location = 1,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = static_cast<uint32_t>(member_offset(&vertex::color))}};
+  }
+};
+
+constexpr vertex vertices[] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
 template <typename T, typename Cmp, typename... A>
 constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
@@ -168,11 +200,13 @@ vk::raii::Pipeline make_pipeline(const vk::raii::Device& dev,
           .module = *frag_mod,
           .pName = "main"}};
 
+  const auto binding_desc = vertex::binding_description();
+  const auto attr_desc = vertex::attribute_description();
   vk::PipelineVertexInputStateCreateInfo vertex_input_info{
-      .vertexBindingDescriptionCount = 0,
-      .pVertexBindingDescriptions = nullptr,
-      .vertexAttributeDescriptionCount = 0,
-      .pVertexAttributeDescriptions = nullptr};
+      .vertexBindingDescriptionCount = 1,
+      .pVertexBindingDescriptions = &binding_desc,
+      .vertexAttributeDescriptionCount = attr_desc.size(),
+      .pVertexAttributeDescriptions = attr_desc.data()};
 
   vk::PipelineInputAssemblyStateCreateInfo input_info{
       .topology = vk::PrimitiveTopology::eTriangleList,
@@ -483,6 +517,58 @@ private:
   vk::Extent2D swapchain_extent_;
 };
 
+class mesh {
+public:
+  mesh(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& mem_props,
+      std::span<const vertex> input)
+      : vbo_{dev, {.size = std::as_bytes(input).size(),
+                      .usage = vk::BufferUsageFlagBits::eVertexBuffer,
+                      .sharingMode = vk::SharingMode::eExclusive,
+                      .queueFamilyIndexCount = {},
+                      .pQueueFamilyIndices = {}}},
+        vbo_mem_{allocate_mem(dev, vbo_, mem_props)} {
+    std::span mapping{reinterpret_cast<std::byte*>(vbo_mem_.mapMemory(
+                          0, std::as_bytes(input).size(), {})),
+        std::as_bytes(input).size()};
+    std::ranges::copy(std::as_bytes(input), mapping.begin());
+    vbo_mem_.unmapMemory();
+  }
+
+  const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
+
+private:
+  static uint32_t choose_mem_type(uint32_t type_filter,
+      const vk::PhysicalDeviceMemoryProperties& mem_props,
+      vk::MemoryPropertyFlags mem_flags) {
+    for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
+      if ((type_filter & (1 << i)) &&
+          (mem_props.memoryTypes[i].propertyFlags & mem_flags) == mem_flags) {
+        return i;
+      }
+    }
+
+    throw std::runtime_error{"Failed to find suitable GPU memory type"};
+  }
+
+  static vk::raii::DeviceMemory allocate_mem(const vk::raii::Device& dev,
+      vk::raii::Buffer& vbo,
+      const vk::PhysicalDeviceMemoryProperties& mem_props) {
+    const auto mem_req = vbo.getMemoryRequirements();
+    auto res = dev.allocateMemory(vk::MemoryAllocateInfo{
+        .allocationSize = mem_req.size,
+        .memoryTypeIndex = choose_mem_type(mem_req.memoryTypeBits, mem_props,
+            vk::MemoryPropertyFlagBits::eHostVisible |
+                vk::MemoryPropertyFlagBits::eHostCoherent)});
+    vbo.bindMemory(*res, 0);
+    return res;
+  }
+
+private:
+  vk::raii::Buffer vbo_;
+  vk::raii::DeviceMemory vbo_mem_;
+};
+
 class render_environment : public renderer_iface {
 public:
   render_environment(vk::raii::Instance inst, vk::raii::PhysicalDevice dev,
@@ -514,6 +600,7 @@ public:
             device, vk::CommandBufferAllocateInfo{.commandPool = *cmd_pool,
                         .level = vk::CommandBufferLevel::ePrimary,
                         .commandBufferCount = 1}},
+        mesh_{device, phydev.getMemoryProperties(), vertices},
         render_finished{device, vk::SemaphoreCreateInfo{}},
         image_available{device, vk::SemaphoreCreateInfo{}},
         frame_done{device, vk::FenceCreateInfo{}} {}
@@ -577,7 +664,11 @@ private:
                             .pClearValues = &clear_val},
         vk::SubpassContents::eInline);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
-    cmd.draw(3, 1, 0, 0);
+
+    vk::DeviceSize offsets[] = {0};
+    cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
+
+    cmd.draw(static_cast<uint32_t>(std::size(vertices)), 1, 0, 0);
     cmd.endRenderPass();
     cmd.end();
   }
@@ -613,6 +704,8 @@ private:
   vk::raii::Pipeline pipeline;
   vk::raii::CommandPool cmd_pool;
   vk::raii::CommandBuffers cmd_buffs;
+
+  mesh mesh_;
 
   vk::raii::Semaphore render_finished;
   vk::raii::Semaphore image_available;
