@@ -517,25 +517,25 @@ private:
   vk::Extent2D swapchain_extent_;
 };
 
-class mesh {
+class data_buffer {
 public:
-  mesh(const vk::raii::Device& dev,
+  data_buffer(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& mem_props,
-      std::span<const vertex> input)
-      : vbo_{dev, {.size = std::as_bytes(input).size(),
+      vk::MemoryPropertyFlags flags, std::span<const std::byte> input)
+      : buf_{dev, {.size = input.size(),
                       .usage = vk::BufferUsageFlagBits::eVertexBuffer,
                       .sharingMode = vk::SharingMode::eExclusive,
                       .queueFamilyIndexCount = {},
                       .pQueueFamilyIndices = {}}},
-        vbo_mem_{allocate_mem(dev, vbo_, mem_props)} {
-    std::span mapping{reinterpret_cast<std::byte*>(vbo_mem_.mapMemory(
-                          0, std::as_bytes(input).size(), {})),
-        std::as_bytes(input).size()};
-    std::ranges::copy(std::as_bytes(input), mapping.begin());
-    vbo_mem_.unmapMemory();
+        mem_{allocate_mem(dev, buf_, mem_props, flags)} {
+    std::span mapping{
+        reinterpret_cast<std::byte*>(mem_.mapMemory(0, input.size(), {})),
+        input.size()};
+    std::ranges::copy(input, mapping.begin());
+    mem_.unmapMemory();
   }
 
-  const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
+  const vk::Buffer& get() const noexcept { return *buf_; }
 
 private:
   static uint32_t choose_mem_type(uint32_t type_filter,
@@ -552,21 +552,37 @@ private:
   }
 
   static vk::raii::DeviceMemory allocate_mem(const vk::raii::Device& dev,
-      vk::raii::Buffer& vbo,
-      const vk::PhysicalDeviceMemoryProperties& mem_props) {
-    const auto mem_req = vbo.getMemoryRequirements();
-    auto res = dev.allocateMemory(vk::MemoryAllocateInfo{
-        .allocationSize = mem_req.size,
-        .memoryTypeIndex = choose_mem_type(mem_req.memoryTypeBits, mem_props,
-            vk::MemoryPropertyFlagBits::eHostVisible |
-                vk::MemoryPropertyFlagBits::eHostCoherent)});
-    vbo.bindMemory(*res, 0);
+      vk::raii::Buffer& buf,
+      const vk::PhysicalDeviceMemoryProperties& mem_props,
+      vk::MemoryPropertyFlags flags) {
+    const auto mem_req = buf.getMemoryRequirements();
+    auto res = dev.allocateMemory(
+        vk::MemoryAllocateInfo{.allocationSize = mem_req.size,
+            .memoryTypeIndex =
+                choose_mem_type(mem_req.memoryTypeBits, mem_props, flags)});
+    buf.bindMemory(*res, 0);
     return res;
   }
 
 private:
-  vk::raii::Buffer vbo_;
-  vk::raii::DeviceMemory vbo_mem_;
+  vk::raii::Buffer buf_;
+  vk::raii::DeviceMemory mem_;
+};
+
+class mesh {
+public:
+  mesh(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& mem_props,
+      std::span<const vertex> input)
+      : vbo_{dev, mem_props,
+            vk::MemoryPropertyFlagBits::eHostVisible |
+                vk::MemoryPropertyFlagBits::eHostCoherent,
+            std::as_bytes(input)} {}
+
+  const vk::Buffer& get_vbo() const noexcept { return vbo_.get(); }
+
+private:
+  data_buffer vbo_;
 };
 
 class render_environment : public renderer_iface {
