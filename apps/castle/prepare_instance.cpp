@@ -64,8 +64,9 @@ constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
 constexpr std::array<const char*, 2> REQUIRED_EXTENSIONS{
     "VK_KHR_surface", "VK_KHR_wayland_surface"};
 
-constexpr auto REQUIRED_DEVICE_EXTENSIONS = make_sorted_array<const char*>(
-    std::less<std::string_view>{}, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+constexpr auto REQUIRED_DEVICE_EXTENSIONS =
+    make_sorted_array<const char*>(std::less<std::string_view>{},
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
 
 vk::raii::Instance create_instance() {
   VULKAN_HPP_DEFAULT_DISPATCHER.init();
@@ -76,7 +77,7 @@ vk::raii::Instance create_instance() {
       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
       .pEngineName = "no_engine",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-      .apiVersion = VK_API_VERSION_1_0};
+      .apiVersion = VK_API_VERSION_1_2};
   auto inst_create_info = vk::InstanceCreateInfo{.pApplicationInfo = &app_info}
                               .setPEnabledExtensionNames(REQUIRED_EXTENSIONS);
 
@@ -395,6 +396,8 @@ struct device_rendering_params {
   static std::optional<device_rendering_params> choose(
       const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf,
       vk::Extent2D sz) {
+    if (dev.getProperties().apiVersion < VK_API_VERSION_1_2)
+      return std::nullopt;
     std::optional<uint32_t> graphics_family;
     std::optional<uint32_t> presentation_family;
     for (const auto& [idx, queue_family] :
