@@ -84,6 +84,7 @@ private:
   struct arena_info {
     size_t used;
     size_t capacity;
+    size_t alignment;
     uint32_t pool_idx;
   };
 

@@ -42,7 +42,8 @@ vk::BufferCreateInfo make_bufer_create_info(
       .pQueueFamilyIndices = {}};
 }
 
-uint32_t get_mem_type_bits(const vk::Device& dev, vk::BufferUsageFlags usage) {
+vk::MemoryRequirements query_memreq(
+    const vk::Device& dev, vk::BufferUsageFlags usage) {
   // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap12.html#VkMemoryRequirements
   // > The implementation guarantees certain properties about the memory
   // > requirements returned by vkGetBufferMemoryRequirements2,
@@ -60,7 +61,7 @@ uint32_t get_mem_type_bits(const vk::Device& dev, vk::BufferUsageFlags usage) {
   const vk::BufferCreateInfo buf_create_info =
       make_bufer_create_info(usage, dummy_size);
   return dev.getBufferMemoryRequirementsKHR({.pCreateInfo = &buf_create_info})
-      .memoryRequirements.memoryTypeBits;
+      .memoryRequirements;
 }
 
 } // namespace
@@ -87,7 +88,9 @@ memory memory::allocate(const vk::raii::Device& dev,
       memory::allocate(dev, props,
           vk::MemoryPropertyFlagBits::eHostVisible |
               vk::MemoryPropertyFlagBits::eHostCoherent,
-          get_mem_type_bits(*dev, vk::BufferUsageFlagBits::eTransferSrc), size),
+          query_memreq(*dev, vk::BufferUsageFlagBits::eTransferSrc)
+              .memoryTypeBits,
+          size),
       size};
 }
 
@@ -95,27 +98,30 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props, sizes pool_sizes)
     : staging_mem_{
           staging_memory::allocate(dev, props, pool_sizes.staging_size)} {
-  std::array<std::tuple<uint32_t, purpose, size_t>, purposes_count>
-      type2purpose{std::tuple{get_mem_type_bits(*dev, purpose_to_usage(vbo)),
-                       vbo, pool_sizes.vbo_capacity},
-          std::tuple{get_mem_type_bits(*dev, purpose_to_usage(ibo)), ibo,
+  std::array<std::tuple<vk::MemoryRequirements, purpose, size_t>,
+      purposes_count>
+      type2purpose{std::tuple{query_memreq(*dev, purpose_to_usage(vbo)), vbo,
+                       pool_sizes.vbo_capacity},
+          std::tuple{query_memreq(*dev, purpose_to_usage(ibo)), ibo,
               pool_sizes.ibo_capacity}};
 
-  std::ranges::sort(type2purpose,
-      [](auto l, auto r) { return std::get<0>(l) < std::get<0>(r); });
+  std::ranges::sort(type2purpose, [](auto l, auto r) {
+    return std::get<0>(l).memoryTypeBits < std::get<0>(r).memoryTypeBits;
+  });
   std::optional<uint32_t> last_type_bits;
   uint32_t next_mem_slot_idx = 0;
   size_t total_capacity = 0;
-  for (auto [mem_type_bits, purp, capacity] : type2purpose) {
-    if (const auto prev = std::exchange(last_type_bits, mem_type_bits);
-        prev && prev != mem_type_bits) {
+  for (auto [mem_req, purp, capacity] : type2purpose) {
+    if (const auto prev = std::exchange(last_type_bits, mem_req.memoryTypeBits);
+        prev && prev != mem_req.memoryTypeBits) {
       pools_[next_mem_slot_idx++] = memory::alocate(
-          dev, props, mem_type_bits, std::exchange(total_capacity, 0));
+          dev, props, mem_req.memoryTypeBits, std::exchange(total_capacity, 0));
     }
     total_capacity += capacity;
     arena_infos_[static_cast<size_t>(purp)] = {
         .used = 0,
         .capacity = capacity,
+        .alignment = mem_req.alignment,
         .pool_idx = next_mem_slot_idx,
     };
   }
@@ -134,10 +140,17 @@ vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
       dev, vk::BufferUsageFlagBits::eTransferSrc, 0, data.size());
 
   arena_info& arena = arena_infos_[static_cast<size_t>(p)];
-  assert(arena.capacity - arena.used >= data.size());
-  const size_t offset = std::exchange(arena.used, arena.used + data.size());
+  const size_t offset = std::ranges::fold_left(
+      arena_infos_, size_t{0}, [&arena](size_t accum, const arena_info& item) {
+        return accum + (item.pool_idx == arena.pool_idx ? item.used : 0);
+      });
+  const size_t padding =
+      (arena.alignment - offset % arena.alignment) % arena.alignment;
+  if (arena.capacity - arena.used < data.size() + padding)
+    throw std::bad_alloc{};
+  arena.used = arena.used + data.size() + padding;
   auto res = pools_[arena.pool_idx].bind_buffer(
-      dev, purpose_to_usage(p), offset, data.size());
+      dev, purpose_to_usage(p), offset + padding, data.size());
 
   cmd.begin(
       vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
