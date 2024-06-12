@@ -52,8 +52,15 @@ struct vertex {
   }
 };
 
-constexpr vertex vertices[] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+constexpr vertex vertices[] = {
+    // clang-format off
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{ 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{ 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}}
+    // clang-format on
+};
+constexpr uint16_t indices[] = {0, 1, 2, 2, 3, 0};
 
 template <typename T, typename Cmp, typename... A>
 constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
@@ -525,14 +532,18 @@ class mesh {
 public:
   mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
       const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
-      std::span<const vertex> input)
+      std::span<const vertex> verticies, std::span<const uint16_t> indices)
       : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::vbo, std::as_bytes(input))} {}
+            vlk::memory_pools::vbo, std::as_bytes(verticies))},
+        ibo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
+            vlk::memory_pools::ibo, std::as_bytes(indices))} {}
 
   const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
+  const vk::Buffer& get_ibo() const noexcept { return *ibo_; }
 
 private:
   vk::raii::Buffer vbo_;
+  vk::raii::Buffer ibo_;
 };
 
 class render_environment : public renderer_iface {
@@ -571,7 +582,7 @@ public:
                 .ibo_capacity = 65536,
                 .staging_size = 65536}},
         mesh_{mempools_, device_, *graphics_queue_, *cmd_buffs_.front(),
-            vertices},
+            vertices, indices},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {}
@@ -637,8 +648,9 @@ private:
 
     vk::DeviceSize offsets[] = {0};
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
+    cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
-    cmd.draw(static_cast<uint32_t>(std::size(vertices)), 1, 0, 0);
+    cmd.drawIndexed(static_cast<uint32_t>(std::size(indices)), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
   }
