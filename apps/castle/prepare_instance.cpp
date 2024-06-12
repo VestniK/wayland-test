@@ -1,4 +1,5 @@
 #include "prepare_instance.hpp"
+#include "vlk_buf.hpp"
 
 #include <algorithm>
 #include <optional>
@@ -520,72 +521,18 @@ private:
   vk::Extent2D swapchain_extent_;
 };
 
-class data_buffer {
-public:
-  data_buffer(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& mem_props,
-      vk::MemoryPropertyFlags flags, std::span<const std::byte> input)
-      : buf_{dev, {.size = input.size(),
-                      .usage = vk::BufferUsageFlagBits::eVertexBuffer,
-                      .sharingMode = vk::SharingMode::eExclusive,
-                      .queueFamilyIndexCount = {},
-                      .pQueueFamilyIndices = {}}},
-        mem_{allocate_mem(dev, buf_, mem_props, flags)} {
-    std::span mapping{
-        reinterpret_cast<std::byte*>(mem_.mapMemory(0, input.size(), {})),
-        input.size()};
-    std::ranges::copy(input, mapping.begin());
-    mem_.unmapMemory();
-  }
-
-  const vk::Buffer& get() const noexcept { return *buf_; }
-
-private:
-  static uint32_t choose_mem_type(uint32_t type_filter,
-      const vk::PhysicalDeviceMemoryProperties& mem_props,
-      vk::MemoryPropertyFlags mem_flags) {
-    for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
-      if ((type_filter & (1 << i)) &&
-          (mem_props.memoryTypes[i].propertyFlags & mem_flags) == mem_flags) {
-        return i;
-      }
-    }
-
-    throw std::runtime_error{"Failed to find suitable GPU memory type"};
-  }
-
-  static vk::raii::DeviceMemory allocate_mem(const vk::raii::Device& dev,
-      vk::raii::Buffer& buf,
-      const vk::PhysicalDeviceMemoryProperties& mem_props,
-      vk::MemoryPropertyFlags flags) {
-    const auto mem_req = buf.getMemoryRequirements();
-    auto res = dev.allocateMemory(
-        vk::MemoryAllocateInfo{.allocationSize = mem_req.size,
-            .memoryTypeIndex =
-                choose_mem_type(mem_req.memoryTypeBits, mem_props, flags)});
-    buf.bindMemory(*res, 0);
-    return res;
-  }
-
-private:
-  vk::raii::Buffer buf_;
-  vk::raii::DeviceMemory mem_;
-};
-
 class mesh {
 public:
-  mesh(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& mem_props,
+  mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
+      const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
       std::span<const vertex> input)
-      : vbo_{dev, mem_props,
-            vk::MemoryPropertyFlagBits::eHostVisible |
-                vk::MemoryPropertyFlagBits::eHostCoherent,
-            std::as_bytes(input)} {}
+      : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
+            vlk::memory_pools::vbo, std::as_bytes(input))} {}
 
-  const vk::Buffer& get_vbo() const noexcept { return vbo_.get(); }
+  const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
 
 private:
-  data_buffer vbo_;
+  vk::raii::Buffer vbo_;
 };
 
 class render_environment : public renderer_iface {
@@ -619,7 +566,12 @@ public:
             device_, vk::CommandBufferAllocateInfo{.commandPool = *cmd_pool_,
                          .level = vk::CommandBufferLevel::ePrimary,
                          .commandBufferCount = 1}},
-        mesh_{device_, phydev_.getMemoryProperties(), vertices},
+        mempools_{device_, phydev_.getMemoryProperties(),
+            {.vbo_capacity = 65536,
+                .ibo_capacity = 65536,
+                .staging_size = 65536}},
+        mesh_{mempools_, device_, *graphics_queue_, *cmd_buffs_.front(),
+            vertices},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {}
@@ -723,6 +675,7 @@ private:
   vk::raii::CommandPool cmd_pool_;
   vk::raii::CommandBuffers cmd_buffs_;
 
+  vlk::memory_pools mempools_;
   mesh mesh_;
 
   vk::raii::Semaphore render_finished_;
