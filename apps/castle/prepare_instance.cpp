@@ -594,35 +594,35 @@ public:
       vk::raii::SurfaceKHR surf, uint32_t graphics_queue_family,
       uint32_t presentation_queue_family,
       vk::SwapchainCreateInfoKHR swapchain_info)
-      : instance{std::move(inst)}, phydev{std::move(dev)},
-        device{create_logical_device(
-            phydev, graphics_queue_family, presentation_queue_family)},
-        graphics_queue{device.getQueue(graphics_queue_family, 0)},
-        presentation_queue{device.getQueue(presentation_queue_family, 0)},
-        surf{std::move(surf)},
-        render_pass{make_render_pass(device, swapchain_info.imageFormat)},
-        swapchain_environ{device, *surf, swapchain_info, *render_pass},
-        pipeline_layout{device,
+      : instance_{std::move(inst)}, phydev_{std::move(dev)},
+        device_{create_logical_device(
+            phydev_, graphics_queue_family, presentation_queue_family)},
+        graphics_queue_{device_.getQueue(graphics_queue_family, 0)},
+        presentation_queue_{device_.getQueue(presentation_queue_family, 0)},
+        surf_{std::move(surf)},
+        render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
+        swapchain_env_{device_, *surf, swapchain_info, *render_pass_},
+        pipeline_layout_{device_,
             vk::PipelineLayoutCreateInfo{
                 .setLayoutCount = 0,
                 .pSetLayouts = nullptr,
                 .pushConstantRangeCount = 0,
                 .pPushConstantRanges = nullptr,
             }},
-        pipeline{make_pipeline(device, *render_pass, *pipeline_layout,
+        pipeline_{make_pipeline(device_, *render_pass_, *pipeline_layout_,
             swapchain_info.imageExtent)},
-        cmd_pool{device,
+        cmd_pool_{device_,
             vk::CommandPoolCreateInfo{
                 .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
                 .queueFamilyIndex = graphics_queue_family}},
-        cmd_buffs{
-            device, vk::CommandBufferAllocateInfo{.commandPool = *cmd_pool,
-                        .level = vk::CommandBufferLevel::ePrimary,
-                        .commandBufferCount = 1}},
-        mesh_{device, phydev.getMemoryProperties(), vertices},
-        render_finished{device, vk::SemaphoreCreateInfo{}},
-        image_available{device, vk::SemaphoreCreateInfo{}},
-        frame_done{device, vk::FenceCreateInfo{}} {}
+        cmd_buffs_{
+            device_, vk::CommandBufferAllocateInfo{.commandPool = *cmd_pool_,
+                         .level = vk::CommandBufferLevel::ePrimary,
+                         .commandBufferCount = 1}},
+        mesh_{device_, phydev_.getMemoryProperties(), vertices},
+        render_finished_{device_, vk::SemaphoreCreateInfo{}},
+        image_available_{device_, vk::SemaphoreCreateInfo{}},
+        frame_done_{device_, vk::FenceCreateInfo{}} {}
 
   render_environment(const render_environment&) = delete;
   render_environment& operator=(const render_environment&) = delete;
@@ -631,39 +631,38 @@ public:
   render_environment& operator=(render_environment&&) noexcept = default;
 
   ~render_environment() noexcept {
-    if (*device != nullptr)
-      device.waitIdle();
+    if (*device_ != nullptr)
+      device_.waitIdle();
   }
 
   void resize(size sz) override {
-    device.waitIdle();
+    device_.waitIdle();
 
-    swapchain_environ.clear();
+    swapchain_env_.clear();
 
     auto params =
-        device_rendering_params::choose(*phydev, *surf, as_extent(sz));
+        device_rendering_params::choose(*phydev_, *surf_, as_extent(sz));
     if (!params)
       throw std::runtime_error{
           "Restore swapchain params after resise have failed"};
 
     // render_pass is keept untoched but was created with old image format
     // choosin new format might be not safe
-    assert(
-        swapchain_environ.image_format() == params->swapchain_info.imageFormat);
-    swapchain_environ =
-        swapchain_env{device, *surf, params->swapchain_info, *render_pass};
+    assert(swapchain_env_.image_format() == params->swapchain_info.imageFormat);
+    swapchain_env_ =
+        swapchain_env{device_, *surf_, params->swapchain_info, *render_pass_};
   }
 
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
 
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
-    auto fb = swapchain_environ.acqure_framebuffer(*image_available);
+    auto fb = swapchain_env_.acqure_framebuffer(*image_available_);
 
-    record_cmd_buffer(*cmd_buffs.front(), fb.framebuffer());
-    submit_cmd_buf(*cmd_buffs.front());
+    record_cmd_buffer(*cmd_buffs_.front(), fb.framebuffer());
+    submit_cmd_buf(*cmd_buffs_.front());
 
-    swapchain_environ.present(
-        std::move(fb), *presentation_queue, *render_finished);
+    swapchain_env_.present(
+        std::move(fb), *presentation_queue_, *render_finished_);
   }
 
 private:
@@ -675,14 +674,14 @@ private:
         vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
     vk::ClearValue clear_val{
         .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
-    cmd.beginRenderPass(vk::RenderPassBeginInfo{.renderPass = *render_pass,
-                            .framebuffer = fb,
-                            .renderArea = {.offset = {0, 0},
-                                .extent = swapchain_environ.extent()},
-                            .clearValueCount = 1,
-                            .pClearValues = &clear_val},
+    cmd.beginRenderPass(
+        vk::RenderPassBeginInfo{.renderPass = *render_pass_,
+            .framebuffer = fb,
+            .renderArea = {.offset = {0, 0}, .extent = swapchain_env_.extent()},
+            .clearValueCount = 1,
+            .pClearValues = &clear_val},
         vk::SubpassContents::eInline);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline_);
 
     vk::DeviceSize offsets[] = {0};
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
@@ -697,38 +696,38 @@ private:
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     std::array<vk::SubmitInfo, 1> submit_infos{
         vk::SubmitInfo{.waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*image_available,
+            .pWaitSemaphores = &*image_available_,
             .pWaitDstStageMask = &wait_stage,
             .commandBufferCount = 1,
             .pCommandBuffers = &cmd,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &*render_finished}};
-    graphics_queue.submit(submit_infos, *frame_done);
-    if (auto ec = make_error_code(device.waitForFences(
-            {*frame_done}, true, std::numeric_limits<uint64_t>::max())))
+            .pSignalSemaphores = &*render_finished_}};
+    graphics_queue_.submit(submit_infos, *frame_done_);
+    if (auto ec = make_error_code(device_.waitForFences(
+            {*frame_done_}, true, std::numeric_limits<uint64_t>::max())))
       throw std::system_error(ec, "vkWaitForFence");
-    device.resetFences({*frame_done});
+    device_.resetFences({*frame_done_});
   }
 
 private:
-  vk::raii::Instance instance;
-  vk::raii::PhysicalDevice phydev;
-  vk::raii::Device device;
-  vk::raii::Queue graphics_queue;
-  vk::raii::Queue presentation_queue;
-  vk::raii::SurfaceKHR surf;
-  vk::raii::RenderPass render_pass;
-  swapchain_env swapchain_environ;
-  vk::raii::PipelineLayout pipeline_layout;
-  vk::raii::Pipeline pipeline;
-  vk::raii::CommandPool cmd_pool;
-  vk::raii::CommandBuffers cmd_buffs;
+  vk::raii::Instance instance_;
+  vk::raii::PhysicalDevice phydev_;
+  vk::raii::Device device_;
+  vk::raii::Queue graphics_queue_;
+  vk::raii::Queue presentation_queue_;
+  vk::raii::SurfaceKHR surf_;
+  vk::raii::RenderPass render_pass_;
+  swapchain_env swapchain_env_;
+  vk::raii::PipelineLayout pipeline_layout_;
+  vk::raii::Pipeline pipeline_;
+  vk::raii::CommandPool cmd_pool_;
+  vk::raii::CommandBuffers cmd_buffs_;
 
   mesh mesh_;
 
-  vk::raii::Semaphore render_finished;
-  vk::raii::Semaphore image_available;
-  vk::raii::Fence frame_done;
+  vk::raii::Semaphore render_finished_;
+  vk::raii::Semaphore image_available_;
+  vk::raii::Fence frame_done_;
 };
 
 render_environment setup_suitable_device(
