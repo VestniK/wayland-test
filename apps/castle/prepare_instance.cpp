@@ -560,7 +560,7 @@ public:
         presentation_queue_{device_.getQueue(presentation_queue_family, 0)},
         surf_{std::move(surf)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        swapchain_env_{device_, *surf, swapchain_info, *render_pass_},
+        swapchain_env_{device_, *surf_, swapchain_info, *render_pass_},
         pipeline_layout_{device_,
             vk::PipelineLayoutCreateInfo{
                 .setLayoutCount = 0,
