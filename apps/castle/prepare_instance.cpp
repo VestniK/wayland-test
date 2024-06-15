@@ -69,10 +69,10 @@ constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
   return res;
 }
 
-constexpr std::array<const char*, 2> REQUIRED_EXTENSIONS{
+constexpr std::array<const char*, 2> required_extensions{
     "VK_KHR_surface", "VK_KHR_wayland_surface"};
 
-constexpr auto REQUIRED_DEVICE_EXTENSIONS =
+constexpr auto required_device_extensions =
     make_sorted_array<const char*>(std::less<std::string_view>{},
         VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
 
@@ -87,7 +87,7 @@ vk::raii::Instance create_instance() {
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
       .apiVersion = VK_API_VERSION_1_2};
   auto inst_create_info = vk::InstanceCreateInfo{.pApplicationInfo = &app_info}
-                              .setPEnabledExtensionNames(REQUIRED_EXTENSIONS);
+                              .setPEnabledExtensionNames(required_extensions);
 
 #if !defined(NDEBUG)
   std::array<const char*, 1> debug_layers{"VK_LAYER_KHRONOS_validation"};
@@ -121,8 +121,8 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
                                   ? 1u
                                   : 2u, // TODO: better duplication needed
       .pQueueCreateInfos = device_queues.data(),
-      .enabledExtensionCount = REQUIRED_DEVICE_EXTENSIONS.size(),
-      .ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSIONS.data()};
+      .enabledExtensionCount = required_device_extensions.size(),
+      .ppEnabledExtensionNames = required_device_extensions.data()};
 
   vk::raii::Device device{dev, device_create_info};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
@@ -326,7 +326,7 @@ bool has_required_extensions(const vk::PhysicalDevice& dev) {
       });
 
   bool has_missing_exts = false;
-  std::span<const char* const> remaining_required{REQUIRED_DEVICE_EXTENSIONS};
+  std::span<const char* const> remaining_required{required_device_extensions};
   for (const vk::ExtensionProperties& ext : exts) {
     std::string_view name{ext.extensionName};
     if (remaining_required.empty() || name < remaining_required.front())
