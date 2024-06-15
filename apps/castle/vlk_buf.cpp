@@ -84,20 +84,28 @@ memory memory::allocate(const vk::raii::Device& dev,
 [[nodiscard]] staging_memory staging_memory::allocate(
     const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size) {
-  return staging_memory{
-      memory::allocate(dev, props,
-          vk::MemoryPropertyFlagBits::eHostVisible |
-              vk::MemoryPropertyFlagBits::eHostCoherent,
-          query_memreq(*dev, vk::BufferUsageFlagBits::eTransferSrc)
+  return staging_memory{memory::allocate(dev, props,
+      vk::MemoryPropertyFlagBits::eHostVisible |
+          vk::MemoryPropertyFlagBits::eHostCoherent,
+      query_memreq(*dev, vk::BufferUsageFlagBits::eTransferSrc).memoryTypeBits,
+      size)};
+}
+
+[[nodiscard]] uniform_memory uniform_memory::allocate(
+    const vk::raii::Device& dev,
+    const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size) {
+  return uniform_memory{
+      memory::allocate(dev, props, vk::MemoryPropertyFlagBits::eHostVisible,
+          query_memreq(*dev, vk::BufferUsageFlagBits::eUniformBuffer)
               .memoryTypeBits,
-          size),
-      size};
+          size)};
 }
 
 memory_pools::memory_pools(const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props, sizes pool_sizes)
-    : staging_mem_{
-          staging_memory::allocate(dev, props, pool_sizes.staging_size)} {
+    : staging_mem_{staging_memory::allocate(
+          dev, props, pool_sizes.staging_size)},
+      staging_size_{pool_sizes.staging_size} {
   std::array<std::tuple<vk::MemoryRequirements, purpose, size_t>,
       purposes_count>
       type2purpose{std::tuple{query_memreq(*dev, purpose_to_usage(vbo)), vbo,
@@ -132,6 +140,8 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
 vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
     const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd, purpose p,
     std::span<const std::byte> data) {
+  if (staging_size_ < data.size())
+    throw std::bad_alloc{};
   staging_mem_.with_mapping(
       0, data.size(), [data](std::span<std::byte> mapped) {
         std::ranges::copy(data, mapped.data());

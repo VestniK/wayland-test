@@ -35,29 +35,44 @@ private:
   vk::raii::DeviceMemory mem_ = nullptr;
 };
 
-class staging_memory : public memory {
+class mappable_memory : public memory {
 public:
-  staging_memory() noexcept = default;
-
-  [[nodiscard]] static staging_memory allocate(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size);
+  mappable_memory() noexcept = default;
 
   template <std::invocable<std::span<std::byte>> F>
   void with_mapping(vk::DeviceSize offset, vk::DeviceSize size, F&& f) {
-    if (offset + size > size_)
-      throw std::bad_alloc{};
     auto deleter = [mem = &get()](std::byte*) { mem->unmapMemory(); };
     std::unique_ptr<std::byte, decltype(deleter)> mapping{
         static_cast<std::byte*>(get().mapMemory(offset, size, {})), deleter};
     std::forward<F>(f)(std::span{mapping.get(), size});
   }
 
-private:
-  explicit staging_memory(memory mem, size_t size) noexcept
-      : memory{std::move(mem)}, size_{size} {}
+protected:
+  explicit mappable_memory(memory mem) noexcept : memory{std::move(mem)} {}
+};
+
+class staging_memory : public mappable_memory {
+public:
+  staging_memory() noexcept = default;
+
+  [[nodiscard]] static staging_memory allocate(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size);
 
 private:
-  size_t size_;
+  explicit staging_memory(memory mem) noexcept
+      : mappable_memory{std::move(mem)} {}
+};
+
+class uniform_memory : public mappable_memory {
+public:
+  uniform_memory() noexcept = default;
+
+  [[nodiscard]] static uniform_memory allocate(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size);
+
+private:
+  explicit uniform_memory(memory mem) noexcept
+      : mappable_memory{std::move(mem)} {}
 };
 
 class memory_pools {
@@ -90,6 +105,7 @@ private:
 
 private:
   staging_memory staging_mem_;
+  size_t staging_size_;
   std::array<arena_info, purposes_count> arena_infos_;
   std::array<memory, purposes_count> pools_;
 };
