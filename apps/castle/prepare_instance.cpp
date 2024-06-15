@@ -1,5 +1,4 @@
 #include "prepare_instance.hpp"
-#include "vlk_buf.hpp"
 
 #include <algorithm>
 #include <optional>
@@ -15,6 +14,9 @@
 #include <glm/vec3.hpp>
 
 #include <libs/memtricks/member.hpp>
+
+#include <apps/castle/vlk/buf.hpp>
+#include <apps/castle/vlk/swapchain.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -401,134 +403,6 @@ struct device_rendering_params {
   }
 };
 
-class swapchain_env {
-public:
-  class frame {
-  public:
-    constexpr frame() noexcept = default;
-
-    frame(const vk::raii::Device& dev, vk::RenderPass render_pass,
-        vk::Image image, vk::Extent2D extent, vk::Format fmt)
-        : image_{image},
-          view_{
-              dev, vk::ImageViewCreateInfo{.image = image_,
-                       .viewType = vk::ImageViewType::e2D,
-                       .format = fmt,
-                       .components = {.r = vk::ComponentSwizzle::eIdentity,
-                           .g = vk::ComponentSwizzle::eIdentity,
-                           .b = vk::ComponentSwizzle::eIdentity,
-                           .a = vk::ComponentSwizzle::eIdentity},
-                       .subresourceRange = {.aspectMask =
-                                                vk::ImageAspectFlagBits::eColor,
-                           .baseMipLevel = 0,
-                           .levelCount = 1,
-                           .baseArrayLayer = 0,
-                           .layerCount = 1}}},
-          framebuf_{dev, vk::FramebufferCreateInfo{.renderPass = render_pass,
-                             .attachmentCount = 1,
-                             .pAttachments = &(*view_),
-                             .width = extent.width,
-                             .height = extent.height,
-                             .layers = 1}} {}
-
-    static std::vector<frame> from_images(const vk::raii::Device& dev,
-        vk::RenderPass render_pass, std::span<const vk::Image> images,
-        vk::Extent2D extent, vk::Format fmt) {
-      std::vector<frame> res;
-      res.reserve(images.size());
-      for (vk::Image img : images)
-        res.push_back({dev, render_pass, img, extent, fmt});
-      return res;
-    }
-
-    vk::Image image() const noexcept { return image_; }
-    vk::ImageView image_view() const noexcept { return *view_; }
-    vk::Framebuffer frameuffer() const noexcept { return *framebuf_; }
-
-  private:
-    vk::Image image_;
-    vk::raii::ImageView view_{nullptr};
-    vk::raii::Framebuffer framebuf_{nullptr};
-  };
-
-  class available_framebuffer {
-  public:
-    available_framebuffer(vk::Framebuffer fb, uint32_t idx) noexcept
-        : fb_{std::move(fb)}, idx_{idx} {}
-
-    available_framebuffer(const available_framebuffer&) = delete;
-    available_framebuffer& operator=(const available_framebuffer&) = delete;
-
-    available_framebuffer(available_framebuffer&&) noexcept = default;
-    available_framebuffer& operator=(
-        available_framebuffer&&) noexcept = default;
-
-    ~available_framebuffer() noexcept = default;
-
-    const vk::Framebuffer& framebuffer() const noexcept { return fb_; }
-
-    void present(const vk::SwapchainKHR& swpchain,
-        const vk::Queue& presentation_queue,
-        const vk::Semaphore& done_sem) const {
-      const auto ec = make_error_code(presentation_queue.presentKHR(
-          vk::PresentInfoKHR{.waitSemaphoreCount = 1,
-              .pWaitSemaphores = &done_sem,
-              .swapchainCount = 1,
-              .pSwapchains = &swpchain,
-              .pImageIndices = &idx_,
-              .pResults = nullptr}));
-      if (ec)
-        throw std::system_error(ec, "vkQueuePresentKHR");
-    }
-
-  private:
-    vk::Framebuffer fb_;
-    uint32_t idx_;
-  };
-
-public:
-  swapchain_env(const vk::raii::Device& device, const vk::SurfaceKHR& surf,
-      const vk::SwapchainCreateInfoKHR& swapchain_info,
-      const vk::RenderPass& render_pass)
-      : swapchain_{device, swapchain_info},
-        swapchain_image_format_{swapchain_info.imageFormat},
-        frames_{frame::from_images(device, render_pass, swapchain_.getImages(),
-            swapchain_info.imageExtent, swapchain_info.imageFormat)},
-        swapchain_extent_{swapchain_info.imageExtent} {}
-
-  void clear() noexcept {
-    frames_.clear();
-    swapchain_.clear();
-  }
-
-  vk::Format image_format() const noexcept { return swapchain_image_format_; }
-  vk::Extent2D extent() const noexcept { return swapchain_extent_; }
-
-  const vk::SwapchainKHR& swapchain() const noexcept { return *swapchain_; }
-
-  available_framebuffer acqure_framebuffer(
-      const vk::Semaphore& image_available) const {
-    const auto [res, idx] = swapchain_.acquireNextImage(
-        std::numeric_limits<uint32_t>::max(), image_available);
-    auto ec = make_error_code(res);
-    if (ec)
-      throw std::system_error(ec, "vkAcquireNextImageKHR");
-    assert(idx < frames_.size());
-    return {frames_[idx].frameuffer(), idx};
-  }
-
-  void present(available_framebuffer&& fb, const vk::Queue& presentation_queue,
-      const vk::Semaphore& done_sem) const {
-    fb.present(*swapchain_, presentation_queue, done_sem);
-  }
-
-private:
-  vk::raii::SwapchainKHR swapchain_;
-  vk::Format swapchain_image_format_;
-  std::vector<frame> frames_;
-  vk::Extent2D swapchain_extent_;
-};
-
 class mesh {
 public:
   mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
@@ -614,7 +488,7 @@ public:
     // choosin new format might be not safe
     assert(swapchain_env_.image_format() == params->swapchain_info.imageFormat);
     swapchain_env_ =
-        swapchain_env{device_, *surf_, params->swapchain_info, *render_pass_};
+        vlk::swapchain{device_, *surf_, params->swapchain_info, *render_pass_};
   }
 
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
@@ -682,7 +556,7 @@ private:
   vk::raii::Queue presentation_queue_;
   vk::raii::SurfaceKHR surf_;
   vk::raii::RenderPass render_pass_;
-  swapchain_env swapchain_env_;
+  vlk::swapchain swapchain_env_;
   vk::raii::PipelineLayout pipeline_layout_;
   vk::raii::Pipeline pipeline_;
   vk::raii::CommandPool cmd_pool_;

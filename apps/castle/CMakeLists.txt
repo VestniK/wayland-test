@@ -15,6 +15,7 @@ cpp_unit(
     spdlog::spdlog
     PkgConfig::SYSTEMD
     wlwnd
+    vlk
     cli
     xdg
     vulkan-headers::vulkan-headers
@@ -68,3 +69,5 @@ add_custom_command(TARGET castle POST_BUILD
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:castle>
   COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:castle>.dbg $<TARGET_FILE:castle>
 )
+
+add_subdirectory(vlk)
