@@ -1,4 +1,4 @@
-#include "swapchain.hpp"
+#include "presentation.hpp"
 
 #include <limits>
 #include <span>
@@ -52,6 +52,8 @@ private:
   vk::raii::Framebuffer framebuf_{nullptr};
 };
 
+swapchain::swapchain() noexcept = default;
+
 swapchain::swapchain(const vk::raii::Device& device, const vk::SurfaceKHR& surf,
     const vk::SwapchainCreateInfoKHR& swapchain_info,
     const vk::RenderPass& render_pass)
@@ -80,6 +82,16 @@ swapchain::available_framebuffer swapchain::acqure_framebuffer(
     throw std::system_error(ec, "vkAcquireNextImageKHR");
   assert(idx < frames_.size());
   return {frames_[idx].frameuffer(), idx};
+}
+
+void render_target::resize(const vk::raii::Device& dev,
+    vk::RenderPass render_pass,
+    const vk::SwapchainCreateInfoKHR& swapchain_info, vk::Extent2D sz) {
+  // render_pass is keept untoched but was created with old image format
+  // choosin new format might be not safe
+  assert(swapchain_info.imageFormat == swapchain_.image_format());
+  swapchain_.clear();
+  swapchain_ = swapchain{dev, *surf_, swapchain_info, render_pass};
 }
 
 } // namespace vlk

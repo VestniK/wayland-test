@@ -16,7 +16,7 @@
 #include <libs/memtricks/member.hpp>
 
 #include <apps/castle/vlk/buf.hpp>
-#include <apps/castle/vlk/swapchain.hpp>
+#include <apps/castle/vlk/presentation.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -431,10 +431,9 @@ public:
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
         graphics_queue_{device_.getQueue(graphics_queue_family, 0)},
-        presentation_queue_{device_.getQueue(presentation_queue_family, 0)},
-        surf_{std::move(surf)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        swapchain_env_{device_, *surf_, swapchain_info, *render_pass_},
+        render_target_{device_, presentation_queue_family, std::move(surf),
+            swapchain_info, *render_pass_},
         pipeline_layout_{device_,
             vk::PipelineLayoutCreateInfo{
                 .setLayoutCount = 0,
@@ -476,31 +475,25 @@ public:
   void resize(size sz) override {
     device_.waitIdle();
 
-    swapchain_env_.clear();
-
-    auto params =
-        device_rendering_params::choose(*phydev_, *surf_, as_extent(sz));
+    auto params = device_rendering_params::choose(
+        *phydev_, render_target_.surface(), as_extent(sz));
     if (!params)
       throw std::runtime_error{
           "Restore swapchain params after resise have failed"};
 
-    // render_pass is keept untoched but was created with old image format
-    // choosin new format might be not safe
-    assert(swapchain_env_.image_format() == params->swapchain_info.imageFormat);
-    swapchain_env_ =
-        vlk::swapchain{device_, *surf_, params->swapchain_info, *render_pass_};
+    render_target_.resize(
+        device_, *render_pass_, params->swapchain_info, as_extent(sz));
   }
 
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
 
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
-    auto fb = swapchain_env_.acqure_framebuffer(*image_available_);
+    auto frame = render_target_.start_frame(*image_available_);
 
-    record_cmd_buffer(*cmd_buffs_.front(), fb.framebuffer());
+    record_cmd_buffer(*cmd_buffs_.front(), frame.buffer());
     submit_cmd_buf(*cmd_buffs_.front());
 
-    swapchain_env_.present(
-        std::move(fb), *presentation_queue_, *render_finished_);
+    std::move(frame).present(*render_finished_);
   }
 
 private:
@@ -515,7 +508,7 @@ private:
     cmd.beginRenderPass(
         vk::RenderPassBeginInfo{.renderPass = *render_pass_,
             .framebuffer = fb,
-            .renderArea = {.offset = {0, 0}, .extent = swapchain_env_.extent()},
+            .renderArea = {.offset = {0, 0}, .extent = render_target_.extent()},
             .clearValueCount = 1,
             .pClearValues = &clear_val},
         vk::SubpassContents::eInline);
@@ -553,10 +546,8 @@ private:
   vk::raii::PhysicalDevice phydev_;
   vk::raii::Device device_;
   vk::raii::Queue graphics_queue_;
-  vk::raii::Queue presentation_queue_;
-  vk::raii::SurfaceKHR surf_;
   vk::raii::RenderPass render_pass_;
-  vlk::swapchain swapchain_env_;
+  vlk::render_target render_target_;
   vk::raii::PipelineLayout pipeline_layout_;
   vk::raii::Pipeline pipeline_;
   vk::raii::CommandPool cmd_pool_;
