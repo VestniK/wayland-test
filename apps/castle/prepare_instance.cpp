@@ -16,6 +16,7 @@
 #include <libs/memtricks/member.hpp>
 
 #include <apps/castle/vlk/buf.hpp>
+#include <apps/castle/vlk/cmds.hpp>
 #include <apps/castle/vlk/presentation.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -430,10 +431,7 @@ public:
       : instance_{std::move(inst)}, phydev_{std::move(dev)},
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
-        graphics_queue_{device_.getQueue(graphics_queue_family, 0)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        render_target_{device_, presentation_queue_family, std::move(surf),
-            swapchain_info, *render_pass_},
         pipeline_layout_{device_,
             vk::PipelineLayoutCreateInfo{
                 .setLayoutCount = 0,
@@ -443,19 +441,14 @@ public:
             }},
         pipeline_{make_pipeline(device_, *render_pass_, *pipeline_layout_,
             swapchain_info.imageExtent)},
-        cmd_pool_{device_,
-            vk::CommandPoolCreateInfo{
-                .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                .queueFamilyIndex = graphics_queue_family}},
-        cmd_buffs_{
-            device_, vk::CommandBufferAllocateInfo{.commandPool = *cmd_pool_,
-                         .level = vk::CommandBufferLevel::ePrimary,
-                         .commandBufferCount = 1}},
+        cmd_buffs_{device_, graphics_queue_family},
+        render_target_{device_, presentation_queue_family, std::move(surf),
+            swapchain_info, *render_pass_},
         mempools_{device_, phydev_.getMemoryProperties(),
             {.vbo_capacity = 65536,
                 .ibo_capacity = 65536,
                 .staging_size = 65536}},
-        mesh_{mempools_, device_, *graphics_queue_, *cmd_buffs_.front(),
+        mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
             vertices, indices},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
@@ -490,8 +483,8 @@ public:
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
     auto frame = render_target_.start_frame(*image_available_);
 
-    record_cmd_buffer(*cmd_buffs_.front(), frame.buffer());
-    submit_cmd_buf(*cmd_buffs_.front());
+    record_cmd_buffer(cmd_buffs_.front(), frame.buffer());
+    submit_cmd_buf(cmd_buffs_.front());
 
     std::move(frame).present(*render_finished_);
 
@@ -505,7 +498,7 @@ public:
 
 private:
   void record_cmd_buffer(
-      const vk::CommandBuffer& cmd, const vk::Framebuffer& fb) const {
+      vk::CommandBuffer cmd, const vk::Framebuffer& fb) const {
     cmd.reset();
 
     cmd.begin(
@@ -541,21 +534,19 @@ private:
             .pCommandBuffers = &cmd,
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = &*render_finished_}};
-    graphics_queue_.submit(submit_infos, *frame_done_);
+    cmd_buffs_.queue().submit(submit_infos, *frame_done_);
   }
 
 private:
   vk::raii::Instance instance_;
   vk::raii::PhysicalDevice phydev_;
   vk::raii::Device device_;
-  vk::raii::Queue graphics_queue_;
   vk::raii::RenderPass render_pass_;
-  vlk::render_target render_target_;
   vk::raii::PipelineLayout pipeline_layout_;
   vk::raii::Pipeline pipeline_;
-  vk::raii::CommandPool cmd_pool_;
-  vk::raii::CommandBuffers cmd_buffs_;
 
+  vlk::command_buffers<1> cmd_buffs_;
+  vlk::render_target render_target_;
   vlk::memory_pools mempools_;
   mesh mesh_;
 
