@@ -326,7 +326,7 @@ public:
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        pipelines_{device_, *render_pass_, swapchain_info.imageExtent,
+        pipelines_{device_, *render_pass_,
             vlk::shaders<vertex>{.vertex = {_binary_triangle_vert_spv_start,
                                      _binary_triangle_vert_spv_end},
                 .fragment = {_binary_triangle_frag_spv_start,
@@ -403,6 +403,16 @@ private:
             .pClearValues = &clear_val},
         vk::SubpassContents::eInline);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines_[0]);
+
+    cmd.setViewport(
+        0, {vk::Viewport{.x = 0.,
+               .y = 0.,
+               .width = static_cast<float>(render_target_.extent().width),
+               .height = static_cast<float>(render_target_.extent().height),
+               .minDepth = 0.,
+               .maxDepth = 1.}});
+    cmd.setScissor(
+        0, {vk::Rect2D{.offset = {0, 0}, .extent = render_target_.extent()}});
 
     vk::DeviceSize offsets[] = {0};
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);

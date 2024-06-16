@@ -14,7 +14,7 @@ vk::raii::ShaderModule load_shader(
 } // namespace
 
 vk::raii::Pipeline pipelines_storage_base::make_pipeline(
-    const vk::raii::Device& dev, vk::RenderPass render_pass, vk::Extent2D sz,
+    const vk::raii::Device& dev, vk::RenderPass render_pass,
     shader_sources shaders,
     const vk::VertexInputBindingDescription& vertex_binding,
     std::span<const vk::VertexInputAttributeDescription> vertex_attrs) {
@@ -43,18 +43,17 @@ vk::raii::Pipeline pipelines_storage_base::make_pipeline(
       .topology = vk::PrimitiveTopology::eTriangleList,
       .primitiveRestartEnable = false};
 
-  vk::Viewport viewport{.x = .0,
-      .y = .0,
-      .width = static_cast<float>(sz.width),
-      .height = static_cast<float>(sz.height),
-      .minDepth = .0,
-      .maxDepth = 1.};
-  vk::Rect2D scisors{.offset = {0, 0}, .extent = sz};
+  std::array<vk::DynamicState, 2> dyn_states = {
+      vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+
+  vk::PipelineDynamicStateCreateInfo dyn_state_info{
+      .dynamicStateCount = dyn_states.size(),
+      .pDynamicStates = dyn_states.data()};
 
   vk::PipelineViewportStateCreateInfo viewport_state{.viewportCount = 1,
-      .pViewports = &viewport,
+      .pViewports = nullptr,
       .scissorCount = 1,
-      .pScissors = &scisors};
+      .pScissors = nullptr};
 
   vk::PipelineRasterizationStateCreateInfo rasterizer_info{
       .depthClampEnable = false,
@@ -105,7 +104,7 @@ vk::raii::Pipeline pipelines_storage_base::make_pipeline(
           .pMultisampleState = &multisampling_info,
           .pDepthStencilState = nullptr,
           .pColorBlendState = &color_blending,
-          .pDynamicState = nullptr,
+          .pDynamicState = &dyn_state_info,
           .layout = *layout_,
           .renderPass = render_pass,
           .subpass = 0,

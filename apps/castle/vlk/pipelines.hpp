@@ -46,7 +46,7 @@ protected:
                      }} {}
 
   vk::raii::Pipeline make_pipeline(const vk::raii::Device& dev,
-      vk::RenderPass render_pass, vk::Extent2D sz, shader_sources shaders,
+      vk::RenderPass render_pass, shader_sources shaders,
       const vk::VertexInputBindingDescription& vertex_binding,
       std::span<const vk::VertexInputAttributeDescription> vertex_attrs);
 
@@ -61,9 +61,9 @@ public:
 
   template <vertex... Vs>
   pipelines_storage(const vk::raii::Device& dev, vk::RenderPass render_pass,
-      vk::Extent2D sz, shaders<Vs>... shaders)
+      shaders<Vs>... shaders)
       : pipelines_storage_base{dev},
-        pipelines_{{make_pipeline(dev, render_pass, sz, shaders.sources(),
+        pipelines_{{make_pipeline(dev, render_pass, shaders.sources(),
             Vs::binding_description(), Vs::attribute_description())...}} {
     static_assert(sizeof...(Vs) == N);
   }
