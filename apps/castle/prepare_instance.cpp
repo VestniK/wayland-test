@@ -494,6 +494,13 @@ public:
     submit_cmd_buf(*cmd_buffs_.front());
 
     std::move(frame).present(*render_finished_);
+
+    // Wait untill rendering commands from the buffer are finished in order
+    // to safely reuse the buffer on the next frame.
+    if (auto ec = make_error_code(device_.waitForFences(
+            {*frame_done_}, true, std::numeric_limits<uint64_t>::max())))
+      throw std::system_error(ec, "vkWaitForFence");
+    device_.resetFences({*frame_done_});
   }
 
 private:
@@ -535,10 +542,6 @@ private:
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = &*render_finished_}};
     graphics_queue_.submit(submit_infos, *frame_done_);
-    if (auto ec = make_error_code(device_.waitForFences(
-            {*frame_done_}, true, std::numeric_limits<uint64_t>::max())))
-      throw std::system_error(ec, "vkWaitForFence");
-    device_.resetFences({*frame_done_});
   }
 
 private:
