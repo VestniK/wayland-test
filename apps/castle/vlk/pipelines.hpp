@@ -9,7 +9,7 @@
 namespace vlk {
 
 template <typename Vertex>
-concept vertex = requires(Vertex v) {
+concept vertex_attributes = requires(Vertex v) {
   {
     Vertex::binding_description()
   } -> std::convertible_to<vk::VertexInputBindingDescription>;
@@ -24,7 +24,7 @@ struct shader_sources {
   std::span<const std::byte> fragment;
 };
 
-template <vertex V>
+template <vertex_attributes V>
 struct shaders {
   std::span<const std::byte> vertex;
   std::span<const std::byte> fragment;
@@ -59,7 +59,7 @@ class pipelines_storage : public pipelines_storage_base {
 public:
   pipelines_storage() noexcept = default;
 
-  template <vertex... Vs>
+  template <vertex_attributes... Vs>
   pipelines_storage(const vk::raii::Device& dev, vk::RenderPass render_pass,
       shaders<Vs>... shaders)
       : pipelines_storage_base{dev},
