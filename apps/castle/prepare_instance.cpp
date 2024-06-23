@@ -10,6 +10,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
@@ -54,6 +55,12 @@ struct vertex {
             .format = vk::Format::eR32G32B32Sfloat,
             .offset = static_cast<uint32_t>(member_offset(&vertex::color))}};
   }
+};
+
+struct world_transformations {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 proj;
 };
 
 constexpr vertex vertices[] = {
@@ -326,7 +333,8 @@ public:
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        pipelines_{device_, *render_pass_,
+        descriptor_bindings_{device_},
+        pipelines_{device_, *render_pass_, descriptor_bindings_,
             vlk::shaders<vertex>{.vertex = {_binary_triangle_vert_spv_start,
                                      _binary_triangle_vert_spv_end},
                 .fragment = {_binary_triangle_frag_spv_start,
@@ -443,6 +451,8 @@ private:
   vk::raii::Device device_;
   vk::raii::RenderPass render_pass_;
 
+  vlk::pipeline_bindings<vlk::vertex_uniform<world_transformations>>
+      descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   vlk::command_buffers<1> cmd_buffs_;
   vlk::render_target render_target_;

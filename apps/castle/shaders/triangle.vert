@@ -1,5 +1,11 @@
 #version 450
 
+layout(binding = 0) uniform world_transformations {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} ubo;
+
 layout(location = 0) in vec2 in_position;
 layout(location = 1) in vec3 in_color;
 
