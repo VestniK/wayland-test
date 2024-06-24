@@ -91,14 +91,14 @@ memory memory::allocate(const vk::raii::Device& dev,
       size)};
 }
 
-[[nodiscard]] uniform_memory uniform_memory::allocate(
-    const vk::raii::Device& dev,
+[[nodiscard]] mapped_memory mapped_memory::allocate(const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size) {
-  return uniform_memory{
+  return mapped_memory{
       memory::allocate(dev, props, vk::MemoryPropertyFlagBits::eHostVisible,
           query_memreq(*dev, vk::BufferUsageFlagBits::eUniformBuffer)
               .memoryTypeBits,
-          size)};
+          size),
+      size};
 }
 
 memory_pools::memory_pools(const vk::raii::Device& dev,

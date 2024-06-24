@@ -63,16 +63,49 @@ private:
       : mappable_memory{std::move(mem)} {}
 };
 
-class uniform_memory : public mappable_memory {
+class mapped_memory : public memory {
 public:
-  uniform_memory() noexcept = default;
+  mapped_memory() noexcept = default;
+  ~mapped_memory() noexcept {
+    if (*get())
+      get().unmapMemory();
+  }
 
-  [[nodiscard]] static uniform_memory allocate(const vk::raii::Device& dev,
+  mapped_memory(const mapped_memory&) = delete;
+  const mapped_memory& operator=(const mapped_memory&) = delete;
+
+  mapped_memory(mapped_memory&& rhs) noexcept
+      : memory{static_cast<memory&&>(rhs)},
+        mapping_{std::exchange(rhs.mapping_, {})} {}
+
+  mapped_memory& operator=(mapped_memory&& rhs) noexcept {
+    static_cast<memory&>(*this) = static_cast<memory&&>(rhs);
+    mapping_ = std::exchange(rhs.mapping_, {});
+    return *this;
+  }
+
+  [[nodiscard]] static mapped_memory allocate(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size);
 
+  void flush(size_t off, size_t len) const {
+    get().getDevice().flushMappedMemoryRanges(
+        {vk::MappedMemoryRange{.memory = *get(), .offset = off, .size = len}});
+  }
+
+  void flush() const {
+    get().getDevice().flushMappedMemoryRanges({vk::MappedMemoryRange{
+        .memory = *get(), .offset = 0, .size = mapping_.size()}});
+  }
+
+  std::span<std::byte> data() const noexcept { return mapping_; }
+
 private:
-  explicit uniform_memory(memory mem) noexcept
-      : mappable_memory{std::move(mem)} {}
+  explicit mapped_memory(memory mem, size_t sz)
+      : memory{std::move(mem)},
+        mapping_{static_cast<std::byte*>(get().mapMemory(0, sz)), sz} {}
+
+private:
+  std::span<std::byte> mapping_;
 };
 
 class memory_pools {

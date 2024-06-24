@@ -20,6 +20,7 @@
 #include <apps/castle/vlk/cmds.hpp>
 #include <apps/castle/vlk/pipelines.hpp>
 #include <apps/castle/vlk/presentation.hpp>
+#include <apps/castle/vlk/uniforms.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -333,7 +334,7 @@ public:
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        descriptor_bindings_{device_},
+        descriptor_bindings_{device_, phydev_.getMemoryProperties()},
         pipelines_{device_, *render_pass_, descriptor_bindings_,
             vlk::shaders<vertex>{.vertex = {_binary_triangle_vert_spv_start,
                                      _binary_triangle_vert_spv_end},
@@ -432,6 +433,8 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
+    descriptor_bindings_.flush();
+
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     std::array<vk::SubmitInfo, 1> submit_infos{
