@@ -19,11 +19,11 @@ cpp_unit(
 )
 target_wl_protocol(wlwnd
   NAME xdg-shell
-  URL https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/4624cfaaf563cd7be5e2e2087c8de6d3a48ea867/stable/xdg-shell/xdg-shell.xml
-  SHA256 5b63a655af7147381705c32744fde4ac3f54ee6147396f709f394b0d1f711e71
+  URL https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/1.36/stable/xdg-shell/xdg-shell.xml?ref_type=tags
+  SHA256 454c96a942bfd7b21acdceb74d189cee85858afb7e7d2274964c94f13616f69f
 )
 target_wl_protocol(wlwnd
   NAME ivi-application
-  URL https://github.com/COVESA/wayland-ivi-extension/raw/2.2.0/protocol/ivi-application.xml
-  SHA256 fbbdee032617675eae78d9bda864af519a3a34479d188740d938d17ffacf80d2
+  URL https://raw.githubusercontent.com/COVESA/wayland-ivi-extension/2.3.2/protocol/ivi-application.xml
+  SHA256 34affef72f270d9bac7f4f4ff9176be157940923dc7f0d7622fc66683bc116dd
 )
