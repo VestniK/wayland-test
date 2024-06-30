@@ -121,8 +121,8 @@ public:
 private:
   static vk::raii::DescriptorPool make_pool(
       const vk::raii::Device& dev, uint32_t count) {
-    vk::DescriptorPoolSize size{
-        .type = vk::DescriptorType::eUniformBuffer, .descriptorCount = count};
+    vk::DescriptorPoolSize size{.type = vk::DescriptorType::eUniformBuffer,
+        .descriptorCount = sizeof...(Ts)};
     return {
         dev, vk::DescriptorPoolCreateInfo{
                  .maxSets = count, .poolSizeCount = 1, .pPoolSizes = &size}};

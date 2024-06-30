@@ -10,6 +10,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
@@ -36,8 +37,9 @@ extern const std::byte _binary_triangle_frag_spv_end[];
 namespace {
 
 struct vertex {
-  glm::vec2 pos;
-  glm::vec3 color;
+  glm::vec3 position;
+  glm::vec3 normal;
+  glm::vec2 uv;
 
   constexpr static vk::VertexInputBindingDescription
   binding_description() noexcept {
@@ -46,34 +48,38 @@ struct vertex {
         .inputRate = vk::VertexInputRate::eVertex};
   }
 
-  constexpr static std::array<vk::VertexInputAttributeDescription, 2>
+  constexpr static std::array<vk::VertexInputAttributeDescription, 3>
   attribute_description() noexcept {
-    return {vk::VertexInputAttributeDescription{.location = 0,
-                .binding = 0,
-                .format = vk::Format::eR32G32Sfloat,
-                .offset = static_cast<uint32_t>(member_offset(&vertex::pos))},
+    return {
+        vk::VertexInputAttributeDescription{.location = 0,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = static_cast<uint32_t>(member_offset(&vertex::position))},
         vk::VertexInputAttributeDescription{.location = 1,
             .binding = 0,
             .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::color))}};
+            .offset = static_cast<uint32_t>(member_offset(&vertex::normal))},
+        vk::VertexInputAttributeDescription{.location = 2,
+            .binding = 0,
+            .format = vk::Format::eR32G32Sfloat,
+            .offset = static_cast<uint32_t>(member_offset(&vertex::uv))}};
   }
 };
 
 struct world_transformations {
+  glm::mat4 camera;
   glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 proj;
+  glm::mat3 norm_rotation;
 };
 
-constexpr vertex vertices[] = {
-    // clang-format off
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{ 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{ 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}}
-    // clang-format on
+// TODO: device specific minUniformBufferOffsetAlignment should be guarantied in
+// a better way then hardcode here
+struct alignas(64) light_source {
+  glm::vec3 pos;
+  float intense;
+  float ambient;
+  float attenuation;
 };
-constexpr uint16_t indices[] = {0, 1, 2, 2, 3, 0};
 
 template <typename T, typename Cmp, typename... A>
 constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
@@ -315,14 +321,17 @@ public:
       : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
             vlk::memory_pools::vbo, std::as_bytes(verticies))},
         ibo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::ibo, std::as_bytes(indices))} {}
+            vlk::memory_pools::ibo, std::as_bytes(indices))},
+        count_{indices.size()} {}
 
   const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
   const vk::Buffer& get_ibo() const noexcept { return *ibo_; }
+  const size_t size() const noexcept { return count_; }
 
 private:
   vk::raii::Buffer vbo_;
   vk::raii::Buffer ibo_;
+  size_t count_;
 };
 
 class render_environment : public renderer_iface {
@@ -335,6 +344,8 @@ public:
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
+        render_target_{device_, presentation_queue_family, std::move(surf),
+            swapchain_info, *render_pass_},
         descriptor_bindings_{device_, phydev_.getMemoryProperties()},
         pipelines_{device_, *render_pass_, descriptor_bindings_,
             vlk::shaders<vertex>{.vertex = {_binary_triangle_vert_spv_start,
@@ -342,17 +353,20 @@ public:
                 .fragment = {_binary_triangle_frag_spv_start,
                     _binary_triangle_frag_spv_end}}},
         cmd_buffs_{device_, graphics_queue_family},
-        render_target_{device_, presentation_queue_family, std::move(surf),
-            swapchain_info, *render_pass_},
         mempools_{device_, phydev_.getMemoryProperties(),
-            {.vbo_capacity = 65536,
-                .ibo_capacity = 65536,
-                .staging_size = 65536}},
-        mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
-            vertices, indices},
+            {.vbo_capacity = 2 * 1024 * 1024,
+                .ibo_capacity = 2 * 1024 * 1024,
+                .staging_size = 2 * 1024 * 1024}},
+        mesh_{make_paper_mesh(mempools_, device_, cmd_buffs_)},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
-        frame_done_{device_, vk::FenceCreateInfo{}} {}
+        frame_done_{device_, vk::FenceCreateInfo{}} {
+    setup_camera(swapchain_info.imageExtent);
+    std::get<1>(descriptor_bindings_.value(0)) = {.pos = {2., 5., 15.},
+        .intense = 0.8,
+        .ambient = 0.4,
+        .attenuation = 0.01};
+  }
 
   render_environment(const render_environment&) = delete;
   render_environment& operator=(const render_environment&) = delete;
@@ -367,15 +381,19 @@ public:
 
   void resize(size sz) override {
     device_.waitIdle();
+    const auto extent = as_extent(sz);
 
     auto params = device_rendering_params::choose(
-        *phydev_, render_target_.surface(), as_extent(sz));
+        *phydev_, render_target_.surface(), extent);
     if (!params)
       throw std::runtime_error{
           "Restore swapchain params after resise have failed"};
 
     render_target_.resize(
-        device_, *render_pass_, params->swapchain_info, as_extent(sz));
+        device_, *render_pass_, params->swapchain_info, extent);
+
+    if (sz.height > 0 && sz.height > 0)
+      setup_camera(extent);
   }
 
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
@@ -384,13 +402,14 @@ public:
     using namespace std::literals;
     auto frame = render_target_.start_frame(*image_available_);
 
-    descriptor_bindings_.value(0) = world_transformations{
-        .model = glm::rotate(glm::mat4{1.},
-            static_cast<float>(2 * M_PI * (ts.time_since_epoch() % 5s).count() /
-                               float(frames_clock::duration{5s}.count())),
-            {0., 0., 1.}),
-        .view = glm::mat4{1.},
-        .proj = glm::mat4{1.}};
+    const float phase =
+        static_cast<float>(2 * M_PI * (ts.time_since_epoch() % 5s).count() /
+                           float(frames_clock::duration{5s}.count()));
+    const auto model =
+        glm::translate(glm::mat4{1.}, glm::vec3{std::cos(phase), 0., 0.});
+    std::get<0>(descriptor_bindings_.value(0)).model = model;
+    std::get<0>(descriptor_bindings_.value(0)).norm_rotation =
+        glm::transpose(glm::inverse(glm::mat3(model)));
 
     record_cmd_buffer(cmd_buffs_.front(), frame.buffer());
     submit_cmd_buf(cmd_buffs_.front());
@@ -406,6 +425,44 @@ public:
   }
 
 private:
+  void setup_camera(vk::Extent2D sz) noexcept {
+    constexpr auto camera_pos = glm::vec3{0., 0., 50.};
+    constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
+    constexpr auto camera_look_at = glm::vec3{0., 0, 0.};
+    std::get<0>(descriptor_bindings_.value(0)).camera =
+        glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 30.f, 60.f) *
+        glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
+  }
+
+  static mesh make_paper_mesh(vlk::memory_pools& mempools,
+      const vk::raii::Device& dev, const vlk::command_buffers<1>& cmdbufs) {
+    std::vector<vertex> vertices;
+    std::vector<uint16_t> indices;
+
+    constexpr int x_segments = 170;
+    constexpr int y_segments = 210;
+    auto pos2idx = [](int x, int y) -> uint16_t { return y * x_segments + x; };
+
+    for (int y = 0; y < y_segments; ++y) {
+      for (int x = 0; x < x_segments; ++x) {
+        vertices.push_back({.position = {0.1 * x, 0.1 * y, 0.},
+            .normal = {0., 0., 1.},
+            .uv = {0.1 * x, 0.1 * y}});
+        if (y > 0 && x < x_segments - 1) {
+          indices.push_back(pos2idx(x, y - 1));
+          indices.push_back(pos2idx(x + 1, y - 1));
+          indices.push_back(pos2idx(x, y));
+
+          indices.push_back(pos2idx(x + 1, y - 1));
+          indices.push_back(pos2idx(x + 1, y));
+          indices.push_back(pos2idx(x, y));
+        }
+      }
+    }
+    return mesh{
+        mempools, dev, cmdbufs.queue(), cmdbufs.front(), vertices, indices};
+  }
+
   void record_cmd_buffer(
       vk::CommandBuffer cmd, const vk::Framebuffer& fb) const {
     cmd.reset();
@@ -438,7 +495,7 @@ private:
     cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
     descriptor_bindings_.use(0, cmd, pipelines_.layout());
-    cmd.drawIndexed(static_cast<uint32_t>(std::size(indices)), 1, 0, 0, 0);
+    cmd.drawIndexed(static_cast<uint32_t>(mesh_.size()), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
   }
@@ -464,12 +521,13 @@ private:
   vk::raii::PhysicalDevice phydev_;
   vk::raii::Device device_;
   vk::raii::RenderPass render_pass_;
+  vlk::render_target render_target_;
 
-  vlk::pipeline_bindings<1, vlk::vertex_uniform<world_transformations>>
+  vlk::pipeline_bindings<1, vlk::graphics_uniform<world_transformations>,
+      vlk::fragment_uniform<light_source>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   vlk::command_buffers<1> cmd_buffs_;
-  vlk::render_target render_target_;
   vlk::memory_pools mempools_;
   mesh mesh_;
 
