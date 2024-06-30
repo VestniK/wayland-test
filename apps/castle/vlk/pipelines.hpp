@@ -47,6 +47,9 @@ protected:
 };
 
 class pipelines_storage_base {
+public:
+  const vk::PipelineLayout layout() const noexcept { return *layout_; }
+
 protected:
   pipelines_storage_base() noexcept = default;
   pipelines_storage_base(

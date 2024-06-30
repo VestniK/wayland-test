@@ -10,6 +10,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -380,7 +381,16 @@ public:
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
 
   void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
+    using namespace std::literals;
     auto frame = render_target_.start_frame(*image_available_);
+
+    descriptor_bindings_.value(0) = world_transformations{
+        .model = glm::rotate(glm::mat4{1.},
+            static_cast<float>(2 * M_PI * (ts.time_since_epoch() % 5s).count() /
+                               float(frames_clock::duration{5s}.count())),
+            {0., 0., 1.}),
+        .view = glm::mat4{1.},
+        .proj = glm::mat4{1.}};
 
     record_cmd_buffer(cmd_buffs_.front(), frame.buffer());
     submit_cmd_buf(cmd_buffs_.front());
@@ -427,13 +437,14 @@ private:
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
     cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
+    descriptor_bindings_.use(0, cmd, pipelines_.layout());
     cmd.drawIndexed(static_cast<uint32_t>(std::size(indices)), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    descriptor_bindings_.flush();
+    descriptor_bindings_.flush(0);
 
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -454,7 +465,7 @@ private:
   vk::raii::Device device_;
   vk::raii::RenderPass render_pass_;
 
-  vlk::pipeline_bindings<vlk::vertex_uniform<world_transformations>>
+  vlk::pipeline_bindings<1, vlk::vertex_uniform<world_transformations>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   vlk::command_buffers<1> cmd_buffs_;
