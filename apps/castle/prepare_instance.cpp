@@ -428,7 +428,7 @@ private:
   void setup_camera(vk::Extent2D sz) noexcept {
     constexpr auto camera_pos = glm::vec3{0., 0., 50.};
     constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
-    constexpr auto camera_look_at = glm::vec3{0., 0, 0.};
+    constexpr auto camera_look_at = glm::vec3{10., 10., 0.};
     std::get<0>(descriptor_bindings_.value(0)).camera =
         glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 30.f, 60.f) *
         glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
