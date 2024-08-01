@@ -85,7 +85,8 @@ public:
   }
 
   [[nodiscard]] static mapped_memory allocate(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size);
+      const vk::PhysicalDeviceMemoryProperties& props,
+      vk::BufferUsageFlags usage, vk::DeviceSize size);
 
   void flush(size_t off, size_t len) const {
     get().getDevice().flushMappedMemoryRanges(
@@ -97,7 +98,12 @@ public:
         .memory = *get(), .offset = 0, .size = mapping_.size()}});
   }
 
-  std::span<std::byte> data() const noexcept { return mapping_; }
+  std::span<std::byte> mapping() const noexcept { return mapping_; }
+  std::byte* data() const noexcept { return mapping_.data(); }
+  size_t size() const noexcept { return mapping_.size(); }
+
+  auto begin() const noexcept { return mapping_.begin(); }
+  auto end() const noexcept { return mapping_.end(); }
 
 private:
   explicit mapped_memory(memory mem, size_t sz)

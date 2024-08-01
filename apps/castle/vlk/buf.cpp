@@ -92,12 +92,11 @@ memory memory::allocate(const vk::raii::Device& dev,
 }
 
 [[nodiscard]] mapped_memory mapped_memory::allocate(const vk::raii::Device& dev,
-    const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size) {
+    const vk::PhysicalDeviceMemoryProperties& props, vk::BufferUsageFlags usage,
+    vk::DeviceSize size) {
   return mapped_memory{
       memory::allocate(dev, props, vk::MemoryPropertyFlagBits::eHostVisible,
-          query_memreq(*dev, vk::BufferUsageFlagBits::eUniformBuffer)
-              .memoryTypeBits,
-          size),
+          query_memreq(*dev, usage).memoryTypeBits, size),
       size};
 }
 

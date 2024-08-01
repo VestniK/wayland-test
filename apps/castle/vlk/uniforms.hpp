@@ -45,8 +45,9 @@ public:
   template <typename... A>
   uniform_memory(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& props, A&&... a)
-      : mapped_memory{mapped_memory::allocate(dev, props, sizeof(T))} {
-    new (data().data()) T{std::forward<A>(a)...};
+      : mapped_memory{mapped_memory::allocate(
+            dev, props, vk::BufferUsageFlagBits::eUniformBuffer, sizeof(T))} {
+    new (mapping().data()) T{std::forward<A>(a)...};
   }
 
   uniform_memory(const uniform_memory&) = delete;
@@ -57,13 +58,17 @@ public:
 
   ~uniform_memory() noexcept {
     if (*this)
-      reinterpret_cast<T*>(data().data())->~T();
+      reinterpret_cast<T*>(mapping().data())->~T();
   }
 
-  operator bool() const noexcept { return !data().empty(); }
+  operator bool() const noexcept { return !mapping().empty(); }
 
-  T& operator*() const noexcept { return *reinterpret_cast<T*>(data().data()); }
-  T* operator->() const noexcept { return reinterpret_cast<T*>(data().data()); }
+  T& operator*() const noexcept {
+    return *reinterpret_cast<T*>(mapping().data());
+  }
+  T* operator->() const noexcept {
+    return reinterpret_cast<T*>(mapping().data());
+  }
 };
 
 template <vk::ShaderStageFlagBits S, typename T>
@@ -188,7 +193,7 @@ private:
 
   size_t elem_offset(size_t idx) const noexcept {
     return reinterpret_cast<const std::byte*>(&(*value_)[idx]) -
-           reinterpret_cast<const std::byte*>(value_->data());
+           reinterpret_cast<const std::byte*>(value_.mapping().data());
   }
 
 private:
