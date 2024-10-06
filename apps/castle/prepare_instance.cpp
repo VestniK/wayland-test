@@ -36,6 +36,8 @@ extern const std::byte _binary_triangle_frag_spv_end[];
 
 namespace {
 
+namespace scene {
+
 struct vertex {
   glm::vec3 position;
   glm::vec3 normal;
@@ -80,6 +82,29 @@ struct alignas(64) light_source {
   float ambient;
   float attenuation;
 };
+
+void update_world(
+    frames_clock::time_point ts, world_transformations& world) noexcept {
+  using namespace std::literals;
+  const float phase =
+      static_cast<float>(2 * M_PI * (ts.time_since_epoch() % 5s).count() /
+                         float(frames_clock::duration{5s}.count()));
+  const auto model =
+      glm::translate(glm::mat4{1.}, glm::vec3{std::cos(phase), 0., 0.});
+  world.model = model;
+  world.norm_rotation = glm::transpose(glm::inverse(glm::mat3(model)));
+}
+
+static glm::mat4 setup_camera(vk::Extent2D sz) noexcept {
+  constexpr auto camera_pos = glm::vec3{0., 0., 50.};
+  constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
+  constexpr auto camera_look_at = glm::vec3{10., 10., 0.};
+  return glm::perspectiveFov<float>(
+             M_PI / 6., sz.width, sz.height, 30.f, 60.f) *
+         glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
+}
+
+} // namespace scene
 
 template <typename T, typename Cmp, typename... A>
 constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
@@ -317,7 +342,8 @@ class mesh {
 public:
   mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
       const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
-      std::span<const vertex> verticies, std::span<const uint16_t> indices)
+      std::span<const scene::vertex> verticies,
+      std::span<const uint16_t> indices)
       : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
             vlk::memory_pools::vbo, std::as_bytes(verticies))},
         ibo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
@@ -348,8 +374,9 @@ public:
             swapchain_info, *render_pass_},
         descriptor_bindings_{device_, phydev_.getMemoryProperties()},
         pipelines_{device_, *render_pass_, descriptor_bindings_,
-            vlk::shaders<vertex>{.vertex = {_binary_triangle_vert_spv_start,
-                                     _binary_triangle_vert_spv_end},
+            vlk::shaders<scene::vertex>{
+                .vertex = {_binary_triangle_vert_spv_start,
+                    _binary_triangle_vert_spv_end},
                 .fragment = {_binary_triangle_frag_spv_start,
                     _binary_triangle_frag_spv_end}}},
         cmd_buffs_{device_, graphics_queue_family},
@@ -361,7 +388,8 @@ public:
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    setup_camera(swapchain_info.imageExtent);
+    std::get<0>(descriptor_bindings_.value(0)).camera =
+        scene::setup_camera(swapchain_info.imageExtent);
     std::get<1>(descriptor_bindings_.value(0)) = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
@@ -393,23 +421,17 @@ public:
         device_, *render_pass_, params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
-      setup_camera(extent);
+      std::get<0>(descriptor_bindings_.value(0)).camera =
+          scene::setup_camera(extent);
   }
 
   void draw(frames_clock::time_point ts) override { draw_frame(ts); }
 
-  void draw_frame(frames_clock::time_point ts [[maybe_unused]]) const {
-    using namespace std::literals;
+private:
+  void draw_frame(frames_clock::time_point ts) const {
     auto frame = render_target_.start_frame(*image_available_);
 
-    const float phase =
-        static_cast<float>(2 * M_PI * (ts.time_since_epoch() % 5s).count() /
-                           float(frames_clock::duration{5s}.count()));
-    const auto model =
-        glm::translate(glm::mat4{1.}, glm::vec3{std::cos(phase), 0., 0.});
-    std::get<0>(descriptor_bindings_.value(0)).model = model;
-    std::get<0>(descriptor_bindings_.value(0)).norm_rotation =
-        glm::transpose(glm::inverse(glm::mat3(model)));
+    scene::update_world(ts, std::get<0>(descriptor_bindings_.value(0)));
 
     record_cmd_buffer(cmd_buffs_.front(), frame.buffer());
     submit_cmd_buf(cmd_buffs_.front());
@@ -424,19 +446,9 @@ public:
     device_.resetFences({*frame_done_});
   }
 
-private:
-  void setup_camera(vk::Extent2D sz) noexcept {
-    constexpr auto camera_pos = glm::vec3{0., 0., 50.};
-    constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
-    constexpr auto camera_look_at = glm::vec3{10., 10., 0.};
-    std::get<0>(descriptor_bindings_.value(0)).camera =
-        glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 30.f, 60.f) *
-        glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
-  }
-
   static mesh make_paper_mesh(vlk::memory_pools& mempools,
       const vk::raii::Device& dev, const vlk::command_buffers<1>& cmdbufs) {
-    std::vector<vertex> vertices;
+    std::vector<scene::vertex> vertices;
     std::vector<uint16_t> indices;
 
     constexpr int x_segments = 170;
@@ -523,8 +535,8 @@ private:
   vk::raii::RenderPass render_pass_;
   vlk::render_target render_target_;
 
-  vlk::pipeline_bindings<1, vlk::graphics_uniform<world_transformations>,
-      vlk::fragment_uniform<light_source>>
+  vlk::pipeline_bindings<1, vlk::graphics_uniform<scene::world_transformations>,
+      vlk::fragment_uniform<scene::light_source>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   vlk::command_buffers<1> cmd_buffs_;
