@@ -429,14 +429,8 @@ public:
 
 private:
   void draw_frame(frames_clock::time_point ts) const {
-    auto frame = render_target_.start_frame(*image_available_);
-
-    scene::update_world(ts, std::get<0>(descriptor_bindings_.value(0)));
-
-    record_cmd_buffer(cmd_buffs_.front(), frame.buffer());
-    submit_cmd_buf(cmd_buffs_.front());
-
-    std::move(frame).present(*render_finished_);
+    draw(render_target_.start_frame(*image_available_), ts)
+        .present(*render_finished_);
 
     // Wait untill rendering commands from the buffer are finished in order
     // to safely reuse the buffer on the next frame.
@@ -444,6 +438,13 @@ private:
             {*frame_done_}, true, std::numeric_limits<uint64_t>::max())))
       throw std::system_error(ec, "vkWaitForFence");
     device_.resetFences({*frame_done_});
+  }
+
+  vlk::render_target::frame draw(
+      vlk::render_target::frame frame, frames_clock::time_point ts) const {
+    scene::update_world(ts, std::get<0>(descriptor_bindings_.value(0)));
+    submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
+    return frame;
   }
 
   static mesh make_paper_mesh(vlk::memory_pools& mempools,
@@ -475,7 +476,7 @@ private:
         mempools, dev, cmdbufs.queue(), cmdbufs.front(), vertices, indices};
   }
 
-  void record_cmd_buffer(
+  vk::CommandBuffer record_cmd_buffer(
       vk::CommandBuffer cmd, const vk::Framebuffer& fb) const {
     cmd.reset();
 
@@ -510,6 +511,7 @@ private:
     cmd.drawIndexed(static_cast<uint32_t>(mesh_.size()), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
+    return cmd;
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {

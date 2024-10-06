@@ -105,6 +105,7 @@ public:
           fb_{parent->swapchain_.acqure_framebuffer(ready_to_present)} {}
 
     vk::Framebuffer buffer() const { return fb_.framebuffer(); }
+
     void present(vk::Semaphore done_sem) && {
       parent_->swapchain_.present(
           std::move(fb_), *parent_->presentation_queue_, done_sem);
