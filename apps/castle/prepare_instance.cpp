@@ -36,6 +36,22 @@ extern const std::byte _binary_triangle_frag_spv_end[];
 
 namespace {
 
+template <vlk::vertex_attributes Vertex, std::integral Idx>
+struct mesh_data_view {
+  std::span<const Vertex> vertices;
+  std::span<const Idx> indices;
+};
+
+template <vlk::vertex_attributes Vertex, std::integral Idx>
+struct mesh_data {
+  std::vector<Vertex> vertices;
+  std::vector<Idx> indices;
+
+  operator mesh_data_view<Vertex, Idx>() const noexcept {
+    return {.vertices = vertices, .indices = indices};
+  }
+};
+
 namespace scene {
 
 struct vertex {
@@ -102,6 +118,32 @@ static glm::mat4 setup_camera(vk::Extent2D sz) noexcept {
   return glm::perspectiveFov<float>(
              M_PI / 6., sz.width, sz.height, 30.f, 60.f) *
          glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
+}
+
+mesh_data<vertex, uint16_t> make_paper() {
+  mesh_data<vertex, uint16_t> res;
+
+  constexpr int x_segments = 170;
+  constexpr int y_segments = 210;
+  auto pos2idx = [](int x, int y) -> uint16_t { return y * x_segments + x; };
+
+  for (int y = 0; y < y_segments; ++y) {
+    for (int x = 0; x < x_segments; ++x) {
+      res.vertices.push_back({.position = {0.1 * x, 0.1 * y, 0.},
+          .normal = {0., 0., 1.},
+          .uv = {0.1 * x, 0.1 * y}});
+      if (y > 0 && x < x_segments - 1) {
+        res.indices.push_back(pos2idx(x, y - 1));
+        res.indices.push_back(pos2idx(x + 1, y - 1));
+        res.indices.push_back(pos2idx(x, y));
+
+        res.indices.push_back(pos2idx(x + 1, y - 1));
+        res.indices.push_back(pos2idx(x + 1, y));
+        res.indices.push_back(pos2idx(x, y));
+      }
+    }
+  }
+  return res;
 }
 
 } // namespace scene
@@ -342,13 +384,12 @@ class mesh {
 public:
   mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
       const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
-      std::span<const scene::vertex> verticies,
-      std::span<const uint16_t> indices)
+      mesh_data_view<scene::vertex, uint16_t> data)
       : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::vbo, std::as_bytes(verticies))},
+            vlk::memory_pools::vbo, std::as_bytes(data.vertices))},
         ibo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::ibo, std::as_bytes(indices))},
-        count_{indices.size()} {}
+            vlk::memory_pools::ibo, std::as_bytes(data.indices))},
+        count_{data.indices.size()} {}
 
   const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
   const vk::Buffer& get_ibo() const noexcept { return *ibo_; }
@@ -384,7 +425,8 @@ public:
             {.vbo_capacity = 2 * 1024 * 1024,
                 .ibo_capacity = 2 * 1024 * 1024,
                 .staging_size = 2 * 1024 * 1024}},
-        mesh_{make_paper_mesh(mempools_, device_, cmd_buffs_)},
+        mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
+            scene::make_paper()},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
@@ -445,35 +487,6 @@ private:
     scene::update_world(ts, std::get<0>(descriptor_bindings_.value(0)));
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
-  }
-
-  static mesh make_paper_mesh(vlk::memory_pools& mempools,
-      const vk::raii::Device& dev, const vlk::command_buffers<1>& cmdbufs) {
-    std::vector<scene::vertex> vertices;
-    std::vector<uint16_t> indices;
-
-    constexpr int x_segments = 170;
-    constexpr int y_segments = 210;
-    auto pos2idx = [](int x, int y) -> uint16_t { return y * x_segments + x; };
-
-    for (int y = 0; y < y_segments; ++y) {
-      for (int x = 0; x < x_segments; ++x) {
-        vertices.push_back({.position = {0.1 * x, 0.1 * y, 0.},
-            .normal = {0., 0., 1.},
-            .uv = {0.1 * x, 0.1 * y}});
-        if (y > 0 && x < x_segments - 1) {
-          indices.push_back(pos2idx(x, y - 1));
-          indices.push_back(pos2idx(x + 1, y - 1));
-          indices.push_back(pos2idx(x, y));
-
-          indices.push_back(pos2idx(x + 1, y - 1));
-          indices.push_back(pos2idx(x + 1, y));
-          indices.push_back(pos2idx(x, y));
-        }
-      }
-    }
-    return mesh{
-        mempools, dev, cmdbufs.queue(), cmdbufs.front(), vertices, indices};
   }
 
   vk::CommandBuffer record_cmd_buffer(
