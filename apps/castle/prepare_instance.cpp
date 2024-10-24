@@ -146,6 +146,9 @@ mesh_data<vertex, uint16_t> make_paper() {
   return res;
 }
 
+constexpr vk::ClearValue clear_color{
+    .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
+
 } // namespace scene
 
 template <typename T, typename Cmp, typename... A>
@@ -467,10 +470,7 @@ public:
           scene::setup_camera(extent);
   }
 
-  void draw(frames_clock::time_point ts) override { draw_frame(ts); }
-
-private:
-  void draw_frame(frames_clock::time_point ts) const {
+  void draw(frames_clock::time_point ts) override {
     draw(render_target_.start_frame(*image_available_), ts)
         .present(*render_finished_);
 
@@ -482,6 +482,7 @@ private:
     device_.resetFences({*frame_done_});
   }
 
+private:
   vlk::render_target::frame draw(
       vlk::render_target::frame frame, frames_clock::time_point ts) const {
     scene::update_world(ts, std::get<0>(descriptor_bindings_.value(0)));
@@ -495,14 +496,12 @@ private:
 
     cmd.begin(
         vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
-    vk::ClearValue clear_val{
-        .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
     cmd.beginRenderPass(
         vk::RenderPassBeginInfo{.renderPass = *render_pass_,
             .framebuffer = fb,
             .renderArea = {.offset = {0, 0}, .extent = render_target_.extent()},
             .clearValueCount = 1,
-            .pClearValues = &clear_val},
+            .pClearValues = &scene::clear_color},
         vk::SubpassContents::eInline);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines_[0]);
 
