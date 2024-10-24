@@ -44,7 +44,6 @@ target_shaders(colorcube.lib
 target_sources(colorcube PRIVATE
   ${CMAKE_SOURCE_DIR}/conanfile.py
   ${CMAKE_SOURCE_DIR}/.clang-format
-  ${CMAKE_SOURCE_DIR}/.clangd
 )
 add_custom_command(TARGET colorcube POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:colorcube> $<TARGET_FILE:colorcube>.dbg

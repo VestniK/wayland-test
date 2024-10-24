@@ -62,7 +62,6 @@ target_sources(castle PRIVATE
 target_sources(castle PRIVATE
   ${CMAKE_SOURCE_DIR}/conanfile.py
   ${CMAKE_SOURCE_DIR}/.clang-format
-  ${CMAKE_SOURCE_DIR}/.clangd
 )
 add_custom_command(TARGET castle POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:castle> $<TARGET_FILE:castle>.dbg
