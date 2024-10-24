@@ -44,9 +44,10 @@ public:
   uniform_memory() noexcept = default;
   template <typename... A>
   uniform_memory(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props, A&&... a)
-      : mapped_memory{mapped_memory::allocate(
-            dev, props, vk::BufferUsageFlagBits::eUniformBuffer, sizeof(T))} {
+      const vk::PhysicalDeviceMemoryProperties& props,
+      const vk::PhysicalDeviceLimits& limits, A&&... a)
+      : mapped_memory{mapped_memory::allocate(dev, props, limits,
+            vk::BufferUsageFlagBits::eUniformBuffer, sizeof(T))} {
     new (mapping().data()) T{std::forward<A>(a)...};
   }
 
@@ -103,10 +104,11 @@ template <uint32_t N, typename... Ts, vk::ShaderStageFlagBits... Ss>
 class pipeline_bindings<N, uniform<Ss, Ts>...> : public pipeline_bindings_base {
 public:
   pipeline_bindings(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props)
+      const vk::PhysicalDeviceMemoryProperties& props,
+      const vk::PhysicalDeviceLimits& limits)
       : pipeline_bindings_base{make_layout(
             dev, std::index_sequence_for<Ts...>{})},
-        desc_pool_{make_pool(dev, N)}, value_{dev, props},
+        desc_pool_{make_pool(dev, N)}, value_{dev, props, limits},
         bufs_{make_bufs(dev, std::make_index_sequence<N>{})} {
     fill_sets(*dev);
     configure_sets(*dev);

@@ -46,6 +46,9 @@ public:
     return alloc.data();
   }
 
+  Src& mem_source() noexcept { return mem_source_; }
+  const Src& mem_source() const noexcept { return mem_source_; }
+
   size_t capacity() noexcept { return mem_source_.size() - offset_; }
 
   template <typename T, typename... A>

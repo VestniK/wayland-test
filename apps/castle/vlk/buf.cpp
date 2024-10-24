@@ -92,19 +92,20 @@ memory memory::allocate(const vk::raii::Device& dev,
 }
 
 [[nodiscard]] mapped_memory mapped_memory::allocate(const vk::raii::Device& dev,
-    const vk::PhysicalDeviceMemoryProperties& props, vk::BufferUsageFlags usage,
+    const vk::PhysicalDeviceMemoryProperties& props,
+    const vk::PhysicalDeviceLimits& limits, vk::BufferUsageFlags usage,
     vk::DeviceSize size) {
   return mapped_memory{
       memory::allocate(dev, props, vk::MemoryPropertyFlagBits::eHostVisible,
           query_memreq(*dev, usage).memoryTypeBits, size),
-      size};
+      size, limits};
 }
 
 memory_pools::memory_pools(const vk::raii::Device& dev,
-    const vk::PhysicalDeviceMemoryProperties& props, sizes pool_sizes)
-    : staging_mem_{staging_memory::allocate(
-          dev, props, pool_sizes.staging_size)},
-      staging_size_{pool_sizes.staging_size} {
+    const vk::PhysicalDeviceMemoryProperties& props,
+    const vk::PhysicalDeviceLimits& limits, sizes pool_sizes)
+    : staging_mem_{mapped_memory::allocate(dev, props, limits,
+          vk::BufferUsageFlagBits::eTransferSrc, pool_sizes.staging_size)} {
   std::array<std::tuple<vk::MemoryRequirements, purpose, size_t>,
       purposes_count>
       type2purpose{std::tuple{query_memreq(*dev, purpose_to_usage(vbo)), vbo,
@@ -138,15 +139,11 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
 
 vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
     const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd, purpose p,
-    std::span<const std::byte> data) {
-  if (staging_size_ < data.size())
-    throw std::bad_alloc{};
-  staging_mem_.with_mapping(
-      0, data.size(), [data](std::span<std::byte> mapped) {
-        std::ranges::copy(data, mapped.data());
-      });
-  vk::raii::Buffer staging_buf = staging_mem_.bind_buffer(
-      dev, vk::BufferUsageFlagBits::eTransferSrc, 0, data.size());
+    staging_memory data) {
+  staging_mem_.mem_source().flush(data);
+  vk::raii::Buffer staging_buf = staging_mem_.mem_source().bind_buffer(dev,
+      vk::BufferUsageFlagBits::eTransferSrc,
+      data.get() - staging_mem_.mem_source().data(), data.get_deleter().size());
 
   arena_info& arena = arena_infos_[static_cast<size_t>(p)];
   const size_t offset = std::ranges::fold_left(
@@ -155,16 +152,17 @@ vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
       });
   const size_t padding =
       (arena.alignment - offset % arena.alignment) % arena.alignment;
-  if (arena.capacity - arena.used < data.size() + padding)
+  if (arena.capacity - arena.used < data.get_deleter().size() + padding)
     throw std::bad_alloc{};
-  arena.used = arena.used + data.size() + padding;
+  arena.used = arena.used + data.get_deleter().size() + padding;
   auto res = pools_[arena.pool_idx].bind_buffer(
-      dev, purpose_to_usage(p), offset + padding, data.size());
+      dev, purpose_to_usage(p), offset + padding, data.get_deleter().size());
 
   cmd.begin(
       vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
   cmd.copyBuffer(*staging_buf, *res,
-      vk::BufferCopy{.srcOffset = 0, .dstOffset = 0, .size = data.size()});
+      vk::BufferCopy{
+          .srcOffset = 0, .dstOffset = 0, .size = data.get_deleter().size()});
   cmd.end();
 
   transfer_queue.submit({vk::SubmitInfo{.waitSemaphoreCount = 0,

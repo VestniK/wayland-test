@@ -390,9 +390,11 @@ public:
       const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
       mesh_data_view<scene::vertex, uint16_t> data)
       : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::vbo, std::as_bytes(data.vertices))},
+            vlk::memory_pools::vbo,
+            pools.allocate_staging_memory(std::as_bytes(data.vertices)))},
         ibo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::ibo, std::as_bytes(data.indices))},
+            vlk::memory_pools::ibo,
+            pools.allocate_staging_memory(std::as_bytes(data.indices)))},
         count_{data.indices.size()} {}
 
   const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
@@ -417,7 +419,8 @@ public:
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
         render_target_{device_, presentation_queue_family, std::move(surf),
             swapchain_info, *render_pass_},
-        descriptor_bindings_{device_, phydev_.getMemoryProperties()},
+        descriptor_bindings_{device_, phydev_.getMemoryProperties(),
+            phydev_.getProperties().limits},
         pipelines_{device_, *render_pass_, descriptor_bindings_,
             vlk::shaders<scene::vertex>{
                 .vertex = {_binary_triangle_vert_spv_start,
@@ -426,6 +429,7 @@ public:
                     _binary_triangle_frag_spv_end}}},
         cmd_buffs_{device_, graphics_queue_family},
         mempools_{device_, phydev_.getMemoryProperties(),
+            phydev_.getProperties().limits,
             {.vbo_capacity = 2 * 1024 * 1024,
                 .ibo_capacity = 2 * 1024 * 1024,
                 .staging_size = 2 * 1024 * 1024}},
