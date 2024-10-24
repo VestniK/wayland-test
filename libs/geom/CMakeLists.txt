@@ -8,11 +8,11 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     glm::glm
-    mp-units::si
+    mp-units::systems
   TEST_LIBS
     fmt::fmt
     Catch2::Catch2
     Catch2::Catch2WithMain
-    mp-units::core-fmt
+    mp-units::core
   TEST_ARGS --order rand --rng-seed time
 )

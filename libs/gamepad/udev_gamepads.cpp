@@ -5,6 +5,8 @@
 
 #include <libudev.h>
 
+#include <fmt/ranges.h>
+
 #include <spdlog/spdlog.h>
 
 #include <asio/co_spawn.hpp>

@@ -17,6 +17,7 @@
 #include <glm/vec3.hpp>
 
 #include <libs/memtricks/member.hpp>
+#include <libs/memtricks/projections.hpp>
 
 #include <apps/castle/vlk/buf.hpp>
 #include <apps/castle/vlk/cmds.hpp>
@@ -183,7 +184,7 @@ vk::raii::Instance create_instance() {
   if (std::ranges::contains(
           vk::enumerateInstanceLayerProperties(VULKAN_HPP_DEFAULT_DISPATCHER),
           std::string_view{debug_layers.front()},
-          &vk::LayerProperties::layerName)) {
+          as_string_view<&vk::LayerProperties::layerName>)) {
     inst_create_info.setPEnabledLayerNames(debug_layers);
   }
 #endif

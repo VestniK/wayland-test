@@ -3,7 +3,7 @@
 #include <numeric>
 
 #include <mp-units/format.h>
-#include <mp-units/systems/si/si.h>
+#include <mp-units/systems/si.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

@@ -47,7 +47,7 @@ public:
   vk::Framebuffer frameuffer() const noexcept { return *framebuf_; }
 
 private:
-  vk::Image image_;
+  vk::Image image_{nullptr};
   vk::raii::ImageView view_{nullptr};
   vk::raii::Framebuffer framebuf_{nullptr};
 };

@@ -7,7 +7,7 @@
 
 #include <glm/ext.hpp>
 
-#include <mp-units/systems/si/si.h>
+#include <mp-units/systems/si.h>
 
 #include <libs/geom/morton.hpp>
 #include <libs/geom/triangular_net.hpp>
