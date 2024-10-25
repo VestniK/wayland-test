@@ -432,6 +432,7 @@ public:
             phydev_.getProperties().limits,
             {.vbo_capacity = 2 * 1024 * 1024,
                 .ibo_capacity = 2 * 1024 * 1024,
+                .textures_capacity = 2 * 1024 * 1024,
                 .staging_size = 2 * 1024 * 1024}},
         mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
             scene::make_paper()},

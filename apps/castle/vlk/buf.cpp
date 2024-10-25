@@ -18,7 +18,7 @@ uint32_t choose_mem_type(uint32_t type_filter,
   throw std::runtime_error{"Failed to find suitable GPU memory type"};
 }
 
-vk::BufferUsageFlags purpose_to_usage(memory_pools::purpose p) {
+vk::BufferUsageFlags purpose_to_usage(memory_pools::buffer_purpose p) {
   vk::BufferUsageFlags buf_usage;
   switch (p) {
   case memory_pools::vbo:
@@ -28,6 +28,17 @@ vk::BufferUsageFlags purpose_to_usage(memory_pools::purpose p) {
   case memory_pools::ibo:
     buf_usage = vk::BufferUsageFlagBits::eIndexBuffer |
                 vk::BufferUsageFlagBits::eTransferDst;
+    break;
+  }
+  return buf_usage;
+}
+
+vk::ImageUsageFlags purpose_to_usage(memory_pools::image_purpose p) {
+  vk::ImageUsageFlags buf_usage;
+  switch (p) {
+  case memory_pools::texture:
+    buf_usage =
+        vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
     break;
   }
   return buf_usage;
@@ -64,6 +75,33 @@ vk::MemoryRequirements query_memreq(
       .memoryRequirements;
 }
 
+vk::MemoryRequirements query_memreq(
+    const vk::Device& dev, vk::ImageUsageFlags usage) {
+  // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap12.html#VkMemoryRequirements
+  // TODO investigate which ImageCreateInfo parameters do not affect
+  // memoryTypeBits and make a notice here
+  const vk::ImageCreateInfo img_create_info{
+      .flags = {},
+      .imageType = vk::ImageType::e2D,
+      .format = vk::Format::eUndefined, // TODO
+      .extent = {},                     // TODO
+      .mipLevels = 1,
+      .arrayLayers = 1,
+      .samples = vk::SampleCountFlagBits::e1,
+      .tiling = vk::ImageTiling::eOptimal,
+      .usage = usage,
+      .sharingMode = vk::SharingMode::eExclusive,
+      .queueFamilyIndexCount = 0,
+      .pQueueFamilyIndices = nullptr,
+      .initialLayout = vk::ImageLayout::eUndefined,
+  };
+  return dev
+      .getImageMemoryRequirementsKHR(
+          vk::DeviceImageMemoryRequirements{.pCreateInfo = &img_create_info,
+              .planeAspect = vk::ImageAspectFlagBits::eColor})
+      .memoryRequirements;
+}
+
 } // namespace
 
 vk::raii::Buffer memory::bind_buffer(const vk::raii::Device& dev,
@@ -96,12 +134,15 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
     const vk::PhysicalDeviceLimits& limits, sizes pool_sizes)
     : staging_mem_{mapped_memory::allocate(dev, props, limits,
           vk::BufferUsageFlagBits::eTransferSrc, pool_sizes.staging_size)} {
-  std::array<std::tuple<vk::MemoryRequirements, purpose, size_t>,
-      purposes_count>
-      type2purpose{std::tuple{query_memreq(*dev, purpose_to_usage(vbo)), vbo,
-                       pool_sizes.vbo_capacity},
-          std::tuple{query_memreq(*dev, purpose_to_usage(ibo)), ibo,
-              pool_sizes.ibo_capacity}};
+  std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>, arenas_count>
+      type2purpose{
+          std::tuple{query_memreq(*dev, purpose_to_usage(vbo)), as_idx(vbo),
+              pool_sizes.vbo_capacity},
+          std::tuple{query_memreq(*dev, purpose_to_usage(ibo)), as_idx(ibo),
+              pool_sizes.ibo_capacity},
+          std::tuple{query_memreq(*dev, purpose_to_usage(texture)),
+              as_idx(texture), pool_sizes.textures_capacity},
+      };
 
   std::ranges::sort(type2purpose, [](auto l, auto r) {
     return std::get<0>(l).memoryTypeBits < std::get<0>(r).memoryTypeBits;
@@ -116,7 +157,7 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
           dev, props, mem_req.memoryTypeBits, std::exchange(total_capacity, 0));
     }
     total_capacity += capacity;
-    arena_infos_[static_cast<size_t>(purp)] = {
+    arena_infos_[purp] = {
         .used = 0,
         .capacity = capacity,
         .alignment = mem_req.alignment,
@@ -128,13 +169,13 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
 }
 
 vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
-    const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd, purpose p,
-    staging_memory data) {
+    const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
+    buffer_purpose p, staging_memory data) {
   staging_mem_.mem_source().flush(data);
   vk::raii::Buffer staging_buf = staging_mem_.mem_source().bind_buffer(
       dev, vk::BufferUsageFlagBits::eTransferSrc, data);
 
-  arena_info& arena = arena_infos_[static_cast<size_t>(p)];
+  arena_info& arena = arena_infos_[as_idx(p)];
   const size_t offset = std::ranges::fold_left(
       arena_infos_ | std::views::filter([&arena](auto&& item) {
         return item.pool_idx == arena.pool_idx;
