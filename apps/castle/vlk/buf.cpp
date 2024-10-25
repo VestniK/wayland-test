@@ -81,16 +81,6 @@ memory memory::allocate(const vk::raii::Device& dev,
           .memoryTypeIndex = choose_mem_type(type_filter, props, flags)})};
 }
 
-[[nodiscard]] staging_memory staging_memory::allocate(
-    const vk::raii::Device& dev,
-    const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size) {
-  return staging_memory{memory::allocate(dev, props,
-      vk::MemoryPropertyFlagBits::eHostVisible |
-          vk::MemoryPropertyFlagBits::eHostCoherent,
-      query_memreq(*dev, vk::BufferUsageFlagBits::eTransferSrc).memoryTypeBits,
-      size)};
-}
-
 [[nodiscard]] mapped_memory mapped_memory::allocate(const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props,
     const vk::PhysicalDeviceLimits& limits, vk::BufferUsageFlags usage,

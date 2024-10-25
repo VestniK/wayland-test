@@ -37,34 +37,6 @@ private:
   vk::raii::DeviceMemory mem_ = nullptr;
 };
 
-class mappable_memory : public memory {
-public:
-  mappable_memory() noexcept = default;
-
-  template <std::invocable<std::span<std::byte>> F>
-  void with_mapping(vk::DeviceSize offset, vk::DeviceSize size, F&& f) {
-    auto deleter = [mem = &get()](std::byte*) { mem->unmapMemory(); };
-    std::unique_ptr<std::byte, decltype(deleter)> mapping{
-        static_cast<std::byte*>(get().mapMemory(offset, size, {})), deleter};
-    std::forward<F>(f)(std::span{mapping.get(), size});
-  }
-
-protected:
-  explicit mappable_memory(memory mem) noexcept : memory{std::move(mem)} {}
-};
-
-class staging_memory : public mappable_memory {
-public:
-  staging_memory() noexcept = default;
-
-  [[nodiscard]] static staging_memory allocate(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props, vk::DeviceSize size);
-
-private:
-  explicit staging_memory(memory mem) noexcept
-      : mappable_memory{std::move(mem)} {}
-};
-
 class mapped_memory : public memory {
 public:
   mapped_memory() noexcept = default;
