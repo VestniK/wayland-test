@@ -60,6 +60,14 @@ public:
     return *this;
   }
 
+  using memory::bind_buffer;
+
+  vk::raii::Buffer bind_buffer(const vk::raii::Device& dev,
+      vk::BufferUsageFlags usage, std::span<const std::byte> subspan) {
+    return bind_buffer(
+        dev, usage, subspan.data() - mapping_.data(), subspan.size());
+  }
+
   [[nodiscard]] static mapped_memory allocate(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& props,
       const vk::PhysicalDeviceLimits& limits, vk::BufferUsageFlags usage,
