@@ -10,8 +10,32 @@
 #include <libs/memtricks/region.hpp>
 
 namespace vlk {
+
 enum class buffer_purpose { vbo, ibo };
 enum class image_purpose { texture };
+
+template <typename E>
+concept memory_purpose =
+    std::same_as<E, buffer_purpose> || std::same_as<E, image_purpose>;
+
+template <memory_purpose Purpose>
+struct purpose_traits;
+
+template <>
+struct purpose_traits<buffer_purpose> {
+  static constexpr size_t purposes_count = 2;
+};
+
+template <>
+struct purpose_traits<image_purpose> {
+  static constexpr size_t purposes_count = 1;
+};
+
+template <memory_purpose Purpose>
+inline constexpr size_t purposes_count =
+    purpose_traits<Purpose>::purposes_count;
+
+namespace detail {
 
 template <typename F>
 concept query_memreq_function =
@@ -43,8 +67,8 @@ public:
       device_allocation_function<Memory> AllocMem>
   arena_pools(sizes pool_sizes, QueryReq&& query_req_fn, AllocMem&& alloc_fn);
 
-  std::tuple<Memory&, memory_region> lock_memory_for(
-      buffer_purpose p, size_t sz);
+  template <memory_purpose Purpose>
+  std::tuple<Memory&, memory_region> lock_memory_for(Purpose p, size_t sz);
 
 private:
   static size_t as_idx(buffer_purpose p) noexcept {
@@ -52,7 +76,7 @@ private:
   }
 
   static size_t as_idx(image_purpose p) noexcept {
-    return static_cast<size_t>(p) + buffer_purposes;
+    return static_cast<size_t>(p) + purposes_count<buffer_purpose>;
   }
 
   struct arena_info {
@@ -62,12 +86,13 @@ private:
     uint32_t pool_idx;
   };
 
-  constexpr static size_t buffer_purposes = 2;
-  constexpr static size_t image_purposes = 1;
-  constexpr static size_t arenas_count = buffer_purposes + image_purposes;
+  constexpr static size_t arenas_count =
+      purposes_count<buffer_purpose> + purposes_count<image_purpose>;
 
   std::array<arena_info, arenas_count> arena_infos_;
   std::array<Memory, arenas_count> pools_;
 };
+
+} // namespace detail
 
 } // namespace vlk

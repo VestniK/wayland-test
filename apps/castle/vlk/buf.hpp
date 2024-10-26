@@ -151,7 +151,7 @@ public:
 public:
   memory_pools(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& props,
-      const vk::PhysicalDeviceLimits& limits, sizes pool_sizes);
+      const vk::PhysicalDeviceLimits& limits, detail::sizes pool_sizes);
 
   staging_memory allocate_staging_memory(size_t size) {
     ++allocations_counter_;
@@ -178,7 +178,7 @@ private:
 private:
   monotonic_arena<mapped_memory> staging_mem_;
   unsigned allocations_counter_ = 0;
-  arena_pools<memory> arenas_;
+  detail::arena_pools<memory> arenas_;
 };
 
 } // namespace vlk

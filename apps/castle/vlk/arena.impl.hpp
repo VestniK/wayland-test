@@ -9,6 +9,8 @@
 
 namespace vlk {
 
+namespace detail {
+
 template <std::default_initializable Memory>
 template <query_memreq_function QueryReq,
     device_allocation_function<Memory> AllocMem>
@@ -47,8 +49,9 @@ arena_pools<Memory>::arena_pools(
 }
 
 template <std::default_initializable Memory>
+template <memory_purpose Purpose>
 std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
-    buffer_purpose p, size_t sz) {
+    Purpose p, size_t sz) {
   arena_info& arena = arena_infos_[as_idx(p)];
   const size_t offset = std::ranges::fold_left(
       arena_infos_ | std::views::filter([&arena](auto&& item) {
@@ -63,5 +66,7 @@ std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
   return {pools_[arena.pool_idx],
       memory_region{.offset = offset + padding, .len = sz}};
 }
+
+} // namespace detail
 
 } // namespace vlk

@@ -28,21 +28,33 @@ private:
 
 SCENARIO("Locking available amount of bytes") {
   GIVEN("some nonempty arenas_pool") {
-    vlk::arena_pools<typed_memory> arenas{{.vbo_capacity = 100,
-                                              .ibo_capacity = 100,
-                                              .textures_capacity = 500,
-                                              .staging_size = 0},
-        [](auto purpose [[maybe_unused]]) {
+    vlk::detail::arena_pools<typed_memory> arenas{{.vbo_capacity = 100,
+                                                      .ibo_capacity = 100,
+                                                      .textures_capacity = 500,
+                                                      .staging_size = 0},
+        [](vlk::memory_purpose auto purpose [[maybe_unused]]) {
           return vk::MemoryRequirements{
               .size = 1 << 30, .alignment = 8, .memoryTypeBits = 100};
         },
         [](uint32_t memtype, size_t sz) { return typed_memory{memtype, sz}; }};
 
-    WHEN("available amount of bytes are requested to be locked for any buffer "
-         "purpose") {
+    WHEN("available amount of bytes are locked for a buffer purpose") {
       auto [mem, region] = arenas.lock_memory_for(vlk::buffer_purpose::ibo, 30);
 
       THEN("requested amount of bytes locked") { REQUIRE(region.len == 30); }
+
+      THEN("locked region is properly aligned") {
+        REQUIRE(region.offset % 8 == 0);
+      }
+
+      THEN("locks memory of ptoper type") { REQUIRE(mem.type() == 100); }
+    }
+
+    WHEN("available amount of bytes are locked for an image purpose") {
+      auto [mem, region] =
+          arenas.lock_memory_for(vlk::image_purpose::texture, 20);
+
+      THEN("requested amount of bytes locked") { REQUIRE(region.len == 20); }
 
       THEN("locked region is properly aligned") {
         REQUIRE(region.offset % 8 == 0);

@@ -133,7 +133,7 @@ memory memory::allocate(const vk::raii::Device& dev,
 
 memory_pools::memory_pools(const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props,
-    const vk::PhysicalDeviceLimits& limits, sizes pool_sizes)
+    const vk::PhysicalDeviceLimits& limits, detail::sizes pool_sizes)
     : staging_mem_{mapped_memory::allocate(dev, props, limits,
           vk::BufferUsageFlagBits::eTransferSrc, pool_sizes.staging_size)},
       arenas_{pool_sizes,
