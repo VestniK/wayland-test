@@ -190,7 +190,7 @@ private:
       const vk::raii::Device& dev, std::index_sequence<Is...>) {
     return std::array<vk::raii::Buffer, N>{
         value_.bind_buffer(dev, vk::BufferUsageFlagBits::eUniformBuffer,
-            elem_offset(Is), sizeof(std::tuple<Ts...>))...};
+            {.offset = elem_offset(Is), .len = sizeof(std::tuple<Ts...>)})...};
   }
 
   size_t elem_offset(size_t idx) const noexcept {

@@ -107,9 +107,9 @@ vk::MemoryRequirements query_memreq(
 } // namespace
 
 vk::raii::Buffer memory::bind_buffer(const vk::raii::Device& dev,
-    vk::BufferUsageFlags usage, vk::DeviceSize start, vk::DeviceSize size) {
-  vk::raii::Buffer res{dev, make_bufer_create_info(usage, size)};
-  res.bindMemory(*mem_, start);
+    vk::BufferUsageFlags usage, memory_region region) {
+  vk::raii::Buffer res{dev, make_bufer_create_info(usage, region.len)};
+  res.bindMemory(*mem_, region.offset);
   return res;
 }
 
@@ -153,8 +153,7 @@ vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
 
   auto [arena_memory, region] = arenas_.lock_memory_for(p, data.size());
 
-  auto res = arena_memory.bind_buffer(
-      dev, purpose_to_usage(p), region.offset, region.len);
+  auto res = arena_memory.bind_buffer(dev, purpose_to_usage(p), region);
 
   cmd.begin(
       vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});

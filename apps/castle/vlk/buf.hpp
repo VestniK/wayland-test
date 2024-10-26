@@ -16,7 +16,7 @@ public:
   memory() noexcept = default;
 
   vk::raii::Buffer bind_buffer(const vk::raii::Device& dev,
-      vk::BufferUsageFlags usage, vk::DeviceSize start, vk::DeviceSize size);
+      vk::BufferUsageFlags usage, memory_region region);
 
   const vk::raii::DeviceMemory& get() const noexcept { return mem_; }
 
@@ -65,8 +65,7 @@ public:
 
   vk::raii::Buffer bind_buffer(const vk::raii::Device& dev,
       vk::BufferUsageFlags usage, std::span<const std::byte> subspan) {
-    return bind_buffer(
-        dev, usage, subspan.data() - mapping_.data(), subspan.size());
+    return bind_buffer(dev, usage, subspan_region(mapping_, subspan));
   }
 
   [[nodiscard]] static mapped_memory allocate(const vk::raii::Device& dev,
