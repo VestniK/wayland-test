@@ -1,12 +1,13 @@
 #pragma once
 
-#include <array>
-#include <concepts>
 #include <span>
 
 #include <vulkan/vulkan_raii.hpp>
 
 #include <libs/memtricks/monotonic_arena.hpp>
+#include <libs/memtricks/region.hpp>
+
+#include "arena.hpp"
 
 namespace vlk {
 
@@ -116,18 +117,8 @@ private:
 
 class memory_pools {
 public:
-  enum class buffer_purpose { vbo, ibo };
   using enum buffer_purpose;
-
-  enum class image_purpose { texture };
   using enum image_purpose;
-
-  struct sizes {
-    size_t vbo_capacity;
-    size_t ibo_capacity;
-    size_t textures_capacity;
-    size_t staging_size;
-  };
 
   class staging_deleter {
   public:
@@ -185,31 +176,10 @@ private:
       staging_mem_.clear();
   }
 
-  static size_t as_idx(buffer_purpose p) noexcept {
-    return static_cast<size_t>(p);
-  }
-
-  static size_t as_idx(image_purpose p) noexcept {
-    return static_cast<size_t>(p) + buffer_purposes;
-  }
-
-private:
-  constexpr static size_t buffer_purposes = 2;
-  constexpr static size_t image_purposes = 1;
-  constexpr static size_t arenas_count = buffer_purposes + image_purposes;
-
-  struct arena_info {
-    size_t used;
-    size_t capacity;
-    size_t alignment;
-    uint32_t pool_idx;
-  };
-
 private:
   monotonic_arena<mapped_memory> staging_mem_;
   unsigned allocations_counter_ = 0;
-  std::array<arena_info, arenas_count> arena_infos_;
-  std::array<memory, arenas_count> pools_;
+  arena_pools<memory> arenas_;
 };
 
 } // namespace vlk

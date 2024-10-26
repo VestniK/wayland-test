@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "arena.impl.hpp"
+
 namespace vlk {
 
 namespace {
@@ -18,7 +20,7 @@ uint32_t choose_mem_type(uint32_t type_filter,
   throw std::runtime_error{"Failed to find suitable GPU memory type"};
 }
 
-vk::BufferUsageFlags purpose_to_usage(memory_pools::buffer_purpose p) {
+vk::BufferUsageFlags purpose_to_usage(buffer_purpose p) {
   vk::BufferUsageFlags buf_usage;
   switch (p) {
   case memory_pools::vbo:
@@ -33,7 +35,7 @@ vk::BufferUsageFlags purpose_to_usage(memory_pools::buffer_purpose p) {
   return buf_usage;
 }
 
-vk::ImageUsageFlags purpose_to_usage(memory_pools::image_purpose p) {
+vk::ImageUsageFlags purpose_to_usage(image_purpose p) {
   vk::ImageUsageFlags buf_usage;
   switch (p) {
   case memory_pools::texture:
@@ -133,40 +135,14 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
     const vk::PhysicalDeviceMemoryProperties& props,
     const vk::PhysicalDeviceLimits& limits, sizes pool_sizes)
     : staging_mem_{mapped_memory::allocate(dev, props, limits,
-          vk::BufferUsageFlagBits::eTransferSrc, pool_sizes.staging_size)} {
-  std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>, arenas_count>
-      type2purpose{
-          std::tuple{query_memreq(*dev, purpose_to_usage(vbo)), as_idx(vbo),
-              pool_sizes.vbo_capacity},
-          std::tuple{query_memreq(*dev, purpose_to_usage(ibo)), as_idx(ibo),
-              pool_sizes.ibo_capacity},
-          std::tuple{query_memreq(*dev, purpose_to_usage(texture)),
-              as_idx(texture), pool_sizes.textures_capacity},
-      };
-
-  std::ranges::sort(type2purpose, [](auto l, auto r) {
-    return std::get<0>(l).memoryTypeBits < std::get<0>(r).memoryTypeBits;
-  });
-  std::optional<uint32_t> last_type_bits;
-  uint32_t next_mem_slot_idx = 0;
-  size_t total_capacity = 0;
-  for (auto [mem_req, purp, capacity] : type2purpose) {
-    if (const auto prev = std::exchange(last_type_bits, mem_req.memoryTypeBits);
-        prev && prev != mem_req.memoryTypeBits) {
-      pools_[next_mem_slot_idx++] = memory::alocate(
-          dev, props, mem_req.memoryTypeBits, std::exchange(total_capacity, 0));
-    }
-    total_capacity += capacity;
-    arena_infos_[purp] = {
-        .used = 0,
-        .capacity = capacity,
-        .alignment = mem_req.alignment,
-        .pool_idx = next_mem_slot_idx,
-    };
-  }
-  pools_[next_mem_slot_idx] =
-      memory::alocate(dev, props, *last_type_bits, total_capacity);
-}
+          vk::BufferUsageFlagBits::eTransferSrc, pool_sizes.staging_size)},
+      arenas_{pool_sizes,
+          [&dev](auto purpose) {
+            return query_memreq(*dev, purpose_to_usage(purpose));
+          },
+          [&dev, &props](uint32_t memoryTypeBits, size_t size) {
+            return memory::alocate(dev, props, memoryTypeBits, size);
+          }} {}
 
 vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
     const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
@@ -175,19 +151,10 @@ vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
   vk::raii::Buffer staging_buf = staging_mem_.mem_source().bind_buffer(
       dev, vk::BufferUsageFlagBits::eTransferSrc, data);
 
-  arena_info& arena = arena_infos_[as_idx(p)];
-  const size_t offset = std::ranges::fold_left(
-      arena_infos_ | std::views::filter([&arena](auto&& item) {
-        return item.pool_idx == arena.pool_idx;
-      }) | std::views::transform(&arena_info::used),
-      size_t{0}, std::plus{});
-  const size_t padding =
-      (arena.alignment - offset % arena.alignment) % arena.alignment;
-  if (arena.capacity - arena.used < data.size() + padding)
-    throw std::bad_alloc{};
-  arena.used = arena.used + data.size() + padding;
-  auto res = pools_[arena.pool_idx].bind_buffer(
-      dev, purpose_to_usage(p), offset + padding, data.size());
+  auto [arena_memory, region] = arenas_.lock_memory_for(p, data.size());
+
+  auto res = arena_memory.bind_buffer(
+      dev, purpose_to_usage(p), region.offset, region.len);
 
   cmd.begin(
       vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
