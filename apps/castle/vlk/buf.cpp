@@ -136,9 +136,10 @@ vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
 
   arena_info& arena = arena_infos_[static_cast<size_t>(p)];
   const size_t offset = std::ranges::fold_left(
-      arena_infos_, size_t{0}, [&arena](size_t accum, const arena_info& item) {
-        return accum + (item.pool_idx == arena.pool_idx ? item.used : 0);
-      });
+      arena_infos_ | std::views::filter([&arena](auto&& item) {
+        return item.pool_idx == arena.pool_idx;
+      }) | std::views::transform(&arena_info::used),
+      size_t{0}, std::plus{});
   const size_t padding =
       (arena.alignment - offset % arena.alignment) % arena.alignment;
   if (arena.capacity - arena.used < data.size() + padding)
