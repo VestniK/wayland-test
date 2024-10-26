@@ -10,7 +10,8 @@
 namespace vlk {
 
 template <std::default_initializable Memory>
-template <query_memreq_function QueryReq, device_allocation_function AllocMem>
+template <query_memreq_function QueryReq,
+    device_allocation_function<Memory> AllocMem>
 arena_pools<Memory>::arena_pools(
     sizes pool_sizes, QueryReq&& query_req_fn, AllocMem&& alloc_fn) {
   std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>, arenas_count>

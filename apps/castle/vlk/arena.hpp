@@ -20,10 +20,10 @@ concept query_memreq_function =
       { f(ip) } -> std::convertible_to<vk::MemoryRequirements>;
     };
 
-template <typename F>
+template <typename F, typename Memory>
 concept device_allocation_function =
     requires(F&& f, uint32_t mem_type_bits, size_t sz) {
-      { f(mem_type_bits, sz) };
+      { f(mem_type_bits, sz) } -> std::same_as<Memory>;
     };
 
 struct sizes {
@@ -39,7 +39,8 @@ public:
   using enum buffer_purpose;
   using enum image_purpose;
 
-  template <query_memreq_function QueryReq, device_allocation_function AllocMem>
+  template <query_memreq_function QueryReq,
+      device_allocation_function<Memory> AllocMem>
   arena_pools(sizes pool_sizes, QueryReq&& query_req_fn, AllocMem&& alloc_fn);
 
   std::tuple<Memory&, memory_region> lock_memory_for(
