@@ -70,6 +70,16 @@ std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
       memory_region{.offset = offset + padding, .len = sz}};
 }
 
+template <std::default_initializable Memory>
+purpose_data<const Memory*>
+arena_pools<Memory>::get_memory_handles() const noexcept {
+  purpose_data<const Memory*> res;
+  for (const auto& [idx, info] : arena_infos_ | std::views::enumerate) {
+    res[idx] = &pools_[info.pool_idx];
+  }
+  return res;
+}
+
 } // namespace detail
 
 } // namespace vlk
