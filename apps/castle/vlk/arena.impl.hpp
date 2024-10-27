@@ -16,11 +16,14 @@ template <query_memreq_function QueryReq,
     device_allocation_function<Memory> AllocMem>
 arena_pools<Memory>::arena_pools(
     sizes pool_sizes, QueryReq&& query_req_fn, AllocMem&& alloc_fn) {
-  std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>, arenas_count>
+  std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>,
+      purpose_data_arity>
       type2purpose{
-          std::tuple{query_req_fn(vbo), as_idx(vbo), pool_sizes.vbo_capacity},
-          std::tuple{query_req_fn(ibo), as_idx(ibo), pool_sizes.ibo_capacity},
-          std::tuple{query_req_fn(texture), as_idx(texture),
+          std::tuple{
+              query_req_fn(vbo), purpose_idx(vbo), pool_sizes.vbo_capacity},
+          std::tuple{
+              query_req_fn(ibo), purpose_idx(ibo), pool_sizes.ibo_capacity},
+          std::tuple{query_req_fn(texture), purpose_idx(texture),
               pool_sizes.textures_capacity},
       };
 
@@ -35,7 +38,7 @@ arena_pools<Memory>::arena_pools(
     if (const auto prev = std::exchange(last_type_bits, mem_req.memoryTypeBits);
         prev && prev != mem_req.memoryTypeBits) {
       pools_[next_mem_slot_idx++] =
-          alloc_fn(mem_req.memoryTypeBits, std::exchange(total_capacity, 0));
+          alloc_fn(*prev, std::exchange(total_capacity, 0));
     }
     total_capacity += capacity;
     arena_infos_[purp] = {
@@ -52,7 +55,7 @@ template <std::default_initializable Memory>
 template <memory_purpose Purpose>
 std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
     Purpose p, size_t sz) {
-  arena_info& arena = arena_infos_[as_idx(p)];
+  arena_info& arena = arena_infos_[p];
   const size_t offset = std::ranges::fold_left(
       arena_infos_ | std::views::filter([&arena](auto&& item) {
         return item.pool_idx == arena.pool_idx;

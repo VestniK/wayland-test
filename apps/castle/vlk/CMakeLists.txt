@@ -1,5 +1,6 @@
 find_package(VulkanHeaders REQUIRED)
 find_package(Catch2 REQUIRED)
+find_package(fmt REQUIRED)
 
 cpp_unit(
   NAME vlk
@@ -8,6 +9,7 @@ cpp_unit(
     vulkan-headers::vulkan-headers
     memtricks
   TEST_LIBS
+    fmt::fmt
     Catch2::Catch2
     Catch2::Catch2WithMain
   TEST_ARGS --order rand --rng-seed time
