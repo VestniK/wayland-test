@@ -35,7 +35,7 @@ vk::BufferUsageFlags purpose_to_usage(buffer_purpose p) {
   return buf_usage;
 }
 
-vk::ImageUsageFlags purpose_to_usage(image_purpose p) {
+vk::ImageUsageFlags purpose_to_usage(image_purpose p) noexcept {
   vk::ImageUsageFlags buf_usage;
   switch (p) {
   case memory_pools::texture:
@@ -44,6 +44,27 @@ vk::ImageUsageFlags purpose_to_usage(image_purpose p) {
     break;
   }
   return buf_usage;
+}
+
+constexpr vk::AccessFlags purpose_access_mask(image_purpose p) noexcept {
+  vk::AccessFlags res;
+  switch (p) {
+  case image_purpose::texture:
+    res = vk::AccessFlagBits::eShaderRead;
+    break;
+  }
+  return res;
+}
+
+constexpr vk::PipelineStageFlags purpose_pipeline_stage(
+    image_purpose p) noexcept {
+  vk::PipelineStageFlags res;
+  switch (p) {
+  case image_purpose::texture:
+    res = vk::PipelineStageFlagBits::eFragmentShader;
+    break;
+  }
+  return res;
 }
 
 vk::BufferCreateInfo make_bufer_create_info(
@@ -196,6 +217,23 @@ vk::raii::Image memory_pools::prepare_image(const vk::raii::Device& dev,
 
   cmd.begin(
       vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
+
+  const vk::ImageMemoryBarrier img_dst_barrier{
+      .srcAccessMask = vk::AccessFlagBits::eNone,
+      .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
+      .oldLayout = vk::ImageLayout::eUndefined,
+      .newLayout = vk::ImageLayout::eTransferDstOptimal,
+      .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+      .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
+      .image = *res,
+      .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1}};
+  cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+      vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, img_dst_barrier);
+
   vk::BufferImageCopy regions[] = {vk::BufferImageCopy{.bufferOffset = 0,
       .bufferRowLength = 0,
       .bufferImageHeight = 0,
@@ -207,6 +245,23 @@ vk::raii::Image memory_pools::prepare_image(const vk::raii::Device& dev,
       .imageExtent = {.width = sz.width, .height = sz.height, .depth = 1}}};
   cmd.copyBufferToImage(
       staging_buf, res, vk::ImageLayout::eTransferDstOptimal, regions);
+
+  const vk::ImageMemoryBarrier img_sampler_barrier{
+      .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
+      .dstAccessMask = purpose_access_mask(p),
+      .oldLayout = vk::ImageLayout::eTransferDstOptimal,
+      .newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+      .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+      .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
+      .image = *res,
+      .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1}};
+  cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+      purpose_pipeline_stage(p), {}, {}, {}, img_sampler_barrier);
+
   cmd.end();
 
   transfer_queue.submit({vk::SubmitInfo{.waitSemaphoreCount = 0,
