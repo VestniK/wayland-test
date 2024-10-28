@@ -129,6 +129,7 @@ public:
     }
 
     size_t size() const noexcept { return size_; }
+    const memory_pools* parent() const noexcept { return parent_; }
 
   private:
     size_t size_ = 0;
@@ -168,6 +169,10 @@ public:
   vk::raii::Buffer prepare_buffer(const vk::raii::Device& dev,
       const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
       buffer_purpose p, staging_memory data);
+
+  vk::raii::Image prepare_image(const vk::raii::Device& dev,
+      const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
+      image_purpose p, staging_memory data, vk::Format fmt, vk::Extent2D sz);
 
 private:
   void deallocate_staging(std::span<const std::byte> data) noexcept {

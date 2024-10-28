@@ -47,12 +47,31 @@ vk::ImageUsageFlags purpose_to_usage(image_purpose p) {
 }
 
 vk::BufferCreateInfo make_bufer_create_info(
-    vk::BufferUsageFlags usage, size_t sz) {
+    vk::BufferUsageFlags usage, size_t sz) noexcept {
   return vk::BufferCreateInfo{.size = sz,
       .usage = usage,
       .sharingMode = vk::SharingMode::eExclusive,
       .queueFamilyIndexCount = {},
       .pQueueFamilyIndices = {}};
+}
+
+vk::ImageCreateInfo make_image_create_info(
+    vk::ImageUsageFlags usage, vk::Format fmt, vk::Extent2D sz) noexcept {
+  return {
+      .flags = {},
+      .imageType = vk::ImageType::e2D,
+      .format = fmt,
+      .extent = {.width = sz.width, .height = sz.height, .depth = 1},
+      .mipLevels = 1,
+      .arrayLayers = 1,
+      .samples = vk::SampleCountFlagBits::e1,
+      .tiling = vk::ImageTiling::eOptimal,
+      .usage = usage,
+      .sharingMode = vk::SharingMode::eExclusive,
+      .queueFamilyIndexCount = 0,
+      .pQueueFamilyIndices = nullptr,
+      .initialLayout = vk::ImageLayout::eUndefined,
+  };
 }
 
 vk::MemoryRequirements query_memreq(
@@ -82,21 +101,8 @@ vk::MemoryRequirements query_memreq(
   // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap12.html#VkMemoryRequirements
   // TODO investigate which ImageCreateInfo parameters do not affect
   // memoryTypeBits and make a notice here
-  const vk::ImageCreateInfo img_create_info{
-      .flags = {},
-      .imageType = vk::ImageType::e2D,
-      .format = vk::Format::eUndefined, // TODO
-      .extent = {},                     // TODO
-      .mipLevels = 1,
-      .arrayLayers = 1,
-      .samples = vk::SampleCountFlagBits::e1,
-      .tiling = vk::ImageTiling::eOptimal,
-      .usage = usage,
-      .sharingMode = vk::SharingMode::eExclusive,
-      .queueFamilyIndexCount = 0,
-      .pQueueFamilyIndices = nullptr,
-      .initialLayout = vk::ImageLayout::eUndefined,
-  };
+  const vk::ImageCreateInfo img_create_info =
+      make_image_create_info(usage, vk::Format::eUndefined, {});
   return dev
       .getImageMemoryRequirementsKHR(
           vk::DeviceImageMemoryRequirements{.pCreateInfo = &img_create_info,
@@ -147,18 +153,60 @@ memory_pools::memory_pools(const vk::raii::Device& dev,
 vk::raii::Buffer memory_pools::prepare_buffer(const vk::raii::Device& dev,
     const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
     buffer_purpose p, staging_memory data) {
+  assert(data.get_deleter().parent() == this);
   staging_mem_.mem_source().flush(data);
   vk::raii::Buffer staging_buf = staging_mem_.mem_source().bind_buffer(
       dev, vk::BufferUsageFlagBits::eTransferSrc, data);
 
   auto [arena_memory, region] = arenas_.lock_memory_for(p, data.size());
-
   auto res = arena_memory.bind_buffer(dev, purpose_to_usage(p), region);
 
   cmd.begin(
       vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
   cmd.copyBuffer(*staging_buf, *res,
       vk::BufferCopy{.srcOffset = 0, .dstOffset = 0, .size = data.size()});
+  cmd.end();
+
+  transfer_queue.submit({vk::SubmitInfo{.waitSemaphoreCount = 0,
+      .pWaitSemaphores = nullptr,
+      .pWaitDstStageMask = nullptr,
+      .commandBufferCount = 1,
+      .pCommandBuffers = &cmd,
+      .signalSemaphoreCount = 0,
+      .pSignalSemaphores = nullptr}});
+  transfer_queue.waitIdle();
+
+  return res;
+}
+
+vk::raii::Image memory_pools::prepare_image(const vk::raii::Device& dev,
+    const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
+    image_purpose p, staging_memory data, vk::Format fmt, vk::Extent2D sz) {
+  assert(data.get_deleter().parent() == this);
+  staging_mem_.mem_source().flush(data);
+  vk::raii::Buffer staging_buf = staging_mem_.mem_source().bind_buffer(
+      dev, vk::BufferUsageFlagBits::eTransferSrc, data);
+
+  auto res =
+      dev.createImage(make_image_create_info(purpose_to_usage(p), fmt, sz));
+  const auto req = (*dev).getImageMemoryRequirements(*res);
+
+  auto [arena_memory, region] = arenas_.lock_memory_for(p, req.size);
+  res.bindMemory(arena_memory.get(), region.offset);
+
+  cmd.begin(
+      vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
+  vk::BufferImageCopy regions[] = {vk::BufferImageCopy{.bufferOffset = 0,
+      .bufferRowLength = 0,
+      .bufferImageHeight = 0,
+      .imageSubresource = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+          .mipLevel = 0,
+          .baseArrayLayer = 0,
+          .layerCount = 1},
+      .imageOffset = {},
+      .imageExtent = {.width = sz.width, .height = sz.height, .depth = 1}}};
+  cmd.copyBufferToImage(
+      staging_buf, res, vk::ImageLayout::eTransferDstOptimal, regions);
   cmd.end();
 
   transfer_queue.submit({vk::SubmitInfo{.waitSemaphoreCount = 0,
