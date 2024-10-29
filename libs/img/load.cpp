@@ -40,7 +40,7 @@ using read_info_ptr = std::unique_ptr<png_struct, read_info_struct_deleter>;
 
 namespace img {
 
-image load(thinsys::io::file_descriptor& in) {
+reader load_reader(thinsys::io::file_descriptor& in) {
   std::array<std::byte, png::signature_size> sig;
   const auto read = thinsys::io::read(in, sig);
   if (read != sig.size())
@@ -75,14 +75,21 @@ image load(thinsys::io::file_descriptor& in) {
     throw std::runtime_error{"Only non interlaced 8bit per channel RGB without "
                              "Alpha PNG images are supportted"};
 
-  const size_t row_sz = img_size.width * 3;
-  std::unique_ptr<std::byte[]> res{new std::byte[img_size.height * row_sz]};
-  for (int row = 0; row < img_size.height; ++row) {
-    png_read_row(png_struct.get(),
-        reinterpret_cast<png_bytep>(res.get() + row * row_sz), nullptr);
-  }
+  return {img_size, pixel_fmt::rgb,
+      [png_struct = std::move(png_struct)](std::span<std::byte> dest) {
+        const size_t row_sz =
+            png_get_rowbytes(png_struct.get(), png_struct.get_deleter().info);
+        const uint32_t height = png_get_image_height(
+            png_struct.get(), png_struct.get_deleter().info);
+        if (dest.size() < row_sz * height)
+          throw std::runtime_error{"Buffer too small"};
 
-  return image{std::move(res), img_size};
+        for (uint32_t row = 0; row < height; ++row) {
+          png_read_row(png_struct.get(),
+              reinterpret_cast<png_bytep>(dest.data() + row * row_sz), nullptr);
+        }
+        return height * row_sz;
+      }};
 }
 
 } // namespace img
