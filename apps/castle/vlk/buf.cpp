@@ -120,10 +120,30 @@ vk::MemoryRequirements query_memreq(
 vk::MemoryRequirements query_memreq(
     const vk::Device& dev, vk::ImageUsageFlags usage) {
   // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap12.html#VkMemoryRequirements
-  // TODO investigate which ImageCreateInfo parameters do not affect
-  // memoryTypeBits and make a notice here
+  //
+  // If the maintenance4 feature is enabled, then the alignment member is
+  // identical for all VkImage objects created with the same combination of
+  // values for the flags, imageType, format, extent, mipLevels, arrayLayers,
+  // samples, tiling and usage members in the VkImageCreateInfo structure passed
+  // to vkCreateImage.
+  //
+  // For images created with a color format, the memoryTypeBits member is
+  // identical for all VkImage objects created with the same combination of
+  // values for the tiling member, the VK_IMAGE_CREATE_SPARSE_BINDING_BIT bit
+  // and VK_IMAGE_CREATE_PROTECTED_BIT bit of the flags member, the
+  // VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT bit of the flags member,
+  // the VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT bit of the usage member if the
+  // VkPhysicalDeviceHostImageCopyPropertiesEXT::identicalMemoryTypeRequirements
+  // property is VK_FALSE, handleTypes member of
+  // VkExternalMemoryImageCreateInfo, and the
+  // VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT of the usage member in the
+  // VkImageCreateInfo structure passed to vkCreateImage.
+  //
+  // This means that alignment requiremetns of arena are useless for images
+  // because different pixel formats and even diferent extents might affect
+  // exact image allignment requirements.
   const vk::ImageCreateInfo img_create_info =
-      make_image_create_info(usage, vk::Format::eUndefined, {});
+      make_image_create_info(usage, vk::Format::eR8G8B8A8Srgb, {});
   return dev
       .getImageMemoryRequirementsKHR(
           vk::DeviceImageMemoryRequirements{.pCreateInfo = &img_create_info,
@@ -212,7 +232,8 @@ vk::raii::Image memory_pools::prepare_image(const vk::raii::Device& dev,
       dev.createImage(make_image_create_info(purpose_to_usage(p), fmt, sz));
   const auto req = (*dev).getImageMemoryRequirements(*res);
 
-  auto [arena_memory, region] = arenas_.lock_memory_for(p, req.size);
+  auto [arena_memory, region] =
+      arenas_.lock_memory_for(p, req.size, req.alignment);
   res.bindMemory(arena_memory.get(), region.offset);
 
   cmd.begin(

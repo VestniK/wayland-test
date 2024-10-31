@@ -55,14 +55,21 @@ template <std::default_initializable Memory>
 template <memory_purpose Purpose>
 std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
     Purpose p, size_t sz) {
+  return lock_memory_for(p, sz, 0);
+}
+
+template <std::default_initializable Memory>
+template <memory_purpose Purpose>
+std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
+    Purpose p, size_t sz, size_t alignment) {
   arena_info& arena = arena_infos_[p];
   const size_t offset = std::ranges::fold_left(
       arena_infos_ | std::views::filter([&arena](auto&& item) {
         return item.pool_idx == arena.pool_idx;
       }) | std::views::transform(&arena_info::used),
       size_t{0}, std::plus{});
-  const size_t padding =
-      (arena.alignment - offset % arena.alignment) % arena.alignment;
+  const size_t align = std::max(alignment, arena.alignment);
+  const size_t padding = align > 0 ? (align - offset % align) % align : 0;
   if (arena.capacity - arena.used < sz + padding)
     throw std::bad_alloc{};
   arena.used = arena.used + sz + padding;

@@ -121,6 +121,24 @@ SCENARIO("Locking available amount of bytes") {
         CHECK(mem.type() == purpose_params.type);
       }
     }
+
+    WHEN("available amount of bytes are locked for an image purpose with "
+         "custom alignment requirements") {
+      const auto purpose =
+          GENERATE(from_range(vlk::all_purposes<vlk::image_purpose>));
+      const auto purpose_params = case_params.params[purpose];
+      auto [mem, region] = arenas.lock_memory_for(purpose, 35, 512);
+
+      THEN("requested amount of bytes locked") { CHECK(region.len == 35); }
+
+      THEN("locked region is properly aligned") {
+        CHECK(region.offset % 512 == 0);
+      }
+
+      THEN("locks memory of ptoper type") {
+        CHECK(mem.type() == purpose_params.type);
+      }
+    }
   }
 }
 

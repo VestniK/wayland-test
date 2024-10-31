@@ -98,6 +98,10 @@ public:
   template <memory_purpose Purpose>
   std::tuple<Memory&, memory_region> lock_memory_for(Purpose p, size_t sz);
 
+  template <memory_purpose Purpose>
+  std::tuple<Memory&, memory_region> lock_memory_for(
+      Purpose p, size_t sz, size_t alignment);
+
   purpose_data<const Memory*> get_memory_handles() const noexcept;
 
 private:
