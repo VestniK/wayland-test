@@ -70,12 +70,26 @@ reader load_reader(thinsys::io::file_descriptor& in) {
   const auto interlace_type =
       png_get_interlace_type(png_struct.get(), png_struct.get_deleter().info);
 
-  if (color != PNG_COLOR_TYPE_RGB || bits != 8 ||
-      interlace_type != PNG_INTERLACE_NONE)
-    throw std::runtime_error{"Only non interlaced 8bit per channel RGB without "
-                             "Alpha PNG images are supportted"};
+  if (bits != 8 || interlace_type != PNG_INTERLACE_NONE)
+    throw std::runtime_error{
+        "Only non interlaced 8bit per channel RGB/RGBA PNG "
+        "images are supportted"};
 
-  return {img_size, pixel_fmt::rgb,
+  pixel_fmt fmt;
+  switch (color) {
+  case PNG_COLOR_TYPE_RGB:
+    fmt = pixel_fmt::rgb;
+    break;
+  case PNG_COLOR_TYPE_RGBA:
+    fmt = pixel_fmt::rgba;
+    break;
+  default:
+    throw std::runtime_error{
+        "Only non interlaced 8bit per channel RGB/RGBA PNG "
+        "images are supportted"};
+  }
+
+  return {img_size, fmt,
       [png_struct = std::move(png_struct)](std::span<std::byte> dest) {
         const size_t row_sz =
             png_get_rowbytes(png_struct.get(), png_struct.get_deleter().info);
