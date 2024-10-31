@@ -208,13 +208,18 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
           .queueFamilyIndex = presentation_queue_family,
           .queueCount = 1,
           .pQueuePriorities = &queue_prio}};
+
+  vk::PhysicalDeviceFeatures features{};
+  features.samplerAnisotropy = true;
+
   vk::DeviceCreateInfo device_create_info{.flags = {},
       .queueCreateInfoCount = graphics_queue_family == presentation_queue_family
                                   ? 1u
                                   : 2u, // TODO: better duplication needed
       .pQueueCreateInfos = device_queues.data(),
       .enabledExtensionCount = required_device_extensions.size(),
-      .ppEnabledExtensionNames = required_device_extensions.data()};
+      .ppEnabledExtensionNames = required_device_extensions.data(),
+      .pEnabledFeatures = &features};
 
   vk::raii::Device device{dev, device_create_info};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
@@ -465,6 +470,36 @@ public:
             scene::make_paper()},
         castle_texture_{load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
             cmd_buffs_.front(), "textures/castle.png")},
+        castle_texture_view_{device_.createImageView(vk::ImageViewCreateInfo{
+            .flags = {},
+            .image = *castle_texture_,
+            .viewType = vk::ImageViewType::e2D,
+            .format = vk::Format::eR8G8B8A8Srgb,
+            .components = {},
+            .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1}})},
+        castle_sampler_{device_.createSampler(vk::SamplerCreateInfo{
+            .flags = {},
+            .magFilter = vk::Filter::eLinear,
+            .minFilter = vk::Filter::eLinear,
+            .mipmapMode = vk::SamplerMipmapMode::eLinear,
+            .addressModeU = vk::SamplerAddressMode::eClampToBorder,
+            .addressModeV = vk::SamplerAddressMode::eClampToBorder,
+            .addressModeW = vk::SamplerAddressMode::eClampToBorder,
+            .mipLodBias = 0.f,
+            .anisotropyEnable = true,
+            .maxAnisotropy =
+                phydev_.getProperties().limits.maxSamplerAnisotropy,
+            .compareEnable = false,
+            .compareOp = vk::CompareOp::eNever,
+            .minLod = 0.f,
+            .maxLod = 0.f,
+            .borderColor = vk::BorderColor::eFloatTransparentBlack,
+            .unnormalizedCoordinates = false,
+        })},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
@@ -592,6 +627,8 @@ private:
   vlk::memory_pools mempools_;
   mesh mesh_;
   vk::raii::Image castle_texture_;
+  vk::raii::ImageView castle_texture_view_;
+  vk::raii::Sampler castle_sampler_;
 
   vk::raii::Semaphore render_finished_;
   vk::raii::Semaphore image_available_;
@@ -601,12 +638,14 @@ private:
 render_environment setup_suitable_device(
     vk::raii::Instance inst, vk::raii::SurfaceKHR surf, vk::Extent2D sz) {
   for (vk::raii::PhysicalDevice dev : inst.enumeratePhysicalDevices()) {
-    if (auto params = device_rendering_params::choose(*dev, *surf, sz)) {
-      spdlog::info("Using Vulkan device: {}",
-          std::string_view{dev.getProperties().deviceName});
-      return render_environment{std::move(inst), std::move(dev),
-          std::move(surf), params->queue_families.graphics,
-          params->queue_families.presentation, params->swapchain_info};
+    if (dev.getFeatures().samplerAnisotropy) {
+      if (auto params = device_rendering_params::choose(*dev, *surf, sz)) {
+        spdlog::info("Using Vulkan device: {}",
+            std::string_view{dev.getProperties().deviceName});
+        return render_environment{std::move(inst), std::move(dev),
+            std::move(surf), params->queue_families.graphics,
+            params->queue_families.presentation, params->swapchain_info};
+      }
     }
     spdlog::debug("Vulkan device '{}' is rejected",
         std::string_view{dev.getProperties().deviceName});
