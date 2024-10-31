@@ -12,15 +12,17 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     asio::asio
-    spdlog::spdlog
-    PkgConfig::SYSTEMD
-    wlwnd
-    vlk
     cli
-    xdg
-    vulkan-headers::vulkan-headers
     corort
     fmt::fmt
+    img
+    PkgConfig::SYSTEMD
+    sfx
+    spdlog::spdlog
+    vlk
+    vulkan-headers::vulkan-headers
+    wlwnd
+    xdg
   TEST_LIBS
     Catch2::Catch2
     Catch2::Catch2WithMain
@@ -67,6 +69,9 @@ add_custom_command(TARGET castle POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:castle> $<TARGET_FILE:castle>.dbg
   COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:castle>
   COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:castle>.dbg $<TARGET_FILE:castle>
+)
+zip_sfx(castle
+  textures/castle.png
 )
 
 add_subdirectory(vlk)

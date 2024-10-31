@@ -16,8 +16,10 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include <libs/img/load.hpp>
 #include <libs/memtricks/member.hpp>
 #include <libs/memtricks/projections.hpp>
+#include <libs/sfx/sfx.hpp>
 
 #include <apps/castle/vlk/buf.hpp>
 #include <apps/castle/vlk/cmds.hpp>
@@ -407,6 +409,31 @@ private:
   size_t count_;
 };
 
+vk::raii::Image load_sfx_texture(vlk::memory_pools& pools,
+    const vk::raii::Device& dev, vk::Queue transfer_queue,
+    vk::CommandBuffer cmd, const fs::path& sfx_path) {
+  auto resources = sfx::archive::open_self();
+  auto& fd = resources.open(sfx_path);
+  auto reader = img::load_reader(fd);
+
+  vk::Format fmt;
+  switch (reader.format()) {
+  case img::pixel_fmt::rgb:
+    fmt = vk::Format::eR8G8B8Srgb;
+    break;
+  case img::pixel_fmt::rgba:
+    fmt = vk::Format::eR8G8B8A8Srgb;
+    break;
+  }
+
+  auto stage_mem = pools.allocate_staging_memory(reader.pixels_size());
+  reader.read_pixels(stage_mem);
+
+  return pools.prepare_image(dev, transfer_queue, cmd,
+      vlk::image_purpose::texture, std::move(stage_mem), fmt,
+      as_extent(reader.size()));
+}
+
 class render_environment : public renderer_iface {
 public:
   render_environment(vk::raii::Instance inst, vk::raii::PhysicalDevice dev,
@@ -432,10 +459,12 @@ public:
             phydev_.getProperties().limits,
             {.vbo_capacity = 2 * 1024 * 1024,
                 .ibo_capacity = 2 * 1024 * 1024,
-                .textures_capacity = 2 * 1024 * 1024,
-                .staging_size = 2 * 1024 * 1024}},
+                .textures_capacity = 64 * 1024 * 1024,
+                .staging_size = 64 * 1024 * 1024}},
         mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
             scene::make_paper()},
+        castle_texture_{load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+            cmd_buffs_.front(), "textures/castle.png")},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
@@ -562,6 +591,7 @@ private:
   vlk::command_buffers<1> cmd_buffs_;
   vlk::memory_pools mempools_;
   mesh mesh_;
+  vk::raii::Image castle_texture_;
 
   vk::raii::Semaphore render_finished_;
   vk::raii::Semaphore image_available_;
