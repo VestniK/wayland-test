@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libs/memtricks/array.hpp>
+#include <libs/memtricks/object_bytes.hpp>
 
 #include "buf.hpp"
 #include "pipelines.hpp"
@@ -118,9 +119,7 @@ public:
   }
 
   auto& value(uint32_t idx) const noexcept { return (*value_)[idx]; }
-  void flush(uint32_t idx) const {
-    value_.flush(elem_offset(idx), sizeof(std::tuple<Ts...>));
-  }
+  void flush(uint32_t idx) const { value_.flush(object_bytes(value(idx))); }
 
   void use(uint32_t idx, const vk::CommandBuffer& cmd,
       vk::PipelineLayout pipeline_layout) const {
@@ -168,14 +167,8 @@ private:
   template <size_t... Is>
   std::array<vk::raii::Buffer, N> make_bufs(
       const vk::raii::Device& dev, std::index_sequence<Is...>) {
-    return std::array<vk::raii::Buffer, N>{
-        value_.bind_buffer(dev, vk::BufferUsageFlagBits::eUniformBuffer,
-            {.offset = elem_offset(Is), .len = sizeof(std::tuple<Ts...>)})...};
-  }
-
-  size_t elem_offset(size_t idx) const noexcept {
-    return reinterpret_cast<const std::byte*>(&(*value_)[idx]) -
-           reinterpret_cast<const std::byte*>(value_.mapping().data());
+    return std::array<vk::raii::Buffer, N>{value_.bind_buffer(dev,
+        vk::BufferUsageFlagBits::eUniformBuffer, object_bytes(value(Is)))...};
   }
 
 private:

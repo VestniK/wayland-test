@@ -4,21 +4,15 @@
 #include "sfx.hpp"
 #include "zip.hpp"
 
-#include <type_traits>
-
 #include <thinsys/io/input.hpp>
 #include <thinsys/io/io.hpp>
 #include <thinsys/io/span_io.hpp>
 
+#include <libs/memtricks/object_bytes.hpp>
+
 namespace sfx {
 
 namespace {
-
-template <typename T>
-  requires std::is_standard_layout_v<T>
-std::span<std::byte> object_bytes(T& obj) {
-  return std::as_writable_bytes(std::span{&obj, 1});
-}
 
 constexpr uint32_t zip64_wide_marker = ~0;
 

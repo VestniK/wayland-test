@@ -6,6 +6,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     thinsys-io
+    memtricks
   TEST_LIBS
     Catch2::Catch2
     Catch2::Catch2WithMain
