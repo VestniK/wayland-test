@@ -503,9 +503,9 @@ public:
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    std::get<0>(descriptor_bindings_.value(0)).camera =
+    std::get<0>(descriptor_bindings_.value()).camera =
         scene::setup_camera(swapchain_info.imageExtent);
-    std::get<1>(descriptor_bindings_.value(0)) = {.pos = {2., 5., 15.},
+    std::get<1>(descriptor_bindings_.value()) = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
         .attenuation = 0.01};
@@ -536,7 +536,7 @@ public:
         device_, *render_pass_, params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
-      std::get<0>(descriptor_bindings_.value(0)).camera =
+      std::get<0>(descriptor_bindings_.value()).camera =
           scene::setup_camera(extent);
   }
 
@@ -555,7 +555,7 @@ public:
 private:
   vlk::render_target::frame draw(
       vlk::render_target::frame frame, frames_clock::time_point ts) const {
-    scene::update_world(ts, std::get<0>(descriptor_bindings_.value(0)));
+    scene::update_world(ts, std::get<0>(descriptor_bindings_.value()));
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
@@ -589,7 +589,7 @@ private:
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
     cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
-    descriptor_bindings_.use(0, cmd, pipelines_.layout());
+    descriptor_bindings_.use(cmd, pipelines_.layout());
     cmd.drawIndexed(static_cast<uint32_t>(mesh_.size()), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
@@ -597,7 +597,7 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    descriptor_bindings_.flush(0);
+    descriptor_bindings_.flush();
 
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -619,7 +619,7 @@ private:
   vk::raii::RenderPass render_pass_;
   vlk::render_target render_target_;
 
-  vlk::pipeline_bindings<1, vlk::graphics_uniform<scene::world_transformations>,
+  vlk::pipeline_bindings<vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;

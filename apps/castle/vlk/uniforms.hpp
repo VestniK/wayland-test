@@ -101,40 +101,39 @@ using fragment_uniform = uniform<vk::ShaderStageFlagBits::eFragment, T>;
 template <typename T>
 using graphics_uniform = uniform<vk::ShaderStageFlagBits::eAllGraphics, T>;
 
-template <uint32_t N, typename... Ts>
+template <typename... Ts>
 class pipeline_bindings;
 
-template <uint32_t N, typename... Ts, vk::ShaderStageFlagBits... Ss>
-class pipeline_bindings<N, uniform<Ss, Ts>...> : public pipeline_bindings_base {
+template <typename... Ts, vk::ShaderStageFlagBits... Ss>
+class pipeline_bindings<uniform<Ss, Ts>...> : public pipeline_bindings_base {
 public:
   pipeline_bindings(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& props,
       const vk::PhysicalDeviceLimits& limits)
       : pipeline_bindings_base{make_layout(
             dev, std::index_sequence_for<Ts...>{})},
-        desc_pool_{make_pool(dev, N)}, value_{dev, props, limits},
-        bufs_{make_bufs(dev, std::make_index_sequence<N>{})} {
+        desc_pool_{make_pool(dev)}, value_{dev, props, limits},
+        buf_{value_.bind_buffer(dev, vk::BufferUsageFlagBits::eUniformBuffer,
+            object_bytes(value()))} {
     fill_sets(*dev);
-    configure_sets(*dev);
+    detail::write_desc_set(dev, *buf_, desc_set_, *value_);
   }
 
-  auto& value(uint32_t idx) const noexcept { return (*value_)[idx]; }
-  void flush(uint32_t idx) const { value_.flush(object_bytes(value(idx))); }
+  auto& value() const noexcept { return (*value_); }
+  void flush() const { value_.flush(object_bytes(value())); }
 
-  void use(uint32_t idx, const vk::CommandBuffer& cmd,
-      vk::PipelineLayout pipeline_layout) const {
+  void use(
+      const vk::CommandBuffer& cmd, vk::PipelineLayout pipeline_layout) const {
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0,
-        1, &desc_sets_[idx], 0, nullptr);
+        1, &desc_set_, 0, nullptr);
   }
 
 private:
-  static vk::raii::DescriptorPool make_pool(
-      const vk::raii::Device& dev, uint32_t count) {
+  static vk::raii::DescriptorPool make_pool(const vk::raii::Device& dev) {
     vk::DescriptorPoolSize size{.type = vk::DescriptorType::eUniformBuffer,
         .descriptorCount = sizeof...(Ts)};
-    return {
-        dev, vk::DescriptorPoolCreateInfo{
-                 .maxSets = count, .poolSizeCount = 1, .pPoolSizes = &size}};
+    return {dev, vk::DescriptorPoolCreateInfo{
+                     .maxSets = 1, .poolSizeCount = 1, .pPoolSizes = &size}};
   }
 
   template <size_t... Is>
@@ -148,34 +147,19 @@ private:
   }
 
   void fill_sets(vk::Device dev) {
-    std::array<vk::DescriptorSetLayout, N> layouts;
-    layouts.fill(layout());
     vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = *desc_pool_,
-        .descriptorSetCount = N,
-        .pSetLayouts = layouts.data()};
-    if (const auto ec = make_error_code(
-            dev.allocateDescriptorSets(&alloc_inf, desc_sets_.data())))
+        .descriptorSetCount = 1,
+        .pSetLayouts = &layout()};
+    if (const auto ec =
+            make_error_code(dev.allocateDescriptorSets(&alloc_inf, &desc_set_)))
       throw std::system_error{ec, "vkAllocateDescriptorSets"};
-  }
-
-  void configure_sets(vk::Device dev) {
-    for (uint32_t idx = 0; idx < N; ++idx) {
-      detail::write_desc_set(dev, *bufs_[idx], desc_sets_[idx], (*value_)[idx]);
-    };
-  }
-
-  template <size_t... Is>
-  std::array<vk::raii::Buffer, N> make_bufs(
-      const vk::raii::Device& dev, std::index_sequence<Is...>) {
-    return std::array<vk::raii::Buffer, N>{value_.bind_buffer(dev,
-        vk::BufferUsageFlagBits::eUniformBuffer, object_bytes(value(Is)))...};
   }
 
 private:
   vk::raii::DescriptorPool desc_pool_ = nullptr;
-  std::array<vk::DescriptorSet, N> desc_sets_;
-  uniform_memory<std::array<std::tuple<Ts...>, N>> value_;
-  std::array<vk::raii::Buffer, N> bufs_;
+  vk::DescriptorSet desc_set_;
+  uniform_memory<std::tuple<Ts...>> value_;
+  vk::raii::Buffer buf_;
 };
 
 } // namespace vlk
