@@ -13,25 +13,28 @@ template <typename... Ts, size_t... Is>
 void write_desc_set(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set,
     const std::tuple<Ts...>& val, std::index_sequence<Is...>) {
   constexpr size_t cnt = sizeof...(Ts);
-  std::array<vk::DescriptorBufferInfo, cnt> binfs{{.buffer = buf,
-      .offset = (static_cast<const std::byte*>(&std::get<Is>(val)) -
-                 static_cast<const std::byte*>(&val)),
-      .range = sizeof(Ts)}...};
-  std::array<vk::WriteDescriptorSet, cnt> winfs{{.dstSet = set,
-      .dstBinding = 0,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = vk::DescriptorType::eUniformBuffer,
-      .pImageInfo = nullptr,
-      .pBufferInfo = &binfs[Is],
-      .pTexelBufferView = nullptr}...};
+  std::array<vk::DescriptorBufferInfo, cnt> binfs{
+      vk::DescriptorBufferInfo{.buffer = buf,
+          .offset = static_cast<size_t>(
+              reinterpret_cast<const std::byte*>(&std::get<Is>(val)) -
+              reinterpret_cast<const std::byte*>(&val)),
+          .range = sizeof(Ts)}...};
+  std::array<vk::WriteDescriptorSet, cnt> winfs{
+      vk::WriteDescriptorSet{.dstSet = set,
+          .dstBinding = Is,
+          .dstArrayElement = 0,
+          .descriptorCount = 1,
+          .descriptorType = vk::DescriptorType::eUniformBuffer,
+          .pImageInfo = nullptr,
+          .pBufferInfo = &binfs[Is],
+          .pTexelBufferView = nullptr}...};
   dev.updateDescriptorSets(winfs, {});
 }
 
 template <typename... Ts>
 void write_desc_set(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set,
     const std::tuple<Ts...>& val) {
-  return write_desc_set(buf, set, std::index_sequence_for<Ts...>{});
+  return write_desc_set(dev, buf, set, val, std::index_sequence_for<Ts...>{});
 }
 
 } // namespace detail
@@ -156,32 +159,9 @@ private:
       throw std::system_error{ec, "vkAllocateDescriptorSets"};
   }
 
-  template <size_t... Is>
-  void write_desc_set(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set,
-      const std::tuple<Ts...>& val, std::index_sequence<Is...>) {
-    constexpr size_t cnt = sizeof...(Ts);
-    std::array<vk::DescriptorBufferInfo, cnt> binfs{
-        vk::DescriptorBufferInfo{.buffer = buf,
-            .offset = static_cast<size_t>(
-                reinterpret_cast<const std::byte*>(&std::get<Is>(val)) -
-                reinterpret_cast<const std::byte*>(&val)),
-            .range = sizeof(Ts)}...};
-    std::array<vk::WriteDescriptorSet, cnt> winfs{
-        vk::WriteDescriptorSet{.dstSet = set,
-            .dstBinding = Is,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = vk::DescriptorType::eUniformBuffer,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &binfs[Is],
-            .pTexelBufferView = nullptr}...};
-    dev.updateDescriptorSets(winfs, {});
-  }
-
   void configure_sets(vk::Device dev) {
     for (uint32_t idx = 0; idx < N; ++idx) {
-      write_desc_set(dev, *bufs_[idx], desc_sets_[idx], (*value_)[idx],
-          std::index_sequence_for<Ts...>{});
+      detail::write_desc_set(dev, *bufs_[idx], desc_sets_[idx], (*value_)[idx]);
     };
   }
 
