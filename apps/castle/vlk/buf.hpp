@@ -73,21 +73,21 @@ public:
       const vk::PhysicalDeviceLimits& limits, vk::BufferUsageFlags usage,
       vk::DeviceSize size);
 
-  void flush(size_t off, size_t len) const {
-    const auto prefix = off % non_coherent_atom_size_;
-    off -= prefix;
-    len = std::min(len + prefix, mapping_.size());
+  void flush(memory_region region) const {
+    const auto prefix = region.offset % non_coherent_atom_size_;
+    region.offset -= prefix;
+    region.len = std::min(region.len + prefix, mapping_.size());
     const auto suffix =
-        (non_coherent_atom_size_ - len % non_coherent_atom_size_) %
+        (non_coherent_atom_size_ - region.len % non_coherent_atom_size_) %
         non_coherent_atom_size_;
-    len = std::min(len + suffix, mapping_.size());
+    region.len = std::min(region.len + suffix, mapping_.size());
 
-    get().getDevice().flushMappedMemoryRanges(
-        {vk::MappedMemoryRange{.memory = *get(), .offset = off, .size = len}});
+    get().getDevice().flushMappedMemoryRanges({vk::MappedMemoryRange{
+        .memory = *get(), .offset = region.offset, .size = region.len}});
   }
 
   void flush(std::span<const std::byte> subrange) const {
-    flush(subrange.data() - mapping_.data(), subrange.size());
+    flush(subspan_region(mapping_, subrange));
   }
 
   void flush() const {

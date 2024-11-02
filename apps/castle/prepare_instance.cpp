@@ -93,9 +93,7 @@ struct world_transformations {
   glm::mat3 norm_rotation;
 };
 
-// TODO: device specific minUniformBufferOffsetAlignment should be guarantied in
-// a better way then hardcode here
-struct alignas(64) light_source {
+struct light_source {
   glm::vec3 pos;
   float intense;
   float ambient;
@@ -503,9 +501,9 @@ public:
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    std::get<0>(descriptor_bindings_.value()).camera =
-        scene::setup_camera(swapchain_info.imageExtent);
-    std::get<1>(descriptor_bindings_.value()) = {.pos = {2., 5., 15.},
+    auto& [transform, light] = descriptor_bindings_.value();
+    transform->camera = scene::setup_camera(swapchain_info.imageExtent);
+    *light = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
         .attenuation = 0.01};
@@ -536,7 +534,7 @@ public:
         device_, *render_pass_, params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
-      std::get<0>(descriptor_bindings_.value()).camera =
+      std::get<0>(descriptor_bindings_.value())->camera =
           scene::setup_camera(extent);
   }
 
@@ -555,7 +553,7 @@ public:
 private:
   vlk::render_target::frame draw(
       vlk::render_target::frame frame, frames_clock::time_point ts) const {
-    scene::update_world(ts, std::get<0>(descriptor_bindings_.value()));
+    scene::update_world(ts, *std::get<0>(descriptor_bindings_.value()));
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }

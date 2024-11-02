@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libs/memtricks/array.hpp>
+#include <libs/memtricks/monotonic_arena.hpp>
 #include <libs/memtricks/object_bytes.hpp>
 
 #include "buf.hpp"
@@ -8,85 +9,47 @@
 
 namespace vlk {
 
-namespace detail {
-
-template <typename... Ts, size_t... Is>
-void write_desc_set(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set,
-    const std::tuple<Ts...>& val, std::index_sequence<Is...>) {
-  constexpr size_t cnt = sizeof...(Ts);
-  std::array<vk::DescriptorBufferInfo, cnt> binfs{
-      vk::DescriptorBufferInfo{.buffer = buf,
-          .offset = static_cast<size_t>(
-              reinterpret_cast<const std::byte*>(&std::get<Is>(val)) -
-              reinterpret_cast<const std::byte*>(&val)),
-          .range = sizeof(Ts)}...};
-  std::array<vk::WriteDescriptorSet, cnt> winfs{
-      vk::WriteDescriptorSet{.dstSet = set,
-          .dstBinding = Is,
-          .dstArrayElement = 0,
-          .descriptorCount = 1,
-          .descriptorType = vk::DescriptorType::eUniformBuffer,
-          .pImageInfo = nullptr,
-          .pBufferInfo = &binfs[Is],
-          .pTexelBufferView = nullptr}...};
-  dev.updateDescriptorSets(winfs, {});
-}
-
-template <typename... Ts>
-void write_desc_set(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set,
-    const std::tuple<Ts...>& val) {
-  return write_desc_set(dev, buf, set, val, std::index_sequence_for<Ts...>{});
-}
-
-} // namespace detail
+namespace ubo {
 
 template <typename T>
-class uniform_memory : public mapped_memory {
-public:
-  using value_type = T;
+using unique_ptr = monotonic_arena<mapped_memory>::unique_ptr<T>;
 
-  uniform_memory() noexcept = default;
-  template <typename... A>
-  uniform_memory(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props,
-      const vk::PhysicalDeviceLimits& limits, A&&... a)
-      : mapped_memory{mapped_memory::allocate(dev, props, limits,
-            vk::BufferUsageFlagBits::eUniformBuffer, sizeof(T))} {
-    new (mapping().data()) T{std::forward<A>(a)...};
-  }
-
-  uniform_memory(const uniform_memory&) = delete;
-  uniform_memory& operator=(const uniform_memory&) = delete;
-
-  uniform_memory(uniform_memory&&) noexcept = default;
-  uniform_memory& operator=(uniform_memory&&) noexcept = default;
-
-  ~uniform_memory() noexcept {
-    if (*this)
-      reinterpret_cast<T*>(mapping().data())->~T();
-  }
-
-  operator bool() const noexcept { return !mapping().empty(); }
-
-  T& operator*() const noexcept {
-    return *reinterpret_cast<T*>(mapping().data());
-  }
-  T* operator->() const noexcept {
-    return reinterpret_cast<T*>(mapping().data());
-  }
-};
+}
 
 template <vk::ShaderStageFlagBits S, typename T>
 struct uniform {
   using value_type = T;
+  using pointer = ubo::unique_ptr<T>;
   static constexpr uint32_t count = arity_v<T>;
   static constexpr vk::ShaderStageFlags stages = S;
+  static constexpr vk::DescriptorType descriptor_type =
+      vk::DescriptorType::eUniformBuffer;
 
   static constexpr vk::DescriptorSetLayoutBinding make_binding(
       uint32_t binding_idx) {
     return {
         .binding = binding_idx,
         .descriptorType = vk::DescriptorType::eUniformBuffer,
+        .descriptorCount = count,
+        .stageFlags = stages,
+        .pImmutableSamplers = nullptr,
+    };
+  }
+};
+
+template <vk::ShaderStageFlagBits S>
+struct uniform<S, vk::Sampler> {
+  using value_type = vk::Sampler;
+  static constexpr uint32_t count = 1;
+  static constexpr vk::ShaderStageFlags stages = S;
+  static constexpr vk::DescriptorType descriptor_type =
+      vk::DescriptorType::eCombinedImageSampler;
+
+  static constexpr vk::DescriptorSetLayoutBinding make_binding(
+      uint32_t binding_idx) {
+    return {
+        .binding = binding_idx,
+        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
         .descriptorCount = count,
         .stageFlags = stages,
         .pImmutableSamplers = nullptr,
@@ -101,6 +64,153 @@ using fragment_uniform = uniform<vk::ShaderStageFlagBits::eFragment, T>;
 template <typename T>
 using graphics_uniform = uniform<vk::ShaderStageFlagBits::eAllGraphics, T>;
 
+template <typename T>
+struct is_uniform : std::false_type {};
+template <vk::ShaderStageFlagBits S, typename T>
+struct is_uniform<uniform<S, T>> : std::true_type {};
+
+template <typename T>
+concept uniform_type = is_uniform<T>::value;
+
+class descriptor_pool_builder {
+private:
+  using enum vk::DescriptorType;
+
+public:
+  constexpr descriptor_pool_builder() noexcept = default;
+
+  template <uniform_type... U>
+  constexpr descriptor_pool_builder& add_binding() noexcept {
+    sizes_[0].descriptorCount = std::max(
+        sizes_[0].descriptorCount, descriptors_count<U...>(eUniformBuffer));
+    sizes_[1].descriptorCount = std::max(sizes_[1].descriptorCount,
+        descriptors_count<U...>(eCombinedImageSampler));
+    return *this;
+  }
+
+  vk::raii::DescriptorPool build(
+      const vk::raii::Device& dev, uint32_t max_sets_count) {
+    std::span<vk::DescriptorPoolSize> nonempty{sizes_.begin(),
+        std::ranges::remove_if(
+            sizes_, [](uint32_t cnt) noexcept { return cnt == 0; },
+            &vk::DescriptorPoolSize::descriptorCount)
+            .begin()};
+    return {dev, vk::DescriptorPoolCreateInfo{.maxSets = max_sets_count,
+                     .poolSizeCount = static_cast<uint32_t>(nonempty.size()),
+                     .pPoolSizes = nonempty.data()}};
+  }
+
+private:
+  template <uniform_type... U>
+  static consteval uint32_t descriptors_count(
+      vk::DescriptorType type) noexcept {
+    return ((U::descriptor_type == type ? 1 : 0) + ...);
+  }
+
+private:
+  std::array<vk::DescriptorPoolSize, 2> sizes_{
+      vk::DescriptorPoolSize{.type = eUniformBuffer, .descriptorCount = 0},
+      vk::DescriptorPoolSize{
+          .type = eCombinedImageSampler, .descriptorCount = 0}};
+};
+
+template <uniform_type... U>
+vk::raii::DescriptorSetLayout binding_layout(const vk::raii::Device& dev) {
+  auto bindings = []<size_t... Is>(std::index_sequence<Is...>) noexcept {
+    return std::array<vk::DescriptorSetLayoutBinding, sizeof...(Is)>{
+        U::make_binding(Is)...};
+  }(std::index_sequence_for<U...>{});
+
+  return {
+      dev, vk::DescriptorSetLayoutCreateInfo{
+               .bindingCount = bindings.size(), .pBindings = bindings.data()}};
+}
+
+class ubo_builder {
+public:
+  ubo_builder(monotonic_arena<mapped_memory>& arena,
+      vk::PhysicalDeviceLimits limits) noexcept
+      : arena_{&arena}, min_align_{limits.minUniformBufferOffsetAlignment} {}
+
+  template <uniform_type U, typename... A>
+    requires(U::descriptor_type == vk::DescriptorType::eUniformBuffer) &&
+            std::constructible_from<typename U::value_type, A...>
+  typename U::pointer create(uint32_t binding, A&&... a) {
+    auto res = arena_->aligned_allocate_unique<typename U::value_type>(
+        std::align_val_t{std::max(min_align_, alignof(typename U::value_type))},
+        std::forward<A>(a)...);
+    const auto obj_mem = object_bytes(*res);
+    ubo_mem_ = std::span(ubo_mem_.data() ? ubo_mem_.data() : obj_mem.data(),
+        obj_mem.data() + obj_mem.size());
+    const auto region = subspan_region(ubo_mem_, obj_mem);
+
+    write_desc_set_.push_back({.dstSet = nullptr,
+        .dstBinding = binding,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = vk::DescriptorType::eUniformBuffer,
+        .pImageInfo = nullptr,
+        .pBufferInfo =
+            reinterpret_cast<vk::DescriptorBufferInfo*>(desc_buf_info_.size()),
+        .pTexelBufferView = nullptr});
+    desc_buf_info_.push_back(
+        {.buffer = nullptr, .offset = region.offset, .range = region.len});
+    return res;
+  }
+
+  template <uniform_type U>
+    requires(U::descriptor_type == vk::DescriptorType::eCombinedImageSampler)
+  void bind_sampler(uint32_t binding, vk::Sampler sampler, vk::ImageView img) {
+    write_desc_set_.push_back({.dstSet = nullptr,
+        .dstBinding = binding,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+        .pImageInfo =
+            reinterpret_cast<vk::DescriptorImageInfo*>(desc_img_info_.size()),
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr});
+    desc_img_info_.push_back({.sampler = sampler,
+        .imageView = img,
+        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal});
+  }
+
+  std::tuple<vk::raii::Buffer, memory_region> build(
+      const vk::raii::Device& dev, vk::DescriptorSet set) {
+    vk::raii::Buffer res = nullptr;
+    if (!ubo_mem_.empty()) {
+      res = arena_->mem_source().bind_buffer(
+          dev, vk::BufferUsageFlagBits::eUniformBuffer, ubo_mem_);
+    }
+    for (auto& inf : desc_buf_info_)
+      inf.buffer = *res;
+
+    for (auto& wrt : write_desc_set_) {
+      wrt.dstSet = set;
+      if (wrt.descriptorType == vk::DescriptorType::eCombinedImageSampler) {
+        wrt.pImageInfo =
+            &desc_img_info_[reinterpret_cast<uintptr_t>(wrt.pImageInfo)];
+      }
+      if (wrt.descriptorType == vk::DescriptorType::eUniformBuffer) {
+        wrt.pBufferInfo =
+            &desc_buf_info_[reinterpret_cast<uintptr_t>(wrt.pBufferInfo)];
+      }
+    }
+    dev.updateDescriptorSets(write_desc_set_, {});
+
+    return std::tuple{
+        std::move(res), subspan_region(arena_->mem_source(), ubo_mem_)};
+  }
+
+private:
+  monotonic_arena<mapped_memory>* arena_;
+  size_t min_align_;
+  std::span<const std::byte> ubo_mem_{};
+  std::vector<vk::DescriptorBufferInfo> desc_buf_info_;
+  std::vector<vk::DescriptorImageInfo> desc_img_info_;
+  std::vector<vk::WriteDescriptorSet> write_desc_set_;
+};
+
 template <typename... Ts>
 class pipeline_bindings;
 
@@ -110,17 +220,28 @@ public:
   pipeline_bindings(const vk::raii::Device& dev,
       const vk::PhysicalDeviceMemoryProperties& props,
       const vk::PhysicalDeviceLimits& limits)
-      : pipeline_bindings_base{make_layout(
-            dev, std::index_sequence_for<Ts...>{})},
-        desc_pool_{make_pool(dev)}, value_{dev, props, limits},
-        buf_{value_.bind_buffer(dev, vk::BufferUsageFlagBits::eUniformBuffer,
-            object_bytes(value()))} {
-    fill_sets(*dev);
-    detail::write_desc_set(dev, *buf_, desc_set_, *value_);
+      : pipeline_bindings_base{binding_layout<uniform<Ss, Ts>...>(dev)},
+        desc_pool_{
+            descriptor_pool_builder{}.add_binding<uniform<Ss, Ts>...>().build(
+                dev, 1)},
+        ubo_arena_{mapped_memory::allocate(dev, props, limits,
+            vk::BufferUsageFlagBits::eUniformBuffer, 128 * 1024)} {
+    vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = *desc_pool_,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &layout()};
+    if (const auto ec = make_error_code(
+            (*dev).allocateDescriptorSets(&alloc_inf, &desc_set_)))
+      throw std::system_error{ec, "vkAllocateDescriptorSets"};
+
+    ubo_builder bldr{ubo_arena_, limits};
+    value_ = [&bldr]<size_t... Is>(std::index_sequence<Is...>) {
+      return std::tuple{bldr.create<uniform<Ss, Ts>>(Is)...};
+    }(std::index_sequence_for<Ts...>{});
+    std::tie(buf_, flush_region_) = bldr.build(dev, desc_set_);
   }
 
-  auto& value() const noexcept { return (*value_); }
-  void flush() const { value_.flush(object_bytes(value())); }
+  auto& value() const noexcept { return value_; }
+  void flush() const { ubo_arena_.mem_source().flush(flush_region_); }
 
   void use(
       const vk::CommandBuffer& cmd, vk::PipelineLayout pipeline_layout) const {
@@ -129,37 +250,12 @@ public:
   }
 
 private:
-  static vk::raii::DescriptorPool make_pool(const vk::raii::Device& dev) {
-    vk::DescriptorPoolSize size{.type = vk::DescriptorType::eUniformBuffer,
-        .descriptorCount = sizeof...(Ts)};
-    return {dev, vk::DescriptorPoolCreateInfo{
-                     .maxSets = 1, .poolSizeCount = 1, .pPoolSizes = &size}};
-  }
-
-  template <size_t... Is>
-  static vk::raii::DescriptorSetLayout make_layout(
-      const vk::raii::Device& dev, std::index_sequence<Is...>) {
-    std::array<vk::DescriptorSetLayoutBinding, sizeof...(Ts)> bindings{
-        {uniform<Ss, Ts>::make_binding(Is)...}};
-    vk::DescriptorSetLayoutCreateInfo info{
-        .bindingCount = bindings.size(), .pBindings = bindings.data()};
-    return {dev, info};
-  }
-
-  void fill_sets(vk::Device dev) {
-    vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = *desc_pool_,
-        .descriptorSetCount = 1,
-        .pSetLayouts = &layout()};
-    if (const auto ec =
-            make_error_code(dev.allocateDescriptorSets(&alloc_inf, &desc_set_)))
-      throw std::system_error{ec, "vkAllocateDescriptorSets"};
-  }
-
-private:
-  vk::raii::DescriptorPool desc_pool_ = nullptr;
+  vk::raii::DescriptorPool desc_pool_;
+  monotonic_arena<mapped_memory> ubo_arena_;
+  std::tuple<ubo::unique_ptr<Ts>...> value_;
   vk::DescriptorSet desc_set_;
-  uniform_memory<std::tuple<Ts...>> value_;
-  vk::raii::Buffer buf_;
+  vk::raii::Buffer buf_ = nullptr;
+  memory_region flush_region_;
 };
 
 } // namespace vlk
