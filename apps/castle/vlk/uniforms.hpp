@@ -213,9 +213,10 @@ private:
 template <uniform_type... U>
 class pipeline_bindings {
 public:
+  template <typename C>
   pipeline_bindings(const vk::raii::Device& dev, vk::DescriptorPool desc_pool,
       monotonic_arena<mapped_memory>& ubo_arena,
-      const vk::PhysicalDeviceLimits& limits)
+      const vk::PhysicalDeviceLimits& limits, C& val)
       : bindings_layout_{binding_layout<U...>(dev)} {
     vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = desc_pool,
         .descriptorSetCount = 1,
@@ -225,15 +226,12 @@ public:
       throw std::system_error{ec, "vkAllocateDescriptorSets"};
 
     ubo_builder bldr{ubo_arena, limits};
-    value_ = [&bldr]<size_t... Is>(std::index_sequence<Is...>) {
-      return std::tuple{bldr.create<U>(Is)...};
-    }(std::index_sequence_for<U...>{});
+    val.bind(bldr);
     std::tie(buf_, flush_region_) = bldr.build(dev, desc_set_);
   }
 
   const vk::DescriptorSetLayout& layout() const { return *bindings_layout_; }
 
-  auto& value() const noexcept { return value_; }
   memory_region flush_region() const noexcept { return flush_region_; }
 
   void use(
@@ -244,7 +242,6 @@ public:
 
 private:
   vk::raii::DescriptorSetLayout bindings_layout_;
-  std::tuple<typename U::pointer...> value_;
   vk::DescriptorSet desc_set_;
   vk::raii::Buffer buf_ = nullptr;
   memory_region flush_region_;
@@ -264,10 +261,10 @@ public:
     arena_.mem_source().flush(flush_region);
   }
 
-  template <uniform_type... U>
-  pipeline_bindings<U...> make_pipeline_bindings(
-      const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
-    return {dev, desc_pool_, arena_, limits};
+  template <typename C, uniform_type... U>
+  pipeline_bindings<U...> make_pipeline_bindings(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceLimits& limits, C& val) {
+    return {dev, desc_pool_, arena_, limits, val};
   }
 
   void clear() noexcept {

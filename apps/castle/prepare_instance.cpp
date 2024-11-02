@@ -113,11 +113,11 @@ void update_world(
 }
 
 static glm::mat4 setup_camera(vk::Extent2D sz) noexcept {
-  constexpr auto camera_pos = glm::vec3{0., 0., 50.};
+  constexpr auto camera_pos = glm::vec3{0., 0., 40.};
   constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
   constexpr auto camera_look_at = glm::vec3{10., 10., 0.};
   return glm::perspectiveFov<float>(
-             M_PI / 6., sz.width, sz.height, 30.f, 60.f) *
+             M_PI / 6., sz.width, sz.height, 20.f, 60.f) *
          glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
 }
 
@@ -437,6 +437,55 @@ vk::raii::Image load_sfx_texture(vlk::memory_pools& pools,
       as_extent(reader.size()));
 }
 
+struct uniform_objects {
+  uniform_objects(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceLimits& limits, vk::raii::Image img)
+      : castle_texture{std::move(img)},
+        castle_texture_view{dev.createImageView(vk::ImageViewCreateInfo{
+            .flags = {},
+            .image = *castle_texture,
+            .viewType = vk::ImageViewType::e2D,
+            .format = vk::Format::eR8G8B8A8Srgb,
+            .components = {},
+            .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1}})},
+        castle_sampler{dev.createSampler(vk::SamplerCreateInfo{
+            .flags = {},
+            .magFilter = vk::Filter::eLinear,
+            .minFilter = vk::Filter::eLinear,
+            .mipmapMode = vk::SamplerMipmapMode::eLinear,
+            .addressModeU = vk::SamplerAddressMode::eClampToBorder,
+            .addressModeV = vk::SamplerAddressMode::eClampToBorder,
+            .addressModeW = vk::SamplerAddressMode::eClampToBorder,
+            .mipLodBias = 0.f,
+            .anisotropyEnable = true,
+            .maxAnisotropy = limits.maxSamplerAnisotropy,
+            .compareEnable = false,
+            .compareOp = vk::CompareOp::eNever,
+            .minLod = 0.f,
+            .maxLod = 0.f,
+            .borderColor = vk::BorderColor::eFloatTransparentBlack,
+            .unnormalizedCoordinates = false,
+        })} {}
+
+  vlk::ubo::unique_ptr<scene::world_transformations> world;
+  vlk::ubo::unique_ptr<scene::light_source> light;
+
+  vk::raii::Image castle_texture;
+  vk::raii::ImageView castle_texture_view;
+  vk::raii::Sampler castle_sampler;
+
+  void bind(vlk::ubo_builder& bldr) {
+    world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
+    light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        2, castle_sampler, castle_texture_view);
+  }
+};
+
 class render_environment : public renderer_iface {
 public:
   render_environment(vk::raii::Instance inst, vk::raii::PhysicalDevice dev,
@@ -454,66 +503,39 @@ public:
             vlk::descriptor_pool_builder{}
                 .add_binding<
                     vlk::graphics_uniform<scene::world_transformations>,
-                    vlk::fragment_uniform<scene::light_source>>()
+                    vlk::fragment_uniform<scene::light_source>,
+                    vlk::fragment_uniform<vk::Sampler>>()
                 .build(device_, 1),
             128 * 1024},
-        descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
-            vlk::graphics_uniform<scene::world_transformations>,
-            vlk::fragment_uniform<scene::light_source>>(
-            device_, phydev_.getProperties().limits)},
-        pipelines_{device_, *render_pass_, descriptor_bindings_.layout(),
-            vlk::shaders<scene::vertex>{
-                .vertex = {_binary_triangle_vert_spv_start,
-                    _binary_triangle_vert_spv_end},
-                .fragment = {_binary_triangle_frag_spv_start,
-                    _binary_triangle_frag_spv_end}}},
-        cmd_buffs_{device_, graphics_queue_family},
         mempools_{device_, phydev_.getMemoryProperties(),
             phydev_.getProperties().limits,
             {.vbo_capacity = 2 * 1024 * 1024,
                 .ibo_capacity = 2 * 1024 * 1024,
                 .textures_capacity = 64 * 1024 * 1024,
                 .staging_size = 64 * 1024 * 1024}},
+        cmd_buffs_{device_, graphics_queue_family},
+        uniforms_{device_, phydev_.getProperties().limits,
+            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                cmd_buffs_.front(), "textures/castle.png")},
+        descriptor_bindings_{
+            uniform_pools_.make_pipeline_bindings<uniform_objects,
+                vlk::graphics_uniform<scene::world_transformations>,
+                vlk::fragment_uniform<scene::light_source>,
+                vlk::fragment_uniform<vk::Sampler>>(
+                device_, phydev_.getProperties().limits, uniforms_)},
+        pipelines_{device_, *render_pass_, descriptor_bindings_.layout(),
+            vlk::shaders<scene::vertex>{
+                .vertex = {_binary_triangle_vert_spv_start,
+                    _binary_triangle_vert_spv_end},
+                .fragment = {_binary_triangle_frag_spv_start,
+                    _binary_triangle_frag_spv_end}}},
         mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
             scene::make_paper()},
-        castle_texture_{load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-            cmd_buffs_.front(), "textures/castle.png")},
-        castle_texture_view_{device_.createImageView(vk::ImageViewCreateInfo{
-            .flags = {},
-            .image = *castle_texture_,
-            .viewType = vk::ImageViewType::e2D,
-            .format = vk::Format::eR8G8B8A8Srgb,
-            .components = {},
-            .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1}})},
-        castle_sampler_{device_.createSampler(vk::SamplerCreateInfo{
-            .flags = {},
-            .magFilter = vk::Filter::eLinear,
-            .minFilter = vk::Filter::eLinear,
-            .mipmapMode = vk::SamplerMipmapMode::eLinear,
-            .addressModeU = vk::SamplerAddressMode::eClampToBorder,
-            .addressModeV = vk::SamplerAddressMode::eClampToBorder,
-            .addressModeW = vk::SamplerAddressMode::eClampToBorder,
-            .mipLodBias = 0.f,
-            .anisotropyEnable = true,
-            .maxAnisotropy =
-                phydev_.getProperties().limits.maxSamplerAnisotropy,
-            .compareEnable = false,
-            .compareOp = vk::CompareOp::eNever,
-            .minLod = 0.f,
-            .maxLod = 0.f,
-            .borderColor = vk::BorderColor::eFloatTransparentBlack,
-            .unnormalizedCoordinates = false,
-        })},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    auto& [transform, light] = descriptor_bindings_.value();
-    transform->camera = scene::setup_camera(swapchain_info.imageExtent);
-    *light = {.pos = {2., 5., 15.},
+    uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
+    *uniforms_.light = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
         .attenuation = 0.01};
@@ -544,8 +566,7 @@ public:
         device_, *render_pass_, params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
-      std::get<0>(descriptor_bindings_.value())->camera =
-          scene::setup_camera(extent);
+      uniforms_.world->camera = scene::setup_camera(extent);
   }
 
   void draw(frames_clock::time_point ts) override {
@@ -563,7 +584,7 @@ public:
 private:
   vlk::render_target::frame draw(
       vlk::render_target::frame frame, frames_clock::time_point ts) const {
-    scene::update_world(ts, *std::get<0>(descriptor_bindings_.value()));
+    scene::update_world(ts, *uniforms_.world);
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
@@ -628,16 +649,15 @@ private:
   vlk::render_target render_target_;
 
   vlk::uniform_pools uniform_pools_;
+  vlk::memory_pools mempools_;
+  vlk::command_buffers<1> cmd_buffs_;
+  uniform_objects uniforms_;
   vlk::pipeline_bindings<vlk::graphics_uniform<scene::world_transformations>,
-      vlk::fragment_uniform<scene::light_source>>
+      vlk::fragment_uniform<scene::light_source>,
+      vlk::fragment_uniform<vk::Sampler>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
-  vlk::command_buffers<1> cmd_buffs_;
-  vlk::memory_pools mempools_;
   mesh mesh_;
-  vk::raii::Image castle_texture_;
-  vk::raii::ImageView castle_texture_view_;
-  vk::raii::Sampler castle_sampler_;
 
   vk::raii::Semaphore render_finished_;
   vk::raii::Semaphore image_available_;

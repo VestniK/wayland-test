@@ -13,6 +13,8 @@ layout(binding = 1) uniform light_source {
   float attenuation;
 } light;
 
+layout(binding = 2) uniform sampler2D castle;
+
 layout(location = 0) in vec3 frag_normal;
 layout(location = 1) in vec3 frag_pos;
 layout(location = 2) in vec2 frag_uv;
@@ -34,6 +36,8 @@ void main() {
   float grayfactor = clamp(step(0.03, net_dist), 0.6, 1.0);
   float bluefactor = clamp(step(0.03, net_dist), 0.9, 1.0);
   vec3 color = vec3(grayfactor, grayfactor, bluefactor);
+  vec4 tex = texture(castle, frag_uv/6);
+  color = mix(color, tex.rgb, tex.a);
 
   out_color = vec4(
     phong_reflect(
