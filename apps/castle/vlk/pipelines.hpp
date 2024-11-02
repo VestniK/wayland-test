@@ -34,29 +34,17 @@ struct shaders {
   }
 };
 
-class pipeline_bindings_base {
-public:
-  const vk::DescriptorSetLayout& layout() const { return *bindings_layout_; }
-
-protected:
-  pipeline_bindings_base(vk::raii::DescriptorSetLayout layout)
-      : bindings_layout_{std::move(layout)} {}
-
-protected:
-  vk::raii::DescriptorSetLayout bindings_layout_;
-};
-
 class pipelines_storage_base {
 public:
   const vk::PipelineLayout layout() const noexcept { return *layout_; }
 
 protected:
   pipelines_storage_base() noexcept = default;
-  pipelines_storage_base(
-      const vk::raii::Device& dev, const pipeline_bindings_base& bindings)
+  pipelines_storage_base(const vk::raii::Device& dev,
+      const vk::DescriptorSetLayout& descriptors_layout)
       : layout_{dev, vk::PipelineLayoutCreateInfo{
                          .setLayoutCount = 1,
-                         .pSetLayouts = &bindings.layout(),
+                         .pSetLayouts = &descriptors_layout,
                          .pushConstantRangeCount = 0,
                          .pPushConstantRanges = nullptr,
                      }} {}
@@ -77,8 +65,8 @@ public:
 
   template <vertex_attributes... Vs>
   pipelines_storage(const vk::raii::Device& dev, vk::RenderPass render_pass,
-      const pipeline_bindings_base& bindings, shaders<Vs>... shaders)
-      : pipelines_storage_base{dev, bindings},
+      const vk::DescriptorSetLayout& descriptors_layout, shaders<Vs>... shaders)
+      : pipelines_storage_base{dev, descriptors_layout},
         pipelines_{{make_pipeline(dev, render_pass, shaders.sources(),
             Vs::binding_description(), Vs::attribute_description())...}} {
     static_assert(sizeof...(Vs) == N);

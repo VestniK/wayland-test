@@ -5,7 +5,6 @@
 #include <libs/memtricks/object_bytes.hpp>
 
 #include "buf.hpp"
-#include "pipelines.hpp"
 
 namespace vlk {
 
@@ -211,37 +210,31 @@ private:
   std::vector<vk::WriteDescriptorSet> write_desc_set_;
 };
 
-template <typename... Ts>
-class pipeline_bindings;
-
-template <typename... Ts, vk::ShaderStageFlagBits... Ss>
-class pipeline_bindings<uniform<Ss, Ts>...> : public pipeline_bindings_base {
+template <uniform_type... U>
+class pipeline_bindings {
 public:
-  pipeline_bindings(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceMemoryProperties& props,
+  pipeline_bindings(const vk::raii::Device& dev, vk::DescriptorPool desc_pool,
+      monotonic_arena<mapped_memory>& ubo_arena,
       const vk::PhysicalDeviceLimits& limits)
-      : pipeline_bindings_base{binding_layout<uniform<Ss, Ts>...>(dev)},
-        desc_pool_{
-            descriptor_pool_builder{}.add_binding<uniform<Ss, Ts>...>().build(
-                dev, 1)},
-        ubo_arena_{mapped_memory::allocate(dev, props, limits,
-            vk::BufferUsageFlagBits::eUniformBuffer, 128 * 1024)} {
-    vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = *desc_pool_,
+      : bindings_layout_{binding_layout<U...>(dev)} {
+    vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = desc_pool,
         .descriptorSetCount = 1,
         .pSetLayouts = &layout()};
     if (const auto ec = make_error_code(
             (*dev).allocateDescriptorSets(&alloc_inf, &desc_set_)))
       throw std::system_error{ec, "vkAllocateDescriptorSets"};
 
-    ubo_builder bldr{ubo_arena_, limits};
+    ubo_builder bldr{ubo_arena, limits};
     value_ = [&bldr]<size_t... Is>(std::index_sequence<Is...>) {
-      return std::tuple{bldr.create<uniform<Ss, Ts>>(Is)...};
-    }(std::index_sequence_for<Ts...>{});
+      return std::tuple{bldr.create<U>(Is)...};
+    }(std::index_sequence_for<U...>{});
     std::tie(buf_, flush_region_) = bldr.build(dev, desc_set_);
   }
 
+  const vk::DescriptorSetLayout& layout() const { return *bindings_layout_; }
+
   auto& value() const noexcept { return value_; }
-  void flush() const { ubo_arena_.mem_source().flush(flush_region_); }
+  memory_region flush_region() const noexcept { return flush_region_; }
 
   void use(
       const vk::CommandBuffer& cmd, vk::PipelineLayout pipeline_layout) const {
@@ -250,12 +243,41 @@ public:
   }
 
 private:
-  vk::raii::DescriptorPool desc_pool_;
-  monotonic_arena<mapped_memory> ubo_arena_;
-  std::tuple<ubo::unique_ptr<Ts>...> value_;
+  vk::raii::DescriptorSetLayout bindings_layout_;
+  std::tuple<typename U::pointer...> value_;
   vk::DescriptorSet desc_set_;
   vk::raii::Buffer buf_ = nullptr;
   memory_region flush_region_;
+};
+
+class uniform_pools {
+public:
+  uniform_pools(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& props,
+      const vk::PhysicalDeviceLimits& limits,
+      vk::raii::DescriptorPool desc_pool, size_t ubo_capacity)
+      : desc_pool_{std::move(desc_pool)},
+        arena_{mapped_memory::allocate(dev, props, limits,
+            vk::BufferUsageFlagBits::eUniformBuffer, ubo_capacity)} {}
+
+  void flush(memory_region flush_region) const {
+    arena_.mem_source().flush(flush_region);
+  }
+
+  template <uniform_type... U>
+  pipeline_bindings<U...> make_pipeline_bindings(
+      const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
+    return {dev, desc_pool_, arena_, limits};
+  }
+
+  void clear() noexcept {
+    arena_.clear();
+    desc_pool_.reset({});
+  }
+
+private:
+  vk::raii::DescriptorPool desc_pool_;
+  monotonic_arena<mapped_memory> arena_;
 };
 
 } // namespace vlk

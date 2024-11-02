@@ -449,9 +449,19 @@ public:
         render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
         render_target_{device_, presentation_queue_family, std::move(surf),
             swapchain_info, *render_pass_},
-        descriptor_bindings_{device_, phydev_.getMemoryProperties(),
-            phydev_.getProperties().limits},
-        pipelines_{device_, *render_pass_, descriptor_bindings_,
+        uniform_pools_{device_, phydev_.getMemoryProperties(),
+            phydev_.getProperties().limits,
+            vlk::descriptor_pool_builder{}
+                .add_binding<
+                    vlk::graphics_uniform<scene::world_transformations>,
+                    vlk::fragment_uniform<scene::light_source>>()
+                .build(device_, 1),
+            128 * 1024},
+        descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
+            vlk::graphics_uniform<scene::world_transformations>,
+            vlk::fragment_uniform<scene::light_source>>(
+            device_, phydev_.getProperties().limits)},
+        pipelines_{device_, *render_pass_, descriptor_bindings_.layout(),
             vlk::shaders<scene::vertex>{
                 .vertex = {_binary_triangle_vert_spv_start,
                     _binary_triangle_vert_spv_end},
@@ -595,7 +605,7 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    descriptor_bindings_.flush();
+    uniform_pools_.flush(descriptor_bindings_.flush_region());
 
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -617,6 +627,7 @@ private:
   vk::raii::RenderPass render_pass_;
   vlk::render_target render_target_;
 
+  vlk::uniform_pools uniform_pools_;
   vlk::pipeline_bindings<vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>>
       descriptor_bindings_;
