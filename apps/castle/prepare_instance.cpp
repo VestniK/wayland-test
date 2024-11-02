@@ -160,7 +160,7 @@ constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
 }
 
 constexpr std::array<const char*, 2> required_extensions{
-    "VK_KHR_surface", "VK_KHR_wayland_surface"};
+    VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME};
 
 constexpr auto required_device_extensions =
     make_sorted_array<const char*>(std::less<std::string_view>{},
