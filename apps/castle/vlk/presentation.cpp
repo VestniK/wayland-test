@@ -11,8 +11,7 @@ public:
 
   frame(const vk::raii::Device& dev, vk::RenderPass render_pass,
       vk::Image image, vk::Extent2D extent, vk::Format fmt)
-      : image_{image},
-        view_{dev, vk::ImageViewCreateInfo{.image = image_,
+      : view_{dev, vk::ImageViewCreateInfo{.image = image,
                        .viewType = vk::ImageViewType::e2D,
                        .format = fmt,
                        .components = {.r = vk::ComponentSwizzle::eIdentity,
@@ -42,12 +41,10 @@ public:
     return res;
   }
 
-  vk::Image image() const noexcept { return image_; }
   vk::ImageView image_view() const noexcept { return *view_; }
   vk::Framebuffer frameuffer() const noexcept { return *framebuf_; }
 
 private:
-  vk::Image image_{nullptr};
   vk::raii::ImageView view_{nullptr};
   vk::raii::Framebuffer framebuf_{nullptr};
 };
