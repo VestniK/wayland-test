@@ -2,6 +2,7 @@ find_program(ZIP NAMES zip REQUIRED)
 
 function(zip_sfx Tgt)
     add_custom_command(TARGET ${Tgt} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_BINARY_DIR}/tmp.zip"
       COMMAND ${ZIP} -0 "${CMAKE_CURRENT_BINARY_DIR}/tmp.zip" ${ARGN}
       COMMAND ${CMAKE_COMMAND} -E cat "${CMAKE_CURRENT_BINARY_DIR}/tmp.zip" >> "$<TARGET_FILE:${Tgt}>"
       COMMAND ${ZIP} -A "$<TARGET_FILE:${Tgt}>"
