@@ -71,7 +71,10 @@ add_custom_command(TARGET castle POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:castle>.dbg $<TARGET_FILE:castle>
 )
 zip_sfx(castle
-  textures/castle.png
+  textures/castle-0hit.png
+  textures/castle-1hit.png
+  textures/castle-2hit.png
+  textures/castle-3hit.png
 )
 
 add_subdirectory(vlk)

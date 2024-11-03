@@ -516,7 +516,7 @@ public:
         cmd_buffs_{device_, graphics_queue_family},
         uniforms_{device_, phydev_.getProperties().limits,
             load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/castle.png")},
+                cmd_buffs_.front(), "textures/castle-0hit.png")},
         descriptor_bindings_{
             uniform_pools_.make_pipeline_bindings<uniform_objects,
                 vlk::graphics_uniform<scene::world_transformations>,
