@@ -37,6 +37,8 @@ extern const std::byte _binary_triangle_frag_spv_start[];
 extern const std::byte _binary_triangle_frag_spv_end[];
 }
 
+using namespace std::literals;
+
 namespace {
 
 template <vlk::vertex_attributes Vertex, std::integral Idx>
@@ -504,21 +506,30 @@ public:
                 .add_binding<
                     vlk::graphics_uniform<scene::world_transformations>,
                     vlk::fragment_uniform<scene::light_source>,
-                    vlk::fragment_uniform<vk::Sampler>>()
-                .build(device_, 1),
+                    vlk::fragment_uniform<vk::Sampler>>(4)
+                .build(device_, 4),
             128 * 1024},
         mempools_{device_, phydev_.getMemoryProperties(),
             phydev_.getProperties().limits,
             {.vbo_capacity = 2 * 1024 * 1024,
                 .ibo_capacity = 2 * 1024 * 1024,
-                .textures_capacity = 64 * 1024 * 1024,
+                .textures_capacity = 256 * 1024 * 1024,
                 .staging_size = 64 * 1024 * 1024}},
         cmd_buffs_{device_, graphics_queue_family},
-        uniforms_{device_, phydev_.getProperties().limits,
-            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/castle-0hit.png")},
+        uniforms_{uniform_objects{device_, phydev_.getProperties().limits,
+                      load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                          cmd_buffs_.front(), "textures/castle-0hit.png")},
+            uniform_objects{device_, phydev_.getProperties().limits,
+                load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                    cmd_buffs_.front(), "textures/castle-1hit.png")},
+            uniform_objects{device_, phydev_.getProperties().limits,
+                load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                    cmd_buffs_.front(), "textures/castle-2hit.png")},
+            uniform_objects{device_, phydev_.getProperties().limits,
+                load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                    cmd_buffs_.front(), "textures/castle-3hit.png")}},
         descriptor_bindings_{
-            uniform_pools_.make_pipeline_bindings<uniform_objects,
+            uniform_pools_.make_pipeline_bindings<uniform_objects, 4,
                 vlk::graphics_uniform<scene::world_transformations>,
                 vlk::fragment_uniform<scene::light_source>,
                 vlk::fragment_uniform<vk::Sampler>>(
@@ -534,8 +545,9 @@ public:
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
-    *uniforms_.light = {.pos = {2., 5., 15.},
+    uniforms_[cur_uniform_].world->camera =
+        scene::setup_camera(swapchain_info.imageExtent);
+    *uniforms_[cur_uniform_].light = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
         .attenuation = 0.01};
@@ -566,7 +578,7 @@ public:
         device_, *render_pass_, params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
-      uniforms_.world->camera = scene::setup_camera(extent);
+      uniforms_[cur_uniform_].world->camera = scene::setup_camera(extent);
   }
 
   void draw(frames_clock::time_point ts) override {
@@ -583,8 +595,14 @@ public:
 
 private:
   vlk::render_target::frame draw(
-      vlk::render_target::frame frame, frames_clock::time_point ts) const {
-    scene::update_world(ts, *uniforms_.world);
+      vlk::render_target::frame frame, frames_clock::time_point ts) {
+    const size_t next_uniform = (ts.time_since_epoch() / 3s) % uniforms_.size();
+    if (cur_uniform_ != next_uniform) {
+      *uniforms_[next_uniform].world = *uniforms_[cur_uniform_].world;
+      *uniforms_[next_uniform].light = *uniforms_[cur_uniform_].light;
+      cur_uniform_ = next_uniform;
+    }
+    scene::update_world(ts, *uniforms_[cur_uniform_].world);
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
@@ -618,7 +636,7 @@ private:
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
     cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
-    descriptor_bindings_.use(cmd, pipelines_.layout());
+    descriptor_bindings_.use(cur_uniform_, cmd, pipelines_.layout());
     cmd.drawIndexed(static_cast<uint32_t>(mesh_.size()), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
@@ -626,7 +644,7 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    uniform_pools_.flush(descriptor_bindings_.flush_region());
+    uniform_pools_.flush(descriptor_bindings_.flush_region(0));
 
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -651,13 +669,14 @@ private:
   vlk::uniform_pools uniform_pools_;
   vlk::memory_pools mempools_;
   vlk::command_buffers<1> cmd_buffs_;
-  uniform_objects uniforms_;
-  vlk::pipeline_bindings<vlk::graphics_uniform<scene::world_transformations>,
+  std::array<uniform_objects, 4> uniforms_;
+  vlk::pipeline_bindings<4, vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>,
       vlk::fragment_uniform<vk::Sampler>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;
+  size_t cur_uniform_ = 0;
 
   vk::raii::Semaphore render_finished_;
   vk::raii::Semaphore image_available_;

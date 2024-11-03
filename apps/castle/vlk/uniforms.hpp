@@ -79,11 +79,11 @@ public:
   constexpr descriptor_pool_builder() noexcept = default;
 
   template <uniform_type... U>
-  constexpr descriptor_pool_builder& add_binding() noexcept {
-    sizes_[0].descriptorCount = std::max(
-        sizes_[0].descriptorCount, descriptors_count<U...>(eUniformBuffer));
-    sizes_[1].descriptorCount = std::max(sizes_[1].descriptorCount,
-        descriptors_count<U...>(eCombinedImageSampler));
+  constexpr descriptor_pool_builder& add_binding(uint32_t times = 1) noexcept {
+    sizes_[0].descriptorCount +=
+        times * descriptors_count<U...>(eUniformBuffer);
+    sizes_[1].descriptorCount +=
+        times * descriptors_count<U...>(eCombinedImageSampler);
     return *this;
   }
 
@@ -197,8 +197,12 @@ public:
     }
     dev.updateDescriptorSets(write_desc_set_, {});
 
-    return std::tuple{
-        std::move(res), subspan_region(arena_->mem_source(), ubo_mem_)};
+    desc_buf_info_.clear();
+    desc_img_info_.clear();
+    write_desc_set_.clear();
+
+    return std::tuple{std::move(res),
+        subspan_region(arena_->mem_source(), std::exchange(ubo_mem_, {}))};
   }
 
 private:
@@ -210,41 +214,55 @@ private:
   std::vector<vk::WriteDescriptorSet> write_desc_set_;
 };
 
-template <uniform_type... U>
+template <size_t N, uniform_type... U>
 class pipeline_bindings {
 public:
   template <typename C>
   pipeline_bindings(const vk::raii::Device& dev, vk::DescriptorPool desc_pool,
       monotonic_arena<mapped_memory>& ubo_arena,
-      const vk::PhysicalDeviceLimits& limits, C& val)
+      const vk::PhysicalDeviceLimits& limits, std::span<C, N> val)
       : bindings_layout_{binding_layout<U...>(dev)} {
+    std::array<vk::DescriptorSetLayout, N> layouts;
+    layouts.fill(layout());
     vk::DescriptorSetAllocateInfo alloc_inf{.descriptorPool = desc_pool,
-        .descriptorSetCount = 1,
-        .pSetLayouts = &layout()};
+        .descriptorSetCount = layouts.size(),
+        .pSetLayouts = layouts.data()};
     if (const auto ec = make_error_code(
-            (*dev).allocateDescriptorSets(&alloc_inf, &desc_set_)))
+            (*dev).allocateDescriptorSets(&alloc_inf, desc_set_.data())))
       throw std::system_error{ec, "vkAllocateDescriptorSets"};
 
     ubo_builder bldr{ubo_arena, limits};
-    val.bind(bldr);
-    std::tie(buf_, flush_region_) = bldr.build(dev, desc_set_);
+    for (auto [i, v] : val | std::views::enumerate) {
+      v.bind(bldr);
+      std::tie(buf_[i], flush_region_[i]) = bldr.build(dev, desc_set_[i]);
+    }
   }
 
   const vk::DescriptorSetLayout& layout() const { return *bindings_layout_; }
 
-  memory_region flush_region() const noexcept { return flush_region_; }
+  memory_region flush_region(size_t idx) const noexcept {
+    return flush_region_[idx];
+  }
 
-  void use(
-      const vk::CommandBuffer& cmd, vk::PipelineLayout pipeline_layout) const {
+  void use(size_t idx, const vk::CommandBuffer& cmd,
+      vk::PipelineLayout pipeline_layout) const {
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0,
-        1, &desc_set_, 0, nullptr);
+        1, &desc_set_[idx], 0, nullptr);
+  }
+
+private:
+  template <size_t... Is>
+  constexpr static std::array<vk::raii::Buffer, sizeof...(Is)>
+  default_construc_bufs_array(std::index_sequence<Is...>) noexcept {
+    return {vk::raii::Buffer{(Is, nullptr)}...};
   }
 
 private:
   vk::raii::DescriptorSetLayout bindings_layout_;
-  vk::DescriptorSet desc_set_;
-  vk::raii::Buffer buf_ = nullptr;
-  memory_region flush_region_;
+  std::array<vk::DescriptorSet, N> desc_set_;
+  std::array<vk::raii::Buffer, N> buf_ =
+      default_construc_bufs_array(std::make_index_sequence<N>{});
+  std::array<memory_region, N> flush_region_;
 };
 
 class uniform_pools {
@@ -261,9 +279,9 @@ public:
     arena_.mem_source().flush(flush_region);
   }
 
-  template <typename C, uniform_type... U>
-  pipeline_bindings<U...> make_pipeline_bindings(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceLimits& limits, C& val) {
+  template <typename C, size_t N, uniform_type... U>
+  pipeline_bindings<N, U...> make_pipeline_bindings(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceLimits& limits, std::span<C, N> val) {
     return {dev, desc_pool_, arena_, limits, val};
   }
 
