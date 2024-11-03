@@ -50,7 +50,8 @@ protected:
                      }} {}
 
   vk::raii::Pipeline make_pipeline(const vk::raii::Device& dev,
-      vk::RenderPass render_pass, shader_sources shaders,
+      vk::RenderPass render_pass, vk::SampleCountFlagBits samples,
+      shader_sources shaders,
       const vk::VertexInputBindingDescription& vertex_binding,
       std::span<const vk::VertexInputAttributeDescription> vertex_attrs);
 
@@ -65,9 +66,10 @@ public:
 
   template <vertex_attributes... Vs>
   pipelines_storage(const vk::raii::Device& dev, vk::RenderPass render_pass,
+      vk::SampleCountFlagBits samples,
       const vk::DescriptorSetLayout& descriptors_layout, shaders<Vs>... shaders)
       : pipelines_storage_base{dev, descriptors_layout},
-        pipelines_{{make_pipeline(dev, render_pass, shaders.sources(),
+        pipelines_{{make_pipeline(dev, render_pass, samples, shaders.sources(),
             Vs::binding_description(), Vs::attribute_description())...}} {
     static_assert(sizeof...(Vs) == N);
   }

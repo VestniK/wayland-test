@@ -226,33 +226,47 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
   return device;
 }
 
-vk::raii::RenderPass make_render_pass(
-    const vk::raii::Device& dev, vk::Format img_fmt) {
-  vk::AttachmentDescription attachment_desc{.format = img_fmt,
-      .samples = vk::SampleCountFlagBits::e1,
-      .loadOp = vk::AttachmentLoadOp::eClear,
-      .storeOp = vk::AttachmentStoreOp::eStore,
-      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-      .initialLayout = vk::ImageLayout::eUndefined,
-      .finalLayout = vk::ImageLayout::ePresentSrcKHR};
+vk::raii::RenderPass make_render_pass(const vk::raii::Device& dev,
+    vk::Format img_fmt, vk::SampleCountFlagBits samples) {
+  using enum vk::SampleCountFlagBits;
 
-  vk::AttachmentReference attachement_ref{
-      .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
+  std::array<vk::AttachmentDescription, 2> attachments{
+      vk::AttachmentDescription{.format = img_fmt,
+          .samples = samples,
+          .loadOp = vk::AttachmentLoadOp::eClear,
+          .storeOp = vk::AttachmentStoreOp::eStore,
+          .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+          .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+          .initialLayout = vk::ImageLayout::eUndefined,
+          .finalLayout = vk::ImageLayout::eColorAttachmentOptimal},
+      vk::AttachmentDescription{.format = img_fmt,
+          .samples = e1,
+          .loadOp = vk::AttachmentLoadOp::eDontCare,
+          .storeOp = vk::AttachmentStoreOp::eDontCare,
+          .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+          .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+          .initialLayout = vk::ImageLayout::eUndefined,
+          .finalLayout = vk::ImageLayout::ePresentSrcKHR}};
+
+  std::array<vk::AttachmentReference, 2> refs{
+      vk::AttachmentReference{
+          .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal},
+      vk::AttachmentReference{
+          .attachment = 1, .layout = vk::ImageLayout::eColorAttachmentOptimal}};
   vk::SubpassDescription subpass{
       .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
       .inputAttachmentCount = 0,
       .pInputAttachments = nullptr,
       .colorAttachmentCount = 1,
-      .pColorAttachments = &attachement_ref,
-      .pResolveAttachments = 0,
+      .pColorAttachments = &refs[0],
+      .pResolveAttachments = &refs[1],
       .pDepthStencilAttachment = nullptr,
       .preserveAttachmentCount = 0,
       .pPreserveAttachments = nullptr};
 
   return vk::raii::RenderPass{
-      dev, vk::RenderPassCreateInfo{.attachmentCount = 1,
-               .pAttachments = &attachment_desc,
+      dev, vk::RenderPassCreateInfo{.attachmentCount = attachments.size(),
+               .pAttachments = attachments.data(),
                .subpassCount = 1,
                .pSubpasses = &subpass,
                .dependencyCount = 0,
@@ -355,6 +369,9 @@ struct device_rendering_params {
       vk::Extent2D sz) {
     if (dev.getProperties().apiVersion < VK_API_VERSION_1_2)
       return std::nullopt;
+    if (!dev.getFeatures().samplerAnisotropy)
+      return std::nullopt;
+
     std::optional<uint32_t> graphics_family;
     std::optional<uint32_t> presentation_family;
     for (const auto& [idx, queue_family] :
@@ -383,7 +400,6 @@ struct device_rendering_params {
           res->swapchain_info.queueFamilyIndexCount = 1;
           res->swapchain_info.pQueueFamilyIndices = queues.data();
         }
-
         return res;
       }
     }
@@ -497,9 +513,6 @@ public:
       : instance_{std::move(inst)}, phydev_{std::move(dev)},
         device_{create_logical_device(
             phydev_, graphics_queue_family, presentation_queue_family)},
-        render_pass_{make_render_pass(device_, swapchain_info.imageFormat)},
-        render_target_{device_, presentation_queue_family, std::move(surf),
-            swapchain_info, *render_pass_},
         uniform_pools_{device_, phydev_.getMemoryProperties(),
             phydev_.getProperties().limits,
             vlk::descriptor_pool_builder{}
@@ -515,6 +528,12 @@ public:
                 .ibo_capacity = 2 * 1024 * 1024,
                 .textures_capacity = 256 * 1024 * 1024,
                 .staging_size = 64 * 1024 * 1024}},
+        render_pass_{make_render_pass(device_, swapchain_info.imageFormat,
+            find_max_usable_samples(phydev_))},
+        render_target_{device_, phydev_.getMemoryProperties(),
+            presentation_queue_family, std::move(surf), swapchain_info,
+            *render_pass_, find_max_usable_samples(phydev_)},
+
         cmd_buffs_{device_, graphics_queue_family},
         uniforms_{uniform_objects{device_, phydev_.getProperties().limits,
                       load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
@@ -534,7 +553,8 @@ public:
                 vlk::fragment_uniform<scene::light_source>,
                 vlk::fragment_uniform<vk::Sampler>>(
                 device_, phydev_.getProperties().limits, uniforms_)},
-        pipelines_{device_, *render_pass_, descriptor_bindings_.layout(),
+        pipelines_{device_, *render_pass_, find_max_usable_samples(phydev_),
+            descriptor_bindings_.layout(),
             vlk::shaders<scene::vertex>{
                 .vertex = {_binary_triangle_vert_spv_start,
                     _binary_triangle_vert_spv_end},
@@ -574,8 +594,8 @@ public:
       throw std::runtime_error{
           "Restore swapchain params after resise have failed"};
 
-    render_target_.resize(
-        device_, *render_pass_, params->swapchain_info, extent);
+    render_target_.resize(device_, phydev_.getMemoryProperties(), *render_pass_,
+        find_max_usable_samples(phydev_), params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
       uniforms_[cur_uniform_].world->camera = scene::setup_camera(extent);
@@ -659,15 +679,30 @@ private:
     cmd_buffs_.queue().submit(submit_infos, *frame_done_);
   }
 
+  static vk::SampleCountFlagBits find_max_usable_samples(
+      vk::PhysicalDevice dev) {
+    using enum vk::SampleCountFlagBits;
+    constexpr vk::SampleCountFlagBits prio_order[] = {
+        e64, e32, e16, e8, e4, e2};
+
+    const auto counts_mask =
+        dev.getProperties().limits.framebufferColorSampleCounts;
+    const auto it = std::ranges::find_if(
+        prio_order, [&](auto e) { return bool{e & counts_mask}; });
+    return it != std::end(prio_order) ? *it : e1;
+  }
+
 private:
   vk::raii::Instance instance_;
   vk::raii::PhysicalDevice phydev_;
   vk::raii::Device device_;
-  vk::raii::RenderPass render_pass_;
-  vlk::render_target render_target_;
 
   vlk::uniform_pools uniform_pools_;
   vlk::memory_pools mempools_;
+
+  vk::raii::RenderPass render_pass_;
+  vlk::render_target render_target_;
+
   vlk::command_buffers<1> cmd_buffs_;
   std::array<uniform_objects, 4> uniforms_;
   vlk::pipeline_bindings<4, vlk::graphics_uniform<scene::world_transformations>,
@@ -686,7 +721,6 @@ private:
 render_environment setup_suitable_device(
     vk::raii::Instance inst, vk::raii::SurfaceKHR surf, vk::Extent2D sz) {
   for (vk::raii::PhysicalDevice dev : inst.enumeratePhysicalDevices()) {
-    if (dev.getFeatures().samplerAnisotropy) {
       if (auto params = device_rendering_params::choose(*dev, *surf, sz)) {
         spdlog::info("Using Vulkan device: {}",
             std::string_view{dev.getProperties().deviceName});
@@ -694,7 +728,6 @@ render_environment setup_suitable_device(
             std::move(surf), params->queue_families.graphics,
             params->queue_families.presentation, params->swapchain_info};
       }
-    }
     spdlog::debug("Vulkan device '{}' is rejected",
         std::string_view{dev.getProperties().deviceName});
   }

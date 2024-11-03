@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
+#include "buf.hpp"
+
 namespace vlk {
 
 class swapchain {
@@ -47,9 +49,11 @@ public:
 
 public:
   swapchain() noexcept;
-  swapchain(const vk::raii::Device& device, const vk::SurfaceKHR& surf,
+  swapchain(const vk::raii::Device& device,
+      const vk::PhysicalDeviceMemoryProperties& props,
+      const vk::SurfaceKHR& surf,
       const vk::SwapchainCreateInfoKHR& swapchain_info,
-      const vk::RenderPass& render_pass);
+      const vk::RenderPass& render_pass, vk::SampleCountFlagBits samples);
   ~swapchain() noexcept;
 
   swapchain(swapchain&&) noexcept;
@@ -73,6 +77,9 @@ public:
 
 private:
   vk::raii::SwapchainKHR swapchain_{nullptr};
+  vk::raii::Image multisampling_img_{nullptr};
+  vlk::memory multisampling_mem_;
+  vk::raii::ImageView multisampling_view_{nullptr};
   std::vector<frame> frames_;
   vk::Format swapchain_image_format_;
   vk::Extent2D swapchain_extent_;
@@ -82,15 +89,18 @@ class render_target {
 public:
   render_target() noexcept = default;
 
-  render_target(const vk::raii::Device& dev, uint32_t presentation_queue_family,
-      vk::raii::SurfaceKHR surf,
+  render_target(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& props,
+      uint32_t presentation_queue_family, vk::raii::SurfaceKHR surf,
       const vk::SwapchainCreateInfoKHR& swapchain_info,
-      const vk::RenderPass& render_pass)
+      const vk::RenderPass& render_pass, vk::SampleCountFlagBits samples)
       : presentation_queue_{dev.getQueue(presentation_queue_family, 0)},
         surf_{std::move(surf)},
-        swapchain_{dev, *surf_, swapchain_info, render_pass} {}
+        swapchain_{dev, props, *surf_, swapchain_info, render_pass, samples} {}
 
-  void resize(const vk::raii::Device& dev, vk::RenderPass render_pass,
+  void resize(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceMemoryProperties& props,
+      vk::RenderPass render_pass, vk::SampleCountFlagBits samples,
       const vk::SwapchainCreateInfoKHR& swapchain_info, vk::Extent2D sz);
 
   vk::SurfaceKHR surface() const noexcept { return *surf_; }

@@ -15,7 +15,7 @@ vk::raii::ShaderModule load_shader(
 
 vk::raii::Pipeline pipelines_storage_base::make_pipeline(
     const vk::raii::Device& dev, vk::RenderPass render_pass,
-    shader_sources shaders,
+    vk::SampleCountFlagBits samples, shader_sources shaders,
     const vk::VertexInputBindingDescription& vertex_binding,
     std::span<const vk::VertexInputAttributeDescription> vertex_attrs) {
 
@@ -68,7 +68,7 @@ vk::raii::Pipeline pipelines_storage_base::make_pipeline(
       .lineWidth = 1.};
 
   vk::PipelineMultisampleStateCreateInfo multisampling_info{
-      .rasterizationSamples = vk::SampleCountFlagBits::e1,
+      .rasterizationSamples = samples,
       .sampleShadingEnable = false,
       .minSampleShading = 1.,
       .pSampleMask = nullptr,
