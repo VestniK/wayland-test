@@ -96,8 +96,7 @@ struct world_transformations {
 };
 
 struct texture_transform {
-  glm::vec2 position;
-  float scale;
+  glm::mat4 models[4];
 };
 
 struct light_source {
@@ -460,40 +459,65 @@ vk::raii::Image load_sfx_texture(vlk::memory_pools& pools,
       as_extent(reader.size()));
 }
 
+static vk::raii::Sampler make_sampler(
+    const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
+  return dev.createSampler(vk::SamplerCreateInfo{
+      .flags = {},
+      .magFilter = vk::Filter::eLinear,
+      .minFilter = vk::Filter::eLinear,
+      .mipmapMode = vk::SamplerMipmapMode::eLinear,
+      .addressModeU = vk::SamplerAddressMode::eClampToBorder,
+      .addressModeV = vk::SamplerAddressMode::eClampToBorder,
+      .addressModeW = vk::SamplerAddressMode::eClampToBorder,
+      .mipLodBias = 0.f,
+      .anisotropyEnable = true,
+      .maxAnisotropy = limits.maxSamplerAnisotropy,
+      .compareEnable = false,
+      .compareOp = vk::CompareOp::eNever,
+      .minLod = 0.f,
+      .maxLod = 0.f,
+      .borderColor = vk::BorderColor::eFloatTransparentBlack,
+      .unnormalizedCoordinates = false,
+  });
+}
+
+static vk::raii::ImageView make_view(
+    const vk::raii::Device& dev, vk::Image img) {
+  return dev.createImageView(vk::ImageViewCreateInfo{.flags = {},
+      .image = img,
+      .viewType = vk::ImageViewType::e2D,
+      .format = vk::Format::eR8G8B8A8Srgb,
+      .components = {},
+      .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1}});
+}
+
+struct sampler_and_friends {
+  vk::raii::Image image;
+  vk::raii::ImageView view;
+  vk::raii::Sampler sampler;
+
+  sampler_and_friends(const vk::raii::Device& dev,
+      const vk::PhysicalDeviceLimits& limits, vk::raii::Image img)
+      : image{std::move(img)}, view{make_view(dev, image)},
+        sampler{make_sampler(dev, limits)} {}
+};
+
 struct uniform_objects {
   uniform_objects(const vk::raii::Device& dev,
       const vk::PhysicalDeviceLimits& limits,
-      std::array<vk::raii::Image, 4> img)
+      std::array<vk::raii::Image, 4> img, vk::raii::Image fwheel,
+      vk::raii::Image rwheel, vk::raii::Image platform)
       : castle_textures{std::move(img)},
-        castle_texture_view{dev.createImageView(vk::ImageViewCreateInfo{
-            .flags = {},
-            .image = *castle_textures[0],
-            .viewType = vk::ImageViewType::e2D,
-            .format = vk::Format::eR8G8B8A8Srgb,
-            .components = {},
-            .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1}})},
-        castle_sampler{dev.createSampler(vk::SamplerCreateInfo{
-            .flags = {},
-            .magFilter = vk::Filter::eLinear,
-            .minFilter = vk::Filter::eLinear,
-            .mipmapMode = vk::SamplerMipmapMode::eLinear,
-            .addressModeU = vk::SamplerAddressMode::eClampToBorder,
-            .addressModeV = vk::SamplerAddressMode::eClampToBorder,
-            .addressModeW = vk::SamplerAddressMode::eClampToBorder,
-            .mipLodBias = 0.f,
-            .anisotropyEnable = true,
-            .maxAnisotropy = limits.maxSamplerAnisotropy,
-            .compareEnable = false,
-            .compareOp = vk::CompareOp::eNever,
-            .minLod = 0.f,
-            .maxLod = 0.f,
-            .borderColor = vk::BorderColor::eFloatTransparentBlack,
-            .unnormalizedCoordinates = false,
-        })} {}
+        castle_texture_view{make_view(dev, *castle_textures[0])},
+        castle_sampler{make_sampler(dev, limits)},
+        catapult{.fwheel = sampler_and_friends{dev, limits, std::move(fwheel)},
+            .rwheel = sampler_and_friends{dev, limits, std::move(rwheel)},
+            .platform = sampler_and_friends{dev, limits, std::move(platform)}} {
+  }
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
@@ -503,18 +527,14 @@ struct uniform_objects {
   vk::raii::ImageView castle_texture_view;
   vk::raii::Sampler castle_sampler;
 
+  struct {
+    sampler_and_friends fwheel;
+    sampler_and_friends rwheel;
+    sampler_and_friends platform;
+  } catapult;
+
   void switch_castle_image(const vk::raii::Device& dev, size_t n) {
-    castle_texture_view =
-        dev.createImageView(vk::ImageViewCreateInfo{.flags = {},
-            .image = *castle_textures[n],
-            .viewType = vk::ImageViewType::e2D,
-            .format = vk::Format::eR8G8B8A8Srgb,
-            .components = {},
-            .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1}});
+    castle_texture_view = make_view(dev, *castle_textures[n]);
   }
 
   void bind(vlk::ubo_builder& bldr) {
@@ -523,6 +543,12 @@ struct uniform_objects {
     castle = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(2);
     bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
         3, castle_sampler, castle_texture_view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        4, catapult.fwheel.sampler, catapult.fwheel.view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        5, catapult.rwheel.sampler, catapult.rwheel.view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        6, catapult.platform.sampler, catapult.platform.view);
   }
 
   void rebind(vlk::ubo_builder& bldr) {
@@ -532,6 +558,12 @@ struct uniform_objects {
     bldr.bind_ubo<vlk::fragment_uniform<scene::texture_transform>>(2, *castle);
     bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
         3, castle_sampler, castle_texture_view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        4, catapult.fwheel.sampler, catapult.fwheel.view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        5, catapult.rwheel.sampler, catapult.rwheel.view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        6, catapult.platform.sampler, catapult.platform.view);
   }
 };
 
@@ -551,8 +583,11 @@ public:
                     vlk::graphics_uniform<scene::world_transformations>,
                     vlk::fragment_uniform<scene::light_source>,
                     vlk::fragment_uniform<scene::texture_transform>,
-                    vlk::fragment_uniform<vk::Sampler>>(4)
-                .build(device_, 4),
+                    vlk::fragment_uniform<vk::Sampler>,
+                    vlk::fragment_uniform<vk::Sampler>,
+                    vlk::fragment_uniform<vk::Sampler>,
+                    vlk::fragment_uniform<vk::Sampler>>(1)
+                .build(device_, 1),
             128 * 1024},
         mempools_{device_, phydev_.getMemoryProperties(),
             phydev_.getProperties().limits,
@@ -575,12 +610,21 @@ public:
                 load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
                     cmd_buffs_.front(), "textures/castle-2hit.png"),
                 load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                    cmd_buffs_.front(), "textures/castle-3hit.png")}},
+                    cmd_buffs_.front(), "textures/castle-3hit.png")},
+            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                cmd_buffs_.front(), "textures/catapult-front-wheel.png"),
+            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                cmd_buffs_.front(), "textures/catapult-rear-wheel.png"),
+            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                cmd_buffs_.front(), "textures/catapult-platform.png")},
         descriptor_bindings_{
             uniform_pools_.make_pipeline_bindings<uniform_objects, 1,
                 vlk::graphics_uniform<scene::world_transformations>,
                 vlk::fragment_uniform<scene::light_source>,
                 vlk::fragment_uniform<scene::texture_transform>,
+                vlk::fragment_uniform<vk::Sampler>,
+                vlk::fragment_uniform<vk::Sampler>,
+                vlk::fragment_uniform<vk::Sampler>,
                 vlk::fragment_uniform<vk::Sampler>>(device_,
                 phydev_.getProperties().limits,
                 std::span<uniform_objects, 1>{&uniforms_, 1})},
@@ -597,7 +641,8 @@ public:
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
     uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
-    *uniforms_.castle = {.position = {0, 12}, .scale = 6};
+    uniforms_.castle->models[0] = glm::translate(
+        glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
     *uniforms_.light = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
@@ -654,6 +699,16 @@ private:
       descriptor_bindings_.update(0, *device_, uniforms_);
     }
     scene::update_world(ts, *uniforms_.world);
+    uniforms_.castle->models[1] = glm::translate(
+        glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
+            float_time::seconds(ts.time_since_epoch()) / 2s, {0, 0, 1}),
+        {-7, -5, 0});
+    uniforms_.castle->models[2] = glm::translate(
+        glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
+            float_time::seconds(ts.time_since_epoch()) / 2s, {0, 0, 1}),
+        {-8.7, -5, 0});
+    uniforms_.castle->models[3] =
+        glm::translate(glm::mat4{1.}, {-7.35, -4.5, 0});
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
@@ -739,7 +794,8 @@ private:
   vlk::pipeline_bindings<1, vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>,
       vlk::fragment_uniform<scene::texture_transform>,
-      vlk::fragment_uniform<vk::Sampler>>
+      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>,
+      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;

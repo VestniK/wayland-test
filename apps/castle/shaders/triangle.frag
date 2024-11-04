@@ -4,8 +4,6 @@ layout(binding = 0) uniform world_transformations {
     mat4 camera;
     mat4 model;
     mat4 norm_rotation;
-
-    mat4 castle;
 } mvp;
 
 layout(binding = 1) uniform light_source {
@@ -16,11 +14,13 @@ layout(binding = 1) uniform light_source {
 } light;
 
 layout(binding = 2) uniform texture_transform {
-  vec2 pos;
-  float scale;
-} castle_transform;
+  mat4 models[4];
+} textr;
 
 layout(binding = 3) uniform sampler2D castle;
+layout(binding = 4) uniform sampler2D catapult_fwheel;
+layout(binding = 5) uniform sampler2D catapult_rwheel;
+layout(binding = 6) uniform sampler2D catapult_platform;
 
 layout(location = 0) in vec3 frag_normal;
 layout(location = 1) in vec3 frag_pos;
@@ -43,8 +43,18 @@ void main() {
   float grayfactor = clamp(step(0.03, net_dist), 0.6, 1.0);
   float bluefactor = clamp(step(0.04, net_dist), 0.9, 1.0);
   vec3 color = vec3(grayfactor, grayfactor, bluefactor);
-  vec4 tex = texture(castle, (frag_uv - castle_transform.pos)/castle_transform.scale);
-  color = mix(color, tex.rgb, tex.a);
+
+  vec4 castle_tex = texture(castle, (textr.models[0]*vec4(frag_uv, 0, 1)).xy);
+  color = mix(color, castle_tex.rgb, castle_tex.a);
+
+  vec4 pt_tex = texture(catapult_platform, (textr.models[3]*vec4(frag_uv, 0, 1)).xy);
+  color = mix(color, pt_tex.rgb, pt_tex.a);
+
+  vec4 fw_tex = texture(catapult_fwheel, (textr.models[1]*vec4(frag_uv, 0, 1)).xy);
+  color = mix(color, fw_tex.rgb, fw_tex.a);
+
+  vec4 rw_tex = texture(catapult_rwheel, (textr.models[2]*vec4(frag_uv, 0, 1)).xy);
+  color = mix(color, rw_tex.rgb, rw_tex.a);
 
   out_color = vec4(
     phong_reflect(
