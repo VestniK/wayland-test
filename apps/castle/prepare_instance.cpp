@@ -462,11 +462,12 @@ vk::raii::Image load_sfx_texture(vlk::memory_pools& pools,
 
 struct uniform_objects {
   uniform_objects(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceLimits& limits, vk::raii::Image img)
-      : castle_texture{std::move(img)},
+      const vk::PhysicalDeviceLimits& limits,
+      std::array<vk::raii::Image, 4> img)
+      : castle_textures{std::move(img)},
         castle_texture_view{dev.createImageView(vk::ImageViewCreateInfo{
             .flags = {},
-            .image = *castle_texture,
+            .image = *castle_textures[0],
             .viewType = vk::ImageViewType::e2D,
             .format = vk::Format::eR8G8B8A8Srgb,
             .components = {},
@@ -498,14 +499,37 @@ struct uniform_objects {
   vlk::ubo::unique_ptr<scene::light_source> light;
   vlk::ubo::unique_ptr<scene::texture_transform> castle;
 
-  vk::raii::Image castle_texture;
+  std::array<vk::raii::Image, 4> castle_textures;
   vk::raii::ImageView castle_texture_view;
   vk::raii::Sampler castle_sampler;
+
+  void switch_castle_image(const vk::raii::Device& dev, size_t n) {
+    castle_texture_view =
+        dev.createImageView(vk::ImageViewCreateInfo{.flags = {},
+            .image = *castle_textures[n],
+            .viewType = vk::ImageViewType::e2D,
+            .format = vk::Format::eR8G8B8A8Srgb,
+            .components = {},
+            .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1}});
+  }
 
   void bind(vlk::ubo_builder& bldr) {
     world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
     light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
     castle = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(2);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        3, castle_sampler, castle_texture_view);
+  }
+
+  void rebind(vlk::ubo_builder& bldr) {
+    bldr.bind_ubo<vlk::graphics_uniform<scene::world_transformations>>(
+        0, *world);
+    bldr.bind_ubo<vlk::fragment_uniform<scene::light_source>>(1, *light);
+    bldr.bind_ubo<vlk::fragment_uniform<scene::texture_transform>>(2, *castle);
     bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
         3, castle_sampler, castle_texture_view);
   }
@@ -543,25 +567,23 @@ public:
             *render_pass_, find_max_usable_samples(phydev_)},
 
         cmd_buffs_{device_, graphics_queue_family},
-        uniforms_{uniform_objects{device_, phydev_.getProperties().limits,
-                      load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                          cmd_buffs_.front(), "textures/castle-0hit.png")},
-            uniform_objects{device_, phydev_.getProperties().limits,
+        uniforms_{device_, phydev_.getProperties().limits,
+            {load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                 cmd_buffs_.front(), "textures/castle-0hit.png"),
                 load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                    cmd_buffs_.front(), "textures/castle-1hit.png")},
-            uniform_objects{device_, phydev_.getProperties().limits,
+                    cmd_buffs_.front(), "textures/castle-1hit.png"),
                 load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                    cmd_buffs_.front(), "textures/castle-2hit.png")},
-            uniform_objects{device_, phydev_.getProperties().limits,
+                    cmd_buffs_.front(), "textures/castle-2hit.png"),
                 load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
                     cmd_buffs_.front(), "textures/castle-3hit.png")}},
         descriptor_bindings_{
-            uniform_pools_.make_pipeline_bindings<uniform_objects, 4,
+            uniform_pools_.make_pipeline_bindings<uniform_objects, 1,
                 vlk::graphics_uniform<scene::world_transformations>,
                 vlk::fragment_uniform<scene::light_source>,
                 vlk::fragment_uniform<scene::texture_transform>,
-                vlk::fragment_uniform<vk::Sampler>>(
-                device_, phydev_.getProperties().limits, uniforms_)},
+                vlk::fragment_uniform<vk::Sampler>>(device_,
+                phydev_.getProperties().limits,
+                std::span<uniform_objects, 1>{&uniforms_, 1})},
         pipelines_{device_, *render_pass_, find_max_usable_samples(phydev_),
             descriptor_bindings_.layout(),
             vlk::shaders<scene::vertex>{
@@ -574,10 +596,9 @@ public:
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    uniforms_[cur_uniform_].world->camera =
-        scene::setup_camera(swapchain_info.imageExtent);
-    *uniforms_[cur_uniform_].castle = {.position = {0, 12}, .scale = 6};
-    *uniforms_[cur_uniform_].light = {.pos = {2., 5., 15.},
+    uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
+    *uniforms_.castle = {.position = {0, 12}, .scale = 6};
+    *uniforms_.light = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
         .attenuation = 0.01};
@@ -608,7 +629,7 @@ public:
         find_max_usable_samples(phydev_), params->swapchain_info, extent);
 
     if (sz.height > 0 && sz.height > 0)
-      uniforms_[cur_uniform_].world->camera = scene::setup_camera(extent);
+      uniforms_.world->camera = scene::setup_camera(extent);
   }
 
   void draw(frames_clock::time_point ts) override {
@@ -626,14 +647,13 @@ public:
 private:
   vlk::render_target::frame draw(
       vlk::render_target::frame frame, frames_clock::time_point ts) {
-    const size_t next_uniform = (ts.time_since_epoch() / 3s) % uniforms_.size();
-    if (cur_uniform_ != next_uniform) {
-      *uniforms_[next_uniform].world = *uniforms_[cur_uniform_].world;
-      *uniforms_[next_uniform].light = *uniforms_[cur_uniform_].light;
-      *uniforms_[next_uniform].castle = *uniforms_[cur_uniform_].castle;
-      cur_uniform_ = next_uniform;
+    const size_t next_uniform =
+        (ts.time_since_epoch() / 3s) % uniforms_.castle_textures.size();
+    if (std::exchange(cur_uniform_, next_uniform) != next_uniform) {
+      uniforms_.switch_castle_image(device_, cur_uniform_);
+      descriptor_bindings_.update(0, *device_, uniforms_);
     }
-    scene::update_world(ts, *uniforms_[cur_uniform_].world);
+    scene::update_world(ts, *uniforms_.world);
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
@@ -667,7 +687,7 @@ private:
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
     cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
-    descriptor_bindings_.use(cur_uniform_, cmd, pipelines_.layout());
+    descriptor_bindings_.use(0, cmd, pipelines_.layout());
     cmd.drawIndexed(static_cast<uint32_t>(mesh_.size()), 1, 0, 0, 0);
     cmd.endRenderPass();
     cmd.end();
@@ -675,7 +695,7 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    uniform_pools_.flush(descriptor_bindings_.flush_region(cur_uniform_));
+    uniform_pools_.flush(descriptor_bindings_.flush_region(0));
 
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -715,8 +735,8 @@ private:
   vlk::render_target render_target_;
 
   vlk::command_buffers<1> cmd_buffs_;
-  std::array<uniform_objects, 4> uniforms_;
-  vlk::pipeline_bindings<4, vlk::graphics_uniform<scene::world_transformations>,
+  uniform_objects uniforms_;
+  vlk::pipeline_bindings<1, vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>,
       vlk::fragment_uniform<scene::texture_transform>,
       vlk::fragment_uniform<vk::Sampler>>

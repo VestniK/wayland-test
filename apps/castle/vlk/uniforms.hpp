@@ -131,6 +131,9 @@ public:
       vk::PhysicalDeviceLimits limits) noexcept
       : arena_{&arena}, min_align_{limits.minUniformBufferOffsetAlignment} {}
 
+  ubo_builder(std::span<const std::byte> allocated_ubo) noexcept
+      : arena_{}, min_align_{0}, ubo_mem_{allocated_ubo} {}
+
   template <uniform_type U, typename... A>
     requires(U::descriptor_type == vk::DescriptorType::eUniformBuffer) &&
             std::constructible_from<typename U::value_type, A...>
@@ -158,6 +161,27 @@ public:
   }
 
   template <uniform_type U>
+    requires(U::descriptor_type == vk::DescriptorType::eUniformBuffer)
+  void bind_ubo(uint32_t binding, const typename U::value_type& val) {
+    const auto obj_mem = object_bytes(val);
+    ubo_mem_ = std::span(ubo_mem_.data() ? ubo_mem_.data() : obj_mem.data(),
+        obj_mem.data() + obj_mem.size());
+    const auto region = subspan_region(ubo_mem_, obj_mem);
+
+    write_desc_set_.push_back({.dstSet = nullptr,
+        .dstBinding = binding,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = vk::DescriptorType::eUniformBuffer,
+        .pImageInfo = nullptr,
+        .pBufferInfo =
+            reinterpret_cast<vk::DescriptorBufferInfo*>(desc_buf_info_.size()),
+        .pTexelBufferView = nullptr});
+    desc_buf_info_.push_back(
+        {.buffer = nullptr, .offset = region.offset, .range = region.len});
+  }
+
+  template <uniform_type U>
     requires(U::descriptor_type == vk::DescriptorType::eCombinedImageSampler)
   void bind_sampler(uint32_t binding, vk::Sampler sampler, vk::ImageView img) {
     write_desc_set_.push_back({.dstSet = nullptr,
@@ -174,15 +198,9 @@ public:
         .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal});
   }
 
-  std::tuple<vk::raii::Buffer, memory_region> build(
-      const vk::raii::Device& dev, vk::DescriptorSet set) {
-    vk::raii::Buffer res = nullptr;
-    if (!ubo_mem_.empty()) {
-      res = arena_->mem_source().bind_buffer(
-          dev, vk::BufferUsageFlagBits::eUniformBuffer, ubo_mem_);
-    }
+  void update(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set) {
     for (auto& inf : desc_buf_info_)
-      inf.buffer = *res;
+      inf.buffer = buf;
 
     for (auto& wrt : write_desc_set_) {
       wrt.dstSet = set;
@@ -200,9 +218,18 @@ public:
     desc_buf_info_.clear();
     desc_img_info_.clear();
     write_desc_set_.clear();
+  }
 
-    return std::tuple{std::move(res),
-        subspan_region(arena_->mem_source(), std::exchange(ubo_mem_, {}))};
+  std::tuple<vk::raii::Buffer, std::span<const std::byte>> build(
+      const vk::raii::Device& dev, vk::DescriptorSet set) {
+    vk::raii::Buffer res = nullptr;
+    if (!ubo_mem_.empty()) {
+      res = arena_->mem_source().bind_buffer(
+          dev, vk::BufferUsageFlagBits::eUniformBuffer, ubo_mem_);
+    }
+    update(*dev, *res, set);
+
+    return std::tuple{std::move(res), std::exchange(ubo_mem_, {})};
   }
 
 private:
@@ -240,7 +267,7 @@ public:
 
   const vk::DescriptorSetLayout& layout() const { return *bindings_layout_; }
 
-  memory_region flush_region(size_t idx) const noexcept {
+  std::span<const std::byte> flush_region(size_t idx) const noexcept {
     return flush_region_[idx];
   }
 
@@ -248,6 +275,13 @@ public:
       vk::PipelineLayout pipeline_layout) const {
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0,
         1, &desc_set_[idx], 0, nullptr);
+  }
+
+  template <typename C>
+  void update(size_t idx, vk::Device dev, C& obj) {
+    ubo_builder bldr{flush_region_[idx]};
+    obj.rebind(bldr);
+    bldr.update(dev, buf_[idx], desc_set_[idx]);
   }
 
 private:
@@ -262,7 +296,7 @@ private:
   std::array<vk::DescriptorSet, N> desc_set_;
   std::array<vk::raii::Buffer, N> buf_ =
       default_construc_bufs_array(std::make_index_sequence<N>{});
-  std::array<memory_region, N> flush_region_;
+  std::array<std::span<const std::byte>, N> flush_region_;
 };
 
 class uniform_pools {
@@ -275,7 +309,7 @@ public:
         arena_{mapped_memory::allocate(dev, props, limits,
             vk::BufferUsageFlagBits::eUniformBuffer, ubo_capacity)} {}
 
-  void flush(memory_region flush_region) const {
+  void flush(std::span<const std::byte> flush_region) const {
     arena_.mem_source().flush(flush_region);
   }
 
