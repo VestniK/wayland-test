@@ -96,7 +96,7 @@ struct world_transformations {
 };
 
 struct texture_transform {
-  glm::mat4 models[4];
+  glm::mat4 models[5];
 };
 
 struct light_source {
@@ -510,14 +510,14 @@ struct uniform_objects {
   uniform_objects(const vk::raii::Device& dev,
       const vk::PhysicalDeviceLimits& limits,
       std::array<vk::raii::Image, 4> img, vk::raii::Image fwheel,
-      vk::raii::Image rwheel, vk::raii::Image platform)
+      vk::raii::Image rwheel, vk::raii::Image platform, vk::raii::Image arm)
       : castle_textures{std::move(img)},
         castle_texture_view{make_view(dev, *castle_textures[0])},
         castle_sampler{make_sampler(dev, limits)},
         catapult{.fwheel = sampler_and_friends{dev, limits, std::move(fwheel)},
             .rwheel = sampler_and_friends{dev, limits, std::move(rwheel)},
-            .platform = sampler_and_friends{dev, limits, std::move(platform)}} {
-  }
+            .platform = sampler_and_friends{dev, limits, std::move(platform)},
+            .arm = sampler_and_friends{dev, limits, std::move(arm)}} {}
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
@@ -531,6 +531,7 @@ struct uniform_objects {
     sampler_and_friends fwheel;
     sampler_and_friends rwheel;
     sampler_and_friends platform;
+    sampler_and_friends arm;
   } catapult;
 
   void switch_castle_image(const vk::raii::Device& dev, size_t n) {
@@ -549,6 +550,8 @@ struct uniform_objects {
         5, catapult.rwheel.sampler, catapult.rwheel.view);
     bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
         6, catapult.platform.sampler, catapult.platform.view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        7, catapult.arm.sampler, catapult.arm.view);
   }
 
   void rebind(vlk::ubo_builder& bldr) {
@@ -564,6 +567,8 @@ struct uniform_objects {
         5, catapult.rwheel.sampler, catapult.rwheel.view);
     bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
         6, catapult.platform.sampler, catapult.platform.view);
+    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
+        7, catapult.arm.sampler, catapult.arm.view);
   }
 };
 
@@ -583,6 +588,7 @@ public:
                     vlk::graphics_uniform<scene::world_transformations>,
                     vlk::fragment_uniform<scene::light_source>,
                     vlk::fragment_uniform<scene::texture_transform>,
+                    vlk::fragment_uniform<vk::Sampler>,
                     vlk::fragment_uniform<vk::Sampler>,
                     vlk::fragment_uniform<vk::Sampler>,
                     vlk::fragment_uniform<vk::Sampler>,
@@ -616,12 +622,15 @@ public:
             load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
                 cmd_buffs_.front(), "textures/catapult-rear-wheel.png"),
             load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/catapult-platform.png")},
+                cmd_buffs_.front(), "textures/catapult-platform.png"),
+            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
+                cmd_buffs_.front(), "textures/catapult-arm.png")},
         descriptor_bindings_{
             uniform_pools_.make_pipeline_bindings<uniform_objects, 1,
                 vlk::graphics_uniform<scene::world_transformations>,
                 vlk::fragment_uniform<scene::light_source>,
                 vlk::fragment_uniform<scene::texture_transform>,
+                vlk::fragment_uniform<vk::Sampler>,
                 vlk::fragment_uniform<vk::Sampler>,
                 vlk::fragment_uniform<vk::Sampler>,
                 vlk::fragment_uniform<vk::Sampler>,
@@ -701,14 +710,24 @@ private:
     scene::update_world(ts, *uniforms_.world);
     uniforms_.castle->models[1] = glm::translate(
         glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
-            float_time::seconds(ts.time_since_epoch()) / 2s, {0, 0, 1}),
+            float_time::seconds(ts.time_since_epoch()) / 1s, {0, 0, 1}),
         {-7, -5, 0});
     uniforms_.castle->models[2] = glm::translate(
         glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
-            float_time::seconds(ts.time_since_epoch()) / 2s, {0, 0, 1}),
-        {-8.7, -5, 0});
+            float_time::seconds(ts.time_since_epoch()) / 1s, {0, 0, 1}),
+        {-10.2, -5, 0});
     uniforms_.castle->models[3] =
-        glm::translate(glm::mat4{1.}, {-7.35, -4.5, 0});
+        glm::translate(glm::scale(glm::mat4{1.}, {1./2.5, 1, 1}), {-7.35, -4.5, 0});
+    uniforms_.castle->models[4] = glm::translate(
+        glm::rotate(
+            glm::translate(glm::scale(glm::mat4{1.}, {1. / 2.9, 1 / 1.2, 1}),
+                {0.5, 0.5, 0}),
+            static_cast<float>(
+                M_PI / 4. +
+                (M_PI / 10.) *
+                    sin(float_time::seconds(ts.time_since_epoch()) / 700ms)),
+            {0, 0, 1}),
+        {-8.3, -4.6, 0});
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
@@ -795,7 +814,8 @@ private:
       vlk::fragment_uniform<scene::light_source>,
       vlk::fragment_uniform<scene::texture_transform>,
       vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>,
-      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>>
+      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>,
+      vlk::fragment_uniform<vk::Sampler>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;

@@ -14,13 +14,14 @@ layout(binding = 1) uniform light_source {
 } light;
 
 layout(binding = 2) uniform texture_transform {
-  mat4 models[4];
+  mat4 models[5];
 } textr;
 
 layout(binding = 3) uniform sampler2D castle;
 layout(binding = 4) uniform sampler2D catapult_fwheel;
 layout(binding = 5) uniform sampler2D catapult_rwheel;
 layout(binding = 6) uniform sampler2D catapult_platform;
+layout(binding = 7) uniform sampler2D catapult_arm;
 
 layout(location = 0) in vec3 frag_normal;
 layout(location = 1) in vec3 frag_pos;
@@ -46,6 +47,9 @@ void main() {
 
   vec4 castle_tex = texture(castle, (textr.models[0]*vec4(frag_uv, 0, 1)).xy);
   color = mix(color, castle_tex.rgb, castle_tex.a);
+
+  vec4 arm_tex = texture(catapult_arm, (textr.models[4]*vec4(frag_uv, 0, 1)).xy);
+  color = mix(color, arm_tex.rgb, arm_tex.a);
 
   vec4 pt_tex = texture(catapult_platform, (textr.models[3]*vec4(frag_uv, 0, 1)).xy);
   color = mix(color, pt_tex.rgb, pt_tex.a);
