@@ -3,7 +3,9 @@
 layout(binding = 0) uniform world_transformations {
     mat4 camera;
     mat4 model;
-    mat3 norm_rotation;
+    mat4 norm_rotation;
+
+    mat4 castle;
 } mvp;
 
 layout(binding = 1) uniform light_source {
@@ -13,7 +15,12 @@ layout(binding = 1) uniform light_source {
   float attenuation;
 } light;
 
-layout(binding = 2) uniform sampler2D castle;
+layout(binding = 2) uniform texture_transform {
+  vec2 pos;
+  float scale;
+} castle_transform;
+
+layout(binding = 3) uniform sampler2D castle;
 
 layout(location = 0) in vec3 frag_normal;
 layout(location = 1) in vec3 frag_pos;
@@ -34,16 +41,16 @@ vec3 phong_reflect(vec3 surf_color, vec3 world_pos, vec3 world_normal) {
 void main() {
   float net_dist = min(mod(frag_uv.x, 0.5), mod(frag_uv.y, 0.5));
   float grayfactor = clamp(step(0.03, net_dist), 0.6, 1.0);
-  float bluefactor = clamp(step(0.03, net_dist), 0.9, 1.0);
+  float bluefactor = clamp(step(0.04, net_dist), 0.9, 1.0);
   vec3 color = vec3(grayfactor, grayfactor, bluefactor);
-  vec4 tex = texture(castle, frag_uv/6);
+  vec4 tex = texture(castle, (frag_uv - castle_transform.pos)/castle_transform.scale);
   color = mix(color, tex.rgb, tex.a);
 
   out_color = vec4(
     phong_reflect(
       color,
       vec3(mvp.model * vec4(frag_pos, 1.0)),
-      normalize(mvp.norm_rotation * frag_normal)
+      normalize(mat3(mvp.norm_rotation) * frag_normal)
     ),
     1.0
   );

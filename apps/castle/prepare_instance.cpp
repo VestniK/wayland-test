@@ -92,7 +92,12 @@ struct vertex {
 struct world_transformations {
   glm::mat4 camera;
   glm::mat4 model;
-  glm::mat3 norm_rotation;
+  glm::mat4 norm_rotation;
+};
+
+struct texture_transform {
+  glm::vec2 position;
+  float scale;
 };
 
 struct light_source {
@@ -491,6 +496,7 @@ struct uniform_objects {
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
+  vlk::ubo::unique_ptr<scene::texture_transform> castle;
 
   vk::raii::Image castle_texture;
   vk::raii::ImageView castle_texture_view;
@@ -499,8 +505,9 @@ struct uniform_objects {
   void bind(vlk::ubo_builder& bldr) {
     world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
     light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
+    castle = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(2);
     bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        2, castle_sampler, castle_texture_view);
+        3, castle_sampler, castle_texture_view);
   }
 };
 
@@ -519,6 +526,7 @@ public:
                 .add_binding<
                     vlk::graphics_uniform<scene::world_transformations>,
                     vlk::fragment_uniform<scene::light_source>,
+                    vlk::fragment_uniform<scene::texture_transform>,
                     vlk::fragment_uniform<vk::Sampler>>(4)
                 .build(device_, 4),
             128 * 1024},
@@ -551,6 +559,7 @@ public:
             uniform_pools_.make_pipeline_bindings<uniform_objects, 4,
                 vlk::graphics_uniform<scene::world_transformations>,
                 vlk::fragment_uniform<scene::light_source>,
+                vlk::fragment_uniform<scene::texture_transform>,
                 vlk::fragment_uniform<vk::Sampler>>(
                 device_, phydev_.getProperties().limits, uniforms_)},
         pipelines_{device_, *render_pass_, find_max_usable_samples(phydev_),
@@ -567,6 +576,7 @@ public:
         frame_done_{device_, vk::FenceCreateInfo{}} {
     uniforms_[cur_uniform_].world->camera =
         scene::setup_camera(swapchain_info.imageExtent);
+    *uniforms_[cur_uniform_].castle = {.position = {0, 12}, .scale = 6};
     *uniforms_[cur_uniform_].light = {.pos = {2., 5., 15.},
         .intense = 0.8,
         .ambient = 0.4,
@@ -620,6 +630,7 @@ private:
     if (cur_uniform_ != next_uniform) {
       *uniforms_[next_uniform].world = *uniforms_[cur_uniform_].world;
       *uniforms_[next_uniform].light = *uniforms_[cur_uniform_].light;
+      *uniforms_[next_uniform].castle = *uniforms_[cur_uniform_].castle;
       cur_uniform_ = next_uniform;
     }
     scene::update_world(ts, *uniforms_[cur_uniform_].world);
@@ -664,7 +675,7 @@ private:
   }
 
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
-    uniform_pools_.flush(descriptor_bindings_.flush_region(0));
+    uniform_pools_.flush(descriptor_bindings_.flush_region(cur_uniform_));
 
     const vk::PipelineStageFlags wait_stage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -707,6 +718,7 @@ private:
   std::array<uniform_objects, 4> uniforms_;
   vlk::pipeline_bindings<4, vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>,
+      vlk::fragment_uniform<scene::texture_transform>,
       vlk::fragment_uniform<vk::Sampler>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
