@@ -254,7 +254,7 @@ private:
   template <size_t... Is>
   constexpr static std::array<vk::raii::Buffer, sizeof...(Is)>
   default_construc_bufs_array(std::index_sequence<Is...>) noexcept {
-    return {vk::raii::Buffer{(Is, nullptr)}...};
+    return {vk::raii::Buffer{(static_cast<void>(Is), nullptr)}...};
   }
 
 private:
