@@ -75,6 +75,11 @@ zip_sfx(castle
   textures/castle-1hit.png
   textures/castle-2hit.png
   textures/castle-3hit.png
+
+  textures/catapult-platform.png
+  textures/catapult-arm.png
+  textures/catapult-front-wheel.png
+  textures/catapult-rare-wheel.png
 )
 
 add_subdirectory(vlk)
