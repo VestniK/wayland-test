@@ -141,22 +141,7 @@ public:
     auto res = arena_->aligned_allocate_unique<typename U::value_type>(
         std::align_val_t{std::max(min_align_, alignof(typename U::value_type))},
         std::forward<A>(a)...);
-    const auto obj_mem = object_bytes(*res);
-    ubo_mem_ = std::span(ubo_mem_.data() ? ubo_mem_.data() : obj_mem.data(),
-        obj_mem.data() + obj_mem.size());
-    const auto region = subspan_region(ubo_mem_, obj_mem);
-
-    write_desc_set_.push_back({.dstSet = nullptr,
-        .dstBinding = binding,
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = vk::DescriptorType::eUniformBuffer,
-        .pImageInfo = nullptr,
-        .pBufferInfo =
-            reinterpret_cast<vk::DescriptorBufferInfo*>(desc_buf_info_.size()),
-        .pTexelBufferView = nullptr});
-    desc_buf_info_.push_back(
-        {.buffer = nullptr, .offset = region.offset, .range = region.len});
+    bind_ubo<U>(binding, *res);
     return res;
   }
 
@@ -172,7 +157,7 @@ public:
         .dstBinding = binding,
         .dstArrayElement = 0,
         .descriptorCount = 1,
-        .descriptorType = vk::DescriptorType::eUniformBuffer,
+        .descriptorType = U::descriptor_type,
         .pImageInfo = nullptr,
         .pBufferInfo =
             reinterpret_cast<vk::DescriptorBufferInfo*>(desc_buf_info_.size()),
@@ -188,7 +173,7 @@ public:
         .dstBinding = binding,
         .dstArrayElement = 0,
         .descriptorCount = 1,
-        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+        .descriptorType = U::descriptor_type,
         .pImageInfo =
             reinterpret_cast<vk::DescriptorImageInfo*>(desc_img_info_.size()),
         .pBufferInfo = nullptr,
