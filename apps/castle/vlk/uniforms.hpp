@@ -95,6 +95,87 @@ struct uniform<S, combined_image_sampler> {
   }
 };
 
+template <vk::ShaderStageFlagBits S>
+struct uniform<S, vk::Sampler> {
+  using value_type = vk::Sampler;
+  static constexpr uint32_t count = 1;
+  static constexpr vk::ShaderStageFlags stages = S;
+  static constexpr vk::DescriptorType descriptor_type =
+      vk::DescriptorType::eSampler;
+
+  static constexpr vk::DescriptorSetLayoutBinding make_binding(
+      uint32_t binding_idx) {
+    return {
+        .binding = binding_idx,
+        .descriptorType = descriptor_type,
+        .descriptorCount = count,
+        .stageFlags = stages,
+        .pImmutableSamplers = nullptr,
+    };
+  }
+
+  static constexpr vk::DescriptorImageInfo make_descriptor_info(
+      const value_type& val) {
+    return {.sampler = val,
+        .imageView = nullptr,
+        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+  }
+};
+
+template <vk::ShaderStageFlagBits S>
+struct uniform<S, vk::ImageView> {
+  using value_type = vk::ImageView;
+  static constexpr uint32_t count = 1;
+  static constexpr vk::ShaderStageFlags stages = S;
+  static constexpr vk::DescriptorType descriptor_type =
+      vk::DescriptorType::eSampledImage;
+
+  static constexpr vk::DescriptorSetLayoutBinding make_binding(
+      uint32_t binding_idx) {
+    return {
+        .binding = binding_idx,
+        .descriptorType = descriptor_type,
+        .descriptorCount = count,
+        .stageFlags = stages,
+        .pImmutableSamplers = nullptr,
+    };
+  }
+
+  static constexpr vk::DescriptorImageInfo make_descriptor_info(
+      const value_type& val) {
+    return {.sampler = nullptr,
+        .imageView = val,
+        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+  }
+};
+
+template <vk::ShaderStageFlagBits S, size_t N>
+struct uniform<S, vk::ImageView[N]> {
+  using value_type = std::span<const vk::ImageView>;
+  static constexpr uint32_t count = N;
+  static constexpr vk::ShaderStageFlags stages = S;
+  static constexpr vk::DescriptorType descriptor_type =
+      vk::DescriptorType::eSampledImage;
+
+  static constexpr vk::DescriptorSetLayoutBinding make_binding(
+      uint32_t binding_idx) {
+    return {
+        .binding = binding_idx,
+        .descriptorType = descriptor_type,
+        .descriptorCount = count,
+        .stageFlags = stages,
+        .pImmutableSamplers = nullptr,
+    };
+  }
+
+  template <std::output_iterator<vk::DescriptorImageInfo> OIt>
+  static constexpr void make_descriptor_info(const value_type& val, OIt oit) {
+    assert(val.size() == count);
+    std::ranges::transform(
+        val, oit, uniform<S, vk::ImageView>::make_descriptor_info);
+  }
+};
+
 template <typename T>
 using vertex_uniform = uniform<vk::ShaderStageFlagBits::eVertex, T>;
 template <typename T>
@@ -217,7 +298,10 @@ public:
             reinterpret_cast<vk::DescriptorImageInfo*>(desc_img_info_.size()),
         .pBufferInfo = nullptr,
         .pTexelBufferView = nullptr});
-    desc_img_info_.push_back(U::make_descriptor_info(val));
+    if constexpr (U::count == 1)
+      desc_img_info_.push_back(U::make_descriptor_info(val));
+    else
+      U::make_descriptor_info(val, std::back_inserter(desc_img_info_));
   }
 
   void update(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set) {
