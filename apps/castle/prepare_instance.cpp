@@ -542,33 +542,32 @@ struct uniform_objects {
     world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
     light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
     castle = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(2);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        3, castle_sampler, castle_texture_view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        4, catapult.fwheel.sampler, catapult.fwheel.view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        5, catapult.rwheel.sampler, catapult.rwheel.view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        6, catapult.platform.sampler, catapult.platform.view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        7, catapult.arm.sampler, catapult.arm.view);
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        3, {castle_sampler, castle_texture_view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        4, {catapult.fwheel.sampler, catapult.fwheel.view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        5, {catapult.rwheel.sampler, catapult.rwheel.view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        6, {catapult.platform.sampler, catapult.platform.view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        7, {catapult.arm.sampler, catapult.arm.view});
   }
 
   void rebind(vlk::ubo_builder& bldr) {
-    bldr.bind_ubo<vlk::graphics_uniform<scene::world_transformations>>(
-        0, *world);
-    bldr.bind_ubo<vlk::fragment_uniform<scene::light_source>>(1, *light);
-    bldr.bind_ubo<vlk::fragment_uniform<scene::texture_transform>>(2, *castle);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        3, castle_sampler, castle_texture_view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        4, catapult.fwheel.sampler, catapult.fwheel.view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        5, catapult.rwheel.sampler, catapult.rwheel.view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        6, catapult.platform.sampler, catapult.platform.view);
-    bldr.bind_sampler<vlk::fragment_uniform<vk::Sampler>>(
-        7, catapult.arm.sampler, catapult.arm.view);
+    bldr.bind<vlk::graphics_uniform<scene::world_transformations>>(0, *world);
+    bldr.bind<vlk::fragment_uniform<scene::light_source>>(1, *light);
+    bldr.bind<vlk::fragment_uniform<scene::texture_transform>>(2, *castle);
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        3, {castle_sampler, castle_texture_view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        4, {catapult.fwheel.sampler, catapult.fwheel.view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        5, {catapult.rwheel.sampler, catapult.rwheel.view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        6, {catapult.platform.sampler, catapult.platform.view});
+    bldr.bind<vlk::fragment_uniform<vlk::combined_image_sampler>>(
+        7, {catapult.arm.sampler, catapult.arm.view});
   }
 };
 
@@ -588,11 +587,11 @@ public:
                     vlk::graphics_uniform<scene::world_transformations>,
                     vlk::fragment_uniform<scene::light_source>,
                     vlk::fragment_uniform<scene::texture_transform>,
-                    vlk::fragment_uniform<vk::Sampler>,
-                    vlk::fragment_uniform<vk::Sampler>,
-                    vlk::fragment_uniform<vk::Sampler>,
-                    vlk::fragment_uniform<vk::Sampler>,
-                    vlk::fragment_uniform<vk::Sampler>>(1)
+                    vlk::fragment_uniform<vlk::combined_image_sampler>,
+                    vlk::fragment_uniform<vlk::combined_image_sampler>,
+                    vlk::fragment_uniform<vlk::combined_image_sampler>,
+                    vlk::fragment_uniform<vlk::combined_image_sampler>,
+                    vlk::fragment_uniform<vlk::combined_image_sampler>>(1)
                 .build(device_, 1),
             128 * 1024},
         mempools_{device_, phydev_.getMemoryProperties(),
@@ -630,11 +629,11 @@ public:
                 vlk::graphics_uniform<scene::world_transformations>,
                 vlk::fragment_uniform<scene::light_source>,
                 vlk::fragment_uniform<scene::texture_transform>,
-                vlk::fragment_uniform<vk::Sampler>,
-                vlk::fragment_uniform<vk::Sampler>,
-                vlk::fragment_uniform<vk::Sampler>,
-                vlk::fragment_uniform<vk::Sampler>,
-                vlk::fragment_uniform<vk::Sampler>>(device_,
+                vlk::fragment_uniform<vlk::combined_image_sampler>,
+                vlk::fragment_uniform<vlk::combined_image_sampler>,
+                vlk::fragment_uniform<vlk::combined_image_sampler>,
+                vlk::fragment_uniform<vlk::combined_image_sampler>,
+                vlk::fragment_uniform<vlk::combined_image_sampler>>(device_,
                 phydev_.getProperties().limits,
                 std::span<uniform_objects, 1>{&uniforms_, 1})},
         pipelines_{device_, *render_pass_, find_max_usable_samples(phydev_),
@@ -813,9 +812,11 @@ private:
   vlk::pipeline_bindings<1, vlk::graphics_uniform<scene::world_transformations>,
       vlk::fragment_uniform<scene::light_source>,
       vlk::fragment_uniform<scene::texture_transform>,
-      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>,
-      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<vk::Sampler>,
-      vlk::fragment_uniform<vk::Sampler>>
+      vlk::fragment_uniform<vlk::combined_image_sampler>,
+      vlk::fragment_uniform<vlk::combined_image_sampler>,
+      vlk::fragment_uniform<vlk::combined_image_sampler>,
+      vlk::fragment_uniform<vlk::combined_image_sampler>,
+      vlk::fragment_uniform<vlk::combined_image_sampler>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;

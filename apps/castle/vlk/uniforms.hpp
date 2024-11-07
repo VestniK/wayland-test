@@ -15,6 +15,38 @@ using unique_ptr = monotonic_arena<mapped_memory>::unique_ptr<T>;
 
 }
 
+struct combined_image_sampler {
+  vk::Sampler sampler;
+  vk::ImageView image;
+};
+
+constexpr bool is_image_descriptor_type(vk::DescriptorType type) noexcept {
+  using enum vk::DescriptorType;
+  switch (type) {
+  case eCombinedImageSampler:
+  case eSampler:
+  case eSampledImage:
+  case eStorageImage:
+  case eSampleWeightImageQCOM:
+  case eBlockMatchImageQCOM:
+    return true;
+
+  case eUniformBuffer:
+  case eUniformTexelBuffer:
+  case eStorageTexelBuffer:
+  case eUniformBufferDynamic:
+  case eStorageBufferDynamic:
+  case eInlineUniformBlock:
+  case eInputAttachment:
+  case eStorageBuffer:
+  case eAccelerationStructureKHR:
+  case eAccelerationStructureNV:
+  case eMutableEXT:
+    break;
+  }
+  return false;
+}
+
 template <vk::ShaderStageFlagBits S, typename T>
 struct uniform {
   using value_type = T;
@@ -28,7 +60,7 @@ struct uniform {
       uint32_t binding_idx) {
     return {
         .binding = binding_idx,
-        .descriptorType = vk::DescriptorType::eUniformBuffer,
+        .descriptorType = descriptor_type,
         .descriptorCount = count,
         .stageFlags = stages,
         .pImmutableSamplers = nullptr,
@@ -37,8 +69,8 @@ struct uniform {
 };
 
 template <vk::ShaderStageFlagBits S>
-struct uniform<S, vk::Sampler> {
-  using value_type = vk::Sampler;
+struct uniform<S, combined_image_sampler> {
+  using value_type = combined_image_sampler;
   static constexpr uint32_t count = 1;
   static constexpr vk::ShaderStageFlags stages = S;
   static constexpr vk::DescriptorType descriptor_type =
@@ -48,11 +80,18 @@ struct uniform<S, vk::Sampler> {
       uint32_t binding_idx) {
     return {
         .binding = binding_idx,
-        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+        .descriptorType = descriptor_type,
         .descriptorCount = count,
         .stageFlags = stages,
         .pImmutableSamplers = nullptr,
     };
+  }
+
+  static constexpr vk::DescriptorImageInfo make_descriptor_info(
+      const value_type& val) {
+    return {.sampler = val.sampler,
+        .imageView = val.image,
+        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
   }
 };
 
@@ -135,19 +174,19 @@ public:
       : arena_{}, min_align_{0}, ubo_mem_{allocated_ubo} {}
 
   template <uniform_type U, typename... A>
-    requires(U::descriptor_type == vk::DescriptorType::eUniformBuffer) &&
+    requires(!is_image_descriptor_type(U::descriptor_type)) &&
             std::constructible_from<typename U::value_type, A...>
   typename U::pointer create(uint32_t binding, A&&... a) {
     auto res = arena_->aligned_allocate_unique<typename U::value_type>(
         std::align_val_t{std::max(min_align_, alignof(typename U::value_type))},
         std::forward<A>(a)...);
-    bind_ubo<U>(binding, *res);
+    bind<U>(binding, *res);
     return res;
   }
 
   template <uniform_type U>
-    requires(U::descriptor_type == vk::DescriptorType::eUniformBuffer)
-  void bind_ubo(uint32_t binding, const typename U::value_type& val) {
+    requires(!is_image_descriptor_type(U::descriptor_type))
+  void bind(uint32_t binding, const typename U::value_type& val) {
     const auto obj_mem = object_bytes(val);
     ubo_mem_ = std::span(ubo_mem_.data() ? ubo_mem_.data() : obj_mem.data(),
         obj_mem.data() + obj_mem.size());
@@ -156,7 +195,7 @@ public:
     write_desc_set_.push_back({.dstSet = nullptr,
         .dstBinding = binding,
         .dstArrayElement = 0,
-        .descriptorCount = 1,
+        .descriptorCount = U::count,
         .descriptorType = U::descriptor_type,
         .pImageInfo = nullptr,
         .pBufferInfo =
@@ -167,20 +206,18 @@ public:
   }
 
   template <uniform_type U>
-    requires(U::descriptor_type == vk::DescriptorType::eCombinedImageSampler)
-  void bind_sampler(uint32_t binding, vk::Sampler sampler, vk::ImageView img) {
+    requires(is_image_descriptor_type(U::descriptor_type))
+  void bind(uint32_t binding, const typename U::value_type& val) {
     write_desc_set_.push_back({.dstSet = nullptr,
         .dstBinding = binding,
         .dstArrayElement = 0,
-        .descriptorCount = 1,
+        .descriptorCount = U::count,
         .descriptorType = U::descriptor_type,
         .pImageInfo =
             reinterpret_cast<vk::DescriptorImageInfo*>(desc_img_info_.size()),
         .pBufferInfo = nullptr,
         .pTexelBufferView = nullptr});
-    desc_img_info_.push_back({.sampler = sampler,
-        .imageView = img,
-        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal});
+    desc_img_info_.push_back(U::make_descriptor_info(val));
   }
 
   void update(vk::Device dev, vk::Buffer buf, vk::DescriptorSet set) {
@@ -189,11 +226,10 @@ public:
 
     for (auto& wrt : write_desc_set_) {
       wrt.dstSet = set;
-      if (wrt.descriptorType == vk::DescriptorType::eCombinedImageSampler) {
+      if (is_image_descriptor_type(wrt.descriptorType)) {
         wrt.pImageInfo =
             &desc_img_info_[reinterpret_cast<uintptr_t>(wrt.pImageInfo)];
-      }
-      if (wrt.descriptorType == vk::DescriptorType::eUniformBuffer) {
+      } else {
         wrt.pBufferInfo =
             &desc_buf_info_[reinterpret_cast<uintptr_t>(wrt.pBufferInfo)];
       }
