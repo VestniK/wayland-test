@@ -204,6 +204,8 @@ public:
         times * descriptors_count<U...>(eUniformBuffer);
     sizes_[1].descriptorCount +=
         times * descriptors_count<U...>(eCombinedImageSampler);
+    sizes_[2].descriptorCount += times * descriptors_count<U...>(eSampler);
+    sizes_[3].descriptorCount += times * descriptors_count<U...>(eSampledImage);
     return *this;
   }
 
@@ -223,11 +225,11 @@ private:
   template <uniform_type... U>
   static consteval uint32_t descriptors_count(
       vk::DescriptorType type) noexcept {
-    return ((U::descriptor_type == type ? 1 : 0) + ...);
+    return ((U::descriptor_type == type ? U::count : 0) + ...);
   }
 
 private:
-  std::array<vk::DescriptorPoolSize, 2> sizes_{
+  std::array<vk::DescriptorPoolSize, 4> sizes_{
       vk::DescriptorPoolSize{.type = eUniformBuffer, .descriptorCount = 0},
       vk::DescriptorPoolSize{
           .type = eCombinedImageSampler, .descriptorCount = 0}};

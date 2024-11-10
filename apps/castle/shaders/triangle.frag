@@ -13,15 +13,14 @@ layout(binding = 1) uniform light_source {
   float attenuation;
 } light;
 
-layout(binding = 2) uniform texture_transform {
-  mat4 models[5];
-} textr;
+layout(binding = 2) uniform sampler sprite_smp;
 
-layout(binding = 3) uniform sampler2D castle;
-layout(binding = 4) uniform sampler2D catapult_fwheel;
-layout(binding = 5) uniform sampler2D catapult_rwheel;
-layout(binding = 6) uniform sampler2D catapult_platform;
-layout(binding = 7) uniform sampler2D catapult_arm;
+#define SPRITES_COUNT 5
+layout(binding = 3) uniform sprites_transform {
+  mat4 models[SPRITES_COUNT];
+} sprites_tr;
+
+layout(binding = 4) uniform texture2D sprites[SPRITES_COUNT];
 
 layout(location = 0) in vec3 frag_normal;
 layout(location = 1) in vec3 frag_pos;
@@ -45,20 +44,13 @@ void main() {
   float bluefactor = clamp(smoothstep(0., 0.05, net_dist), 0.9, 1.0);
   vec3 color = vec3(grayfactor, grayfactor, bluefactor);
 
-  vec4 castle_tex = texture(castle, (textr.models[0]*vec4(frag_uv, 0, 1)).xy);
-  color = mix(color, castle_tex.rgb, castle_tex.a);
-
-  vec4 arm_tex = texture(catapult_arm, (textr.models[4]*vec4(frag_uv, 0, 1)).xy);
-  color = mix(color, arm_tex.rgb, arm_tex.a);
-
-  vec4 pt_tex = texture(catapult_platform, (textr.models[3]*vec4(frag_uv, 0, 1)).xy);
-  color = mix(color, pt_tex.rgb, pt_tex.a);
-
-  vec4 fw_tex = texture(catapult_fwheel, (textr.models[1]*vec4(frag_uv, 0, 1)).xy);
-  color = mix(color, fw_tex.rgb, fw_tex.a);
-
-  vec4 rw_tex = texture(catapult_rwheel, (textr.models[2]*vec4(frag_uv, 0, 1)).xy);
-  color = mix(color, rw_tex.rgb, rw_tex.a);
+  for (int i = 0; i < SPRITES_COUNT; i++) {
+    vec4 sprite_color = texture(
+      sampler2D(sprites[i], sprite_smp),
+      (sprites_tr.models[i]*vec4(frag_uv, 0, 1)).xy
+    );
+    color = mix(color, sprite_color.rgb, sprite_color.a);
+  }
 
   out_color = vec4(
     phong_reflect(
