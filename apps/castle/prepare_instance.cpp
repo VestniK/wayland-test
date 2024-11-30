@@ -10,8 +10,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -26,6 +24,9 @@
 #include <apps/castle/vlk/pipelines.hpp>
 #include <apps/castle/vlk/presentation.hpp>
 #include <apps/castle/vlk/uniforms.hpp>
+#include <apps/castle/vlk/vertex.hpp>
+
+#include "scene.hpp"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -41,122 +42,8 @@ using namespace std::literals;
 
 namespace {
 
-template <vlk::vertex_attributes Vertex, std::integral Idx>
-struct mesh_data_view {
-  std::span<const Vertex> vertices;
-  std::span<const Idx> indices;
-};
-
-template <vlk::vertex_attributes Vertex, std::integral Idx>
-struct mesh_data {
-  std::vector<Vertex> vertices;
-  std::vector<Idx> indices;
-
-  operator mesh_data_view<Vertex, Idx>() const noexcept {
-    return {.vertices = vertices, .indices = indices};
-  }
-};
-
-namespace scene {
-
-struct vertex {
-  glm::vec3 position;
-  glm::vec3 normal;
-  glm::vec2 uv;
-
-  constexpr static vk::VertexInputBindingDescription
-  binding_description() noexcept {
-    return vk::VertexInputBindingDescription{.binding = 0,
-        .stride = sizeof(vertex),
-        .inputRate = vk::VertexInputRate::eVertex};
-  }
-
-  constexpr static std::array<vk::VertexInputAttributeDescription, 3>
-  attribute_description() noexcept {
-    return {
-        vk::VertexInputAttributeDescription{.location = 0,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::position))},
-        vk::VertexInputAttributeDescription{.location = 1,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::normal))},
-        vk::VertexInputAttributeDescription{.location = 2,
-            .binding = 0,
-            .format = vk::Format::eR32G32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::uv))}};
-  }
-};
-
-struct world_transformations {
-  glm::mat4 camera;
-  glm::mat4 model;
-  glm::mat4 norm_rotation;
-};
-
-struct texture_transform {
-  glm::mat4 models[5];
-};
-
-struct light_source {
-  glm::vec3 pos;
-  float intense;
-  float ambient;
-  float attenuation;
-};
-
-void update_world(
-    frames_clock::time_point ts, world_transformations& world) noexcept {
-  using namespace std::literals;
-  const float phase =
-      static_cast<float>(2 * M_PI * (ts.time_since_epoch() % 5s).count() /
-                         float(frames_clock::duration{5s}.count()));
-  const auto model =
-      glm::translate(glm::mat4{1.}, glm::vec3{std::cos(phase), 0., 0.});
-  world.model = model;
-  world.norm_rotation = glm::transpose(glm::inverse(glm::mat3(model)));
-}
-
-static glm::mat4 setup_camera(vk::Extent2D sz) noexcept {
-  constexpr auto camera_pos = glm::vec3{0., 0., 40.};
-  constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
-  constexpr auto camera_look_at = glm::vec3{10., 10., 0.};
-  return glm::perspectiveFov<float>(
-             M_PI / 6., sz.width, sz.height, 20.f, 60.f) *
-         glm::lookAt(camera_pos, camera_look_at, camera_up_direction);
-}
-
-mesh_data<vertex, uint16_t> make_paper() {
-  mesh_data<vertex, uint16_t> res;
-
-  constexpr int x_segments = 170;
-  constexpr int y_segments = 210;
-  auto pos2idx = [](int x, int y) -> uint16_t { return y * x_segments + x; };
-
-  for (int y = 0; y < y_segments; ++y) {
-    for (int x = 0; x < x_segments; ++x) {
-      res.vertices.push_back({.position = {0.1 * x, 0.1 * y, 0.},
-          .normal = {0., 0., 1.},
-          .uv = {0.1 * x, 0.1 * y}});
-      if (y > 0 && x < x_segments - 1) {
-        res.indices.push_back(pos2idx(x, y - 1));
-        res.indices.push_back(pos2idx(x + 1, y - 1));
-        res.indices.push_back(pos2idx(x, y));
-
-        res.indices.push_back(pos2idx(x + 1, y - 1));
-        res.indices.push_back(pos2idx(x + 1, y));
-        res.indices.push_back(pos2idx(x, y));
-      }
-    }
-  }
-  return res;
-}
-
 constexpr vk::ClearValue clear_color{
     .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
-
-} // namespace scene
 
 template <typename T, typename Cmp, typename... A>
 constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
@@ -415,7 +302,7 @@ class mesh {
 public:
   mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
       const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
-      mesh_data_view<scene::vertex, uint16_t> data)
+      vlk::mesh_data_view<scene::vertex, uint16_t> data)
       : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
             vlk::memory_pools::vbo,
             pools.allocate_staging_memory(std::as_bytes(data.vertices)))},
@@ -717,7 +604,7 @@ private:
             .framebuffer = fb,
             .renderArea = {.offset = {0, 0}, .extent = render_target_.extent()},
             .clearValueCount = 1,
-            .pClearValues = &scene::clear_color},
+            .pClearValues = &clear_color},
         vk::SubpassContents::eInline);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines_[0]);
 

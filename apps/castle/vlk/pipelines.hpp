@@ -6,18 +6,9 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace vlk {
+#include "vertex.hpp"
 
-template <typename Vertex>
-concept vertex_attributes = requires(Vertex v) {
-  {
-    Vertex::binding_description()
-  } -> std::convertible_to<vk::VertexInputBindingDescription>;
-  {
-    Vertex::attribute_description()
-  }
-  -> std::convertible_to<std::span<const vk::VertexInputAttributeDescription>>;
-};
+namespace vlk {
 
 struct shader_sources {
   std::span<const std::byte> vertex;
