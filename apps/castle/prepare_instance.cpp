@@ -442,12 +442,10 @@ struct uniform_objects {
 class render_environment : public renderer_iface {
 public:
   render_environment(vk::raii::Instance inst, vk::raii::PhysicalDevice dev,
-      vk::raii::SurfaceKHR surf, uint32_t graphics_queue_family,
-      uint32_t presentation_queue_family,
-      vk::SwapchainCreateInfoKHR swapchain_info)
+      vk::raii::SurfaceKHR surf, device_rendering_params params)
       : instance_{std::move(inst)}, phydev_{std::move(dev)},
-        device_{create_logical_device(
-            phydev_, graphics_queue_family, presentation_queue_family)},
+        device_{create_logical_device(phydev_, params.queue_families.graphics,
+            params.queue_families.presentation)},
         uniform_pools_{device_, phydev_.getMemoryProperties(),
             phydev_.getProperties().limits,
             vlk::descriptor_pool_builder{}
@@ -465,13 +463,15 @@ public:
                 .ibo_capacity = 2 * 1024 * 1024,
                 .textures_capacity = 256 * 1024 * 1024,
                 .staging_size = 64 * 1024 * 1024}},
-        render_pass_{make_render_pass(device_, swapchain_info.imageFormat,
-            find_max_usable_samples(phydev_))},
+        render_pass_{
+            make_render_pass(device_, params.swapchain_info.imageFormat,
+                find_max_usable_samples(phydev_))},
         render_target_{device_, phydev_.getMemoryProperties(),
-            presentation_queue_family, std::move(surf), swapchain_info,
-            *render_pass_, find_max_usable_samples(phydev_)},
+            params.queue_families.presentation, std::move(surf),
+            params.swapchain_info, *render_pass_,
+            find_max_usable_samples(phydev_)},
 
-        cmd_buffs_{device_, graphics_queue_family},
+        cmd_buffs_{device_, params.queue_families.graphics},
         uniforms_{device_, phydev_.getProperties().limits,
             {load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
                  cmd_buffs_.front(), "textures/castle-0hit.png"),
@@ -510,7 +510,8 @@ public:
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
         frame_done_{device_, vk::FenceCreateInfo{}} {
-    uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
+    uniforms_.world->camera =
+        scene::setup_camera(params.swapchain_info.imageExtent);
     uniforms_.castle->models[0] = glm::translate(
         glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
     *uniforms_.light = {.pos = {2., 5., 15.},
@@ -686,16 +687,14 @@ private:
   vk::raii::Fence frame_done_;
 };
 
-render_environment setup_suitable_device(
-    vk::raii::Instance inst, vk::raii::SurfaceKHR surf, vk::Extent2D sz) {
+auto select_suitable_device(
+    const vk::raii::Instance& inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
   for (vk::raii::PhysicalDevice dev : inst.enumeratePhysicalDevices()) {
-      if (auto params = device_rendering_params::choose(*dev, *surf, sz)) {
-        spdlog::info("Using Vulkan device: {}",
-            std::string_view{dev.getProperties().deviceName});
-        return render_environment{std::move(inst), std::move(dev),
-            std::move(surf), params->queue_families.graphics,
-            params->queue_families.presentation, params->swapchain_info};
-      }
+    if (auto params = device_rendering_params::choose(*dev, surf, sz)) {
+      spdlog::info("Using Vulkan device: {}",
+          std::string_view{dev.getProperties().deviceName});
+      return std::pair{dev, *params};
+    }
     spdlog::debug("Vulkan device '{}' is rejected",
         std::string_view{dev.getProperties().deviceName});
   }
@@ -705,13 +704,15 @@ render_environment setup_suitable_device(
 
 } // namespace
 
-std::unique_ptr<renderer_iface> prepare_instance(
+std::unique_ptr<renderer_iface> make_vk_renderer(
     wl_display& display, wl_surface& surf, size sz) {
   vk::raii::Instance inst = create_instance();
   vk::raii::SurfaceKHR vk_surf{
       inst, vk::WaylandSurfaceCreateInfoKHR{
                 .flags = {}, .display = &display, .surface = &surf}};
 
-  return std::make_unique<render_environment>(setup_suitable_device(
-      std::move(inst), std::move(vk_surf), as_extent(sz)));
+  auto [dev, params] = select_suitable_device(inst, *vk_surf, as_extent(sz));
+
+  return std::make_unique<render_environment>(
+      std::move(inst), std::move(dev), std::move(vk_surf), params);
 }

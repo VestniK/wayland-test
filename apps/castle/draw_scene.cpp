@@ -18,7 +18,7 @@ static_assert(renderer<renderer_iface>);
 animation_function make_vk_animation_function() {
   return [](wl_display& display, wl_surface& surf, vsync_frames& frames,
              value_update_channel<size>& resize_channel) {
-    auto render = prepare_instance(display, surf, resize_channel.get_current());
+    auto render = make_vk_renderer(display, surf, resize_channel.get_current());
     render->draw({});
     for (auto ts : frames) {
       if (const auto sz = resize_channel.get_update()) {

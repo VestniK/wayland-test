@@ -14,5 +14,5 @@ struct renderer_iface {
   virtual ~renderer_iface() noexcept = default;
 };
 
-std::unique_ptr<renderer_iface> prepare_instance(
+std::unique_ptr<renderer_iface> make_vk_renderer(
     wl_display& display, wl_surface& surf, size sz);
