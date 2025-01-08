@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libs/memtricks/array.hpp>
+#include <libs/memtricks/arity.hpp>
 #include <libs/memtricks/monotonic_arena.hpp>
 #include <libs/memtricks/object_bytes.hpp>
 

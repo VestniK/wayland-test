@@ -17,6 +17,7 @@
 #include <libs/img/load.hpp>
 #include <libs/memtricks/member.hpp>
 #include <libs/memtricks/projections.hpp>
+#include <libs/memtricks/sorted_array.hpp>
 #include <libs/sfx/sfx.hpp>
 
 #include <apps/castle/vlk/buf.hpp>
@@ -44,13 +45,6 @@ namespace {
 
 constexpr vk::ClearValue clear_color{
     .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
-
-template <typename T, typename Cmp, typename... A>
-constexpr auto make_sorted_array(Cmp&& cmp, A&&... a) {
-  std::array<T, sizeof...(A)> res{T{std::forward<A>(a)}...};
-  std::ranges::sort(res, cmp);
-  return res;
-}
 
 constexpr std::array<const char*, 2> required_extensions{
     VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME};
