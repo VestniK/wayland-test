@@ -63,6 +63,9 @@ struct light_source {
 void update_world(
     frames_clock::time_point ts, world_transformations& world) noexcept;
 
+std::array<glm::mat4, 4> calculate_catapult_transformations(
+    glm::vec2 center, float arm_phase, float shift) noexcept;
+
 glm::mat4 setup_camera(vk::Extent2D sz) noexcept;
 
 vlk::mesh_data<vertex, uint16_t> make_paper();

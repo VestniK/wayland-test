@@ -566,26 +566,13 @@ private:
       descriptor_bindings_.update(0, *device_, uniforms_);
     }
     scene::update_world(ts, *uniforms_.world);
-    uniforms_.transformations->models[1] = glm::translate(
-        glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
-            float_time::seconds(ts.time_since_epoch()) / 1s, {0, 0, 1}),
-        {-7, -5, 0});
-    uniforms_.transformations->models[2] = glm::translate(
-        glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
-            float_time::seconds(ts.time_since_epoch()) / 1s, {0, 0, 1}),
-        {-10.2, -5, 0});
-    uniforms_.transformations->models[3] = glm::translate(
-        glm::scale(glm::mat4{1.}, {1. / 2.5, 1, 1}), {-7.35, -4.5, 0});
-    uniforms_.transformations->models[4] = glm::translate(
-        glm::rotate(
-            glm::translate(glm::scale(glm::mat4{1.}, {1. / 2.9, 1 / 1.2, 1}),
-                {0.5, 0.5, 0}),
-            static_cast<float>(
-                M_PI / 4. +
-                (M_PI / 10.) *
-                    sin(float_time::seconds(ts.time_since_epoch()) / 700ms)),
-            {0, 0, 1}),
-        {-8.3, -4.6, 0});
+
+    std::ranges::copy(
+        scene::calculate_catapult_transformations({-7, -5},
+            std::sin(M_2_PI * float_time::seconds(ts.time_since_epoch()) / 1s),
+            std::sin(float_time::seconds(ts.time_since_epoch()) / 700ms)),
+        std::next(std::begin(uniforms_.transformations->models)));
+
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }

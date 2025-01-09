@@ -14,6 +14,35 @@ void update_world(
   world.norm_rotation = glm::transpose(glm::inverse(glm::mat3(model)));
 }
 
+std::array<glm::mat4, 4> calculate_catapult_transformations(
+    glm::vec2 center, float arm_phase, float shift) noexcept {
+
+  constexpr float wheel_radius = 0.5;
+  const float wheel_angle = shift / wheel_radius;
+
+  return std::array<glm::mat4, 4>{// front wheel
+      glm::translate(glm::rotate(glm::translate(glm::mat4{1.},
+                                     {wheel_radius, wheel_radius, 0}),
+                         wheel_angle, {0, 0, 1}),
+          glm::vec3{center.x + shift, center.y, 0.}),
+      // rear wheel
+      glm::translate(glm::rotate(glm::translate(glm::mat4{1.},
+                                     {wheel_radius, wheel_radius, 0}),
+                         wheel_angle, {0, 0, 1}),
+          glm::vec3{center.x + shift - 3.2, center.y, 0.}),
+      // body
+      glm::translate(glm::scale(glm::mat4{1.}, {1. / 2.5, 1, 1}),
+          {center.x - .35 + shift, center.y + .5, 0}),
+      // arm
+      glm::translate(
+          glm::rotate(
+              glm::translate(glm::scale(glm::mat4{1.}, {1. / 2.9, 1 / 1.2, 1}),
+                  {0.5, 0.5, 0}),
+              static_cast<float>(M_PI / 4. + (M_PI / 10.) * arm_phase),
+              {0, 0, 1}),
+          {center.x + shift - 1.3, center.y + 0.4, 0})};
+}
+
 glm::mat4 setup_camera(vk::Extent2D sz) noexcept {
   constexpr auto camera_pos = glm::vec3{0., 0., 40.};
   constexpr auto camera_up_direction = glm::vec3{0., 1., 0.};
