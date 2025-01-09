@@ -10,7 +10,6 @@
 #include <libs/cli/struct_args.hpp>
 
 #include <apps/castle/draw_scene.hpp>
-#include <apps/castle/setup_logger.hpp>
 
 #include <libs/corort/executors.hpp>
 
@@ -41,7 +40,6 @@ asio::awaitable<int> main(
     co_return EXIT_SUCCESS;
   }
   const auto opt = args::parse<opts>(args);
-  setup_logger();
 
   co_await draw_scene(io_exec, pool_exec, opt.display);
 

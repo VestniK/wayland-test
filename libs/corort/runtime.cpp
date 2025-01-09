@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <span>
 #include <thread>
 #include <variant>
@@ -9,7 +10,28 @@
 #include <asio/io_service.hpp>
 #include <asio/static_thread_pool.hpp>
 
+#include <spdlog/cfg/env.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/systemd_sink.h>
+#include <spdlog/spdlog.h>
+
 #include <libs/corort/executors.hpp>
+
+namespace {
+
+void setup_logger(const std::string& app_name) {
+  auto journald =
+      std::make_shared<spdlog::sinks::systemd_sink_mt>(app_name, true);
+  spdlog::default_logger()->sinks() = {journald};
+#if !defined(NDEBUG)
+  auto term = std::make_shared<spdlog::sinks::stderr_color_sink_mt>(
+      spdlog::color_mode::automatic);
+  spdlog::default_logger()->sinks().push_back(term);
+#endif
+  spdlog::cfg::load_env_levels();
+}
+
+} // namespace
 
 namespace co {
 
@@ -20,6 +42,8 @@ extern unsigned min_threads;
 } // namespace co
 
 int main(int argc, char** argv) {
+  setup_logger(std::filesystem::path{argv[0]}.filename().string());
+
   asio::io_service io;
   asio::static_thread_pool pool{
       std::max(co::min_threads, std::thread::hardware_concurrency()) - 1};

@@ -4,9 +4,6 @@ find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(VulkanHeaders REQUIRED)
 
-find_package(PkgConfig)
-pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
-
 cpp_unit(
   NAME castle
   STD cxx_std_23
@@ -16,7 +13,6 @@ cpp_unit(
     corort
     fmt::fmt
     img
-    PkgConfig::SYSTEMD
     sfx
     spdlog::spdlog
     vlk

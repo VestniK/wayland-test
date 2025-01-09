@@ -12,7 +12,6 @@
 #include <apps/colorcube/controller.hpp>
 #include <apps/colorcube/draw_scene.hpp>
 #include <apps/colorcube/listen_gamepad.hpp>
-#include <apps/colorcube/setup_logger.hpp>
 
 #include <libs/corort/executors.hpp>
 
@@ -43,7 +42,6 @@ asio::awaitable<int> main(
     co_return EXIT_SUCCESS;
   }
   const auto opt = args::parse<opts>(args);
-  setup_logger();
 
   scene::controller controller;
   co_await (draw_scene(io_exec, pool_exec, controller, opt.display) ||
