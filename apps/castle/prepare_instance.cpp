@@ -396,7 +396,7 @@ struct uniform_objects {
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
-  vlk::ubo::unique_ptr<scene::texture_transform> castle;
+  vlk::ubo::unique_ptr<scene::texture_transform> transformations;
 
   vk::raii::Sampler sampler;
   std::array<vk::raii::Image, 4> castle_textures;
@@ -416,7 +416,8 @@ struct uniform_objects {
     world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
     light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
     bldr.bind<vlk::fragment_uniform<vk::Sampler>>(2, *sampler);
-    castle = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(3);
+    transformations =
+        bldr.create<vlk::fragment_uniform<scene::texture_transform>>(3);
     bldr.bind<vlk::fragment_uniform<vk::ImageView[5]>>(4, sprites);
   }
 
@@ -428,7 +429,8 @@ struct uniform_objects {
     bldr.bind<vlk::graphics_uniform<scene::world_transformations>>(0, *world);
     bldr.bind<vlk::fragment_uniform<scene::light_source>>(1, *light);
     bldr.bind<vlk::fragment_uniform<vk::Sampler>>(2, *sampler);
-    bldr.bind<vlk::fragment_uniform<scene::texture_transform>>(3, *castle);
+    bldr.bind<vlk::fragment_uniform<scene::texture_transform>>(
+        3, *transformations);
     bldr.bind<vlk::fragment_uniform<vk::ImageView[5]>>(4, sprites);
   }
 };
@@ -506,7 +508,7 @@ public:
         frame_done_{device_, vk::FenceCreateInfo{}} {
     uniforms_.world->camera =
         scene::setup_camera(params.swapchain_info.imageExtent);
-    uniforms_.castle->models[0] = glm::translate(
+    uniforms_.transformations->models[0] = glm::translate(
         glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
     *uniforms_.light = {.pos = {2., 5., 15.},
         .intense = 0.8,
@@ -564,17 +566,17 @@ private:
       descriptor_bindings_.update(0, *device_, uniforms_);
     }
     scene::update_world(ts, *uniforms_.world);
-    uniforms_.castle->models[1] = glm::translate(
+    uniforms_.transformations->models[1] = glm::translate(
         glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
             float_time::seconds(ts.time_since_epoch()) / 1s, {0, 0, 1}),
         {-7, -5, 0});
-    uniforms_.castle->models[2] = glm::translate(
+    uniforms_.transformations->models[2] = glm::translate(
         glm::rotate(glm::translate(glm::mat4{1.}, {0.5, 0.5, 0}),
             float_time::seconds(ts.time_since_epoch()) / 1s, {0, 0, 1}),
         {-10.2, -5, 0});
-    uniforms_.castle->models[3] =
-        glm::translate(glm::scale(glm::mat4{1.}, {1./2.5, 1, 1}), {-7.35, -4.5, 0});
-    uniforms_.castle->models[4] = glm::translate(
+    uniforms_.transformations->models[3] = glm::translate(
+        glm::scale(glm::mat4{1.}, {1. / 2.5, 1, 1}), {-7.35, -4.5, 0});
+    uniforms_.transformations->models[4] = glm::translate(
         glm::rotate(
             glm::translate(glm::scale(glm::mat4{1.}, {1. / 2.9, 1 / 1.2, 1}),
                 {0.5, 0.5, 0}),

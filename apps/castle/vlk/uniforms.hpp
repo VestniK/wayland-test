@@ -394,7 +394,7 @@ public:
 private:
   template <size_t... Is>
   constexpr static std::array<vk::raii::Buffer, sizeof...(Is)>
-  default_construc_bufs_array(std::index_sequence<Is...>) noexcept {
+  default_construct_bufs_array(std::index_sequence<Is...>) noexcept {
     return {vk::raii::Buffer{(static_cast<void>(Is), nullptr)}...};
   }
 
@@ -402,7 +402,7 @@ private:
   vk::raii::DescriptorSetLayout bindings_layout_;
   std::array<vk::DescriptorSet, N> desc_set_;
   std::array<vk::raii::Buffer, N> buf_ =
-      default_construc_bufs_array(std::make_index_sequence<N>{});
+      default_construct_bufs_array(std::make_index_sequence<N>{});
   std::array<std::span<const std::byte>, N> flush_region_;
 };
 
