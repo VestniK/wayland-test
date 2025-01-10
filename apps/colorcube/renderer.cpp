@@ -60,24 +60,19 @@ const GLuint cube_idxs[] = {
 };
 // clang-format on
 
-glm::mat4 animate_cube_pos(
-    glm::vec2 planar_pos, frames_clock::time_point ts) noexcept {
+glm::mat4 animate_cube_pos(glm::vec2 planar_pos, frames_clock::time_point ts) noexcept {
   constexpr auto period = 5s;
   constexpr auto flyght_period = 7s;
 
-  const GLfloat spin_phase = (ts.time_since_epoch() % period).count() /
-                             GLfloat(frames_clock::duration{period}.count());
-  const GLfloat flyght_phase =
-      (ts.time_since_epoch() % flyght_period).count() /
-      GLfloat(frames_clock::duration{flyght_period}.count());
+  const GLfloat spin_phase =
+      (ts.time_since_epoch() % period).count() / GLfloat(frames_clock::duration{period}.count());
+  const GLfloat flyght_phase = (ts.time_since_epoch() % flyght_period).count() /
+                               GLfloat(frames_clock::duration{flyght_period}.count());
 
   const GLfloat angle = 2 * M_PI * spin_phase;
 
-  return glm::translate(
-             glm::mat4{1.}, glm::vec3{planar_pos,
-                                3. + 2. * std::cos(2 * M_PI * flyght_phase)}) *
-         glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) *
-         glm::scale(glm::mat4{1.}, {.5, .5, .5});
+  return glm::translate(glm::mat4{1.}, glm::vec3{planar_pos, 3. + 2. * std::cos(2 * M_PI * flyght_phase)}) *
+         glm::rotate(glm::mat4{1.}, angle, {.5, .3, .1}) * glm::scale(glm::mat4{1.}, {.5, .5, .5});
 }
 
 } // namespace
@@ -85,10 +80,9 @@ glm::mat4 animate_cube_pos(
 scene_renderer::scene_renderer(const scene::controller& contr)
     : controller_{contr}, cube_{cube_vertices, cube_idxs} {
   using namespace mp_units::si::unit_symbols;
-  const auto land =
-      hexagon_tiles<vertex>::generate(5 * cm, 120, 80, [](glm::vec2 pt) {
-        return vertex{.position = {pt, 0.}, .normal = {0., 0., 1.}};
-      });
+  const auto land = hexagon_tiles<vertex>::generate(5 * cm, 120, 80, [](glm::vec2 pt) {
+    return vertex{.position = {pt, 0.}, .normal = {0., 0., 1.}};
+  });
   landscape_ = mesh{land.verticies(), land.indexes()};
 
   glEnable(GL_DEPTH_TEST);
@@ -102,9 +96,8 @@ void scene_renderer::resize(size sz) {
   constexpr auto camera_pos_ = glm::vec3{7., 12., 18.};
   constexpr auto camera_look_at = glm::vec3{3., 2., 0.};
   constexpr auto camera_up_direction_ = glm::vec3{0., 0., 1.};
-  camera_ =
-      glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f) *
-      glm::lookAt(camera_pos_, camera_look_at, camera_up_direction_);
+  camera_ = glm::perspectiveFov<float>(M_PI / 6., sz.width, sz.height, 10.f, 35.f) *
+            glm::lookAt(camera_pos_, camera_look_at, camera_up_direction_);
 }
 
 void scene_renderer::draw(clock::time_point ts) {
@@ -120,8 +113,7 @@ void scene_renderer::draw(clock::time_point ts) {
   // calculate uniforms
   const auto landscape_color = landscape_color_.animate(ts);
   const auto cube_color = cube_color_.animate(ts);
-  const glm::mat4 model =
-      animate_cube_pos(cube_pos_integrator_(cube_vel, ts), ts);
+  const glm::mat4 model = animate_cube_pos(cube_pos_integrator_(cube_vel, ts), ts);
 
   // do render
   {

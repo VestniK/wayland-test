@@ -23,32 +23,29 @@ using namespace std::literals;
 namespace {
 
 struct opts {
-  std::vector<fs::path> input = args::option<std::vector<fs::path>>(
-      "-i", "--input", "input GLSL shader file to process");
-  fs::path output = args::option<fs::path>(
-      "-o", "--output", "output C++ source with string constans");
-  fs::path header = args::option<fs::path>(
-      "--header", "output C++ header with shader constants");
-  fs::path incdir = args::option<fs::path>("-I", "--include-dir",
-      "path to a directory where to search files from @include statement");
-  std::optional<fs::path> depfile =
-      args::option<std::optional<fs::path>>("-d", "--depfile",
-          "output depfile to inform build system about @include dependencies");
+  std::vector<fs::path> input =
+      args::option<std::vector<fs::path>>("-i", "--input", "input GLSL shader file to process");
+  fs::path output = args::option<fs::path>("-o", "--output", "output C++ source with string constans");
+  fs::path header = args::option<fs::path>("--header", "output C++ header with shader constants");
+  fs::path incdir = args::option<fs::path>(
+      "-I", "--include-dir", "path to a directory where to search files from @include statement"
+  );
+  std::optional<fs::path> depfile = args::option<std::optional<fs::path>>(
+      "-d", "--depfile", "output depfile to inform build system about @include dependencies"
+  );
 };
 
 std::ifstream ifopen(const fs::path& path) {
   std::ifstream in{path};
   if (!in)
-    throw std::system_error{errno, std::system_category(),
-        fmt::format("std::ifstream{{{}}}", path.string())};
+    throw std::system_error{errno, std::system_category(), fmt::format("std::ifstream{{{}}}", path.string())};
   return in;
 }
 
 std::ofstream ofopen(const fs::path& path) {
   std::ofstream out{path};
   if (!out)
-    throw std::system_error{errno, std::system_category(),
-        fmt::format("std::ofstream{{{}}}", path.string())};
+    throw std::system_error{errno, std::system_category(), fmt::format("std::ofstream{{{}}}", path.string())};
   return out;
 }
 
@@ -64,8 +61,9 @@ struct shaders {
   std::map<std::string, std::vector<size_t>> inputs;
 };
 
-shaders split_shaders(std::span<const fs::path> inputs, const fs::path& incdir,
-    std::optional<std::ofstream>& depfile) {
+shaders split_shaders(
+    std::span<const fs::path> inputs, const fs::path& incdir, std::optional<std::ofstream>& depfile
+) {
   auto resolver = [&](const std::filesystem::path& inc) {
     const auto resolved = incdir / inc;
     if (depfile)
@@ -77,8 +75,7 @@ shaders split_shaders(std::span<const fs::path> inputs, const fs::path& incdir,
   shader_pieces_builder builder;
   for (const auto& input : inputs) {
     std::ifstream in = ifopen(input);
-    res.inputs[filename_without_extensions(input)] =
-        builder.parse_shader(in, resolver);
+    res.inputs[filename_without_extensions(input)] = builder.parse_shader(in, resolver);
   }
   res.strings = std::move(builder).finish();
   return res;
@@ -91,25 +88,29 @@ void write_src(const shaders& shaders, const fs::path& output) {
   out << "namespace shaders {\n\n";
   out << "namespace {\n";
 
-  fmt::print(out, R"FMT(
+  fmt::print(
+      out, R"FMT(
 constexpr const char* shader_strings[] = {{
   {}
 }};
 )FMT",
-      fmt::join(shaders.strings | std::views::transform([](auto&& v) {
-        return fmt::format("R\"GLSL({})GLSL\"", v);
-      }),
-          ",\n\n  "));
+      fmt::join(
+          shaders.strings |
+              std::views::transform([](auto&& v) { return fmt::format("R\"GLSL({})GLSL\"", v); }),
+          ",\n\n  "
+      )
+  );
 
   for (const auto& [name, idxs] : shaders.inputs) {
-    fmt::print(out, R"FMT(
+    fmt::print(
+        out, R"FMT(
 constexpr const char* {}_arr[] = {{{}}};
 )FMT",
         name,
-        fmt::join(idxs | std::views::transform([](size_t i) {
-          return fmt::format("shader_strings[{}]", i);
-        }),
-            ", "));
+        fmt::join(
+            idxs | std::views::transform([](size_t i) { return fmt::format("shader_strings[{}]", i); }), ", "
+        )
+    );
   }
 
   out << "\n} // namespace\n\n";

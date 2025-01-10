@@ -34,8 +34,7 @@ private:
 class mesh {
 public:
   constexpr mesh() noexcept = default;
-  explicit mesh(
-      std::span<const vertex> verticies, std::span<const GLuint> indexes);
+  explicit mesh(std::span<const vertex> verticies, std::span<const GLuint> indexes);
 
   void draw(shader_pipeline::attributes attrs);
 

@@ -35,14 +35,11 @@ SCENARIO("task guard") {
         task_guard task{executors_environment::pool_executor(), work};
         active_works_count.wait(0);
       }
-      THEN("no workers are running") {
-        REQUIRE(active_works_count.load() == 0);
-      }
+      THEN("no workers are running") { REQUIRE(active_works_count.load() == 0); }
     }
 
     WHEN("worker function stops") {
-      task_guard task{
-          executors_environment::pool_executor(), [](std::stop_token) {}};
+      task_guard task{executors_environment::pool_executor(), [](std::stop_token) {}};
       executors_environment::wait_pool_tasks_done();
       THEN("task is done") { REQUIRE(task.is_finished() == true); }
     }

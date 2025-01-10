@@ -2,7 +2,6 @@
 
 namespace triangular {
 
-const glm::mat2 to_cartesian_transformation{
-    1., 0., std::cos(M_PI / 3), std::sin(M_PI / 3)};
+const glm::mat2 to_cartesian_transformation{1., 0., std::cos(M_PI / 3), std::sin(M_PI / 3)};
 
 } // namespace triangular

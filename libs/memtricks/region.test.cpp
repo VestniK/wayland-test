@@ -15,9 +15,7 @@ SCENARIO("Calculation of reguin for subspan of given span") {
         REQUIRE(span.data() + region.offset == subspan.data());
       }
 
-      THEN("region length is same as subspan size") {
-        REQUIRE(region.len == subspan.size());
-      }
+      THEN("region length is same as subspan size") { REQUIRE(region.len == subspan.size()); }
     }
   }
 }

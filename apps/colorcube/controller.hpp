@@ -15,17 +15,11 @@ public:
   void operator()(gamepad::axis axis, gamepad::axis2d_state state);
   void operator()(gamepad::axis axis, gamepad::axis3d_state state);
 
-  const auto get_landscape_color_update() const noexcept {
-    return landscape_color_.get_update();
-  }
+  const auto get_landscape_color_update() const noexcept { return landscape_color_.get_update(); }
 
-  const auto get_cube_color_update() const noexcept {
-    return cube_color_.get_update();
-  }
+  const auto get_cube_color_update() const noexcept { return cube_color_.get_update(); }
 
-  glm::vec2 current_cube_vel() const noexcept {
-    return cube_vel_.get_current();
-  }
+  glm::vec2 current_cube_vel() const noexcept { return cube_vel_.get_current(); }
 
 private:
   value_update_channel<animate_to> landscape_color_;

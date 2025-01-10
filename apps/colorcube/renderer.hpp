@@ -36,6 +36,5 @@ private:
 
   linear_animation landscape_color_;
   linear_animation cube_color_;
-  clamped_integrator cube_pos_integrator_{
-      {.min = {-0.5, -1.}, .max = {7.5, 7.}}, {}, {}};
+  clamped_integrator cube_pos_integrator_{{.min = {-0.5, -1.}, .max = {7.5, 7.}}, {}, {}};
 };

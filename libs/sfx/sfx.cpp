@@ -45,25 +45,22 @@ struct end_of_cd_record {
   // .ZIP file comment       (variable size)
 
   static end_of_cd_record read(thinsys::io::file_descriptor& in) {
-    std::streamoff cd_off =
-        sizeof(end_of_cd_record) + end_of_cd_record::empty_zip_comment_offset;
+    std::streamoff cd_off = sizeof(end_of_cd_record) + end_of_cd_record::empty_zip_comment_offset;
     thinsys::io::seek(in, -cd_off, thinsys::io::seek_whence::end);
 
     end_of_cd_record res;
     thinsys::io::read(in, object_bytes(res));
 
     if (res.signature != end_of_cd_record::valid_signature)
-      throw std::runtime_error{
-          "Can't locate end of central directory record. File is either not a "
-          "zip archive or has triling .ZIP comment."};
+      throw std::runtime_error{"Can't locate end of central directory record. File is either not a "
+                               "zip archive or has triling .ZIP comment."};
     if (res.disk_num != 0 || res.cd_start_disk_num != 0)
       throw std::runtime_error{"Multi disk ZIP archives are not supported."};
 
     return res;
   }
 };
-static_assert(
-    sizeof(end_of_cd_record) == 20, "Paddings kills reading this struct");
+static_assert(sizeof(end_of_cd_record) == 20, "Paddings kills reading this struct");
 
 struct cd_file_header {
   struct base {
@@ -134,8 +131,7 @@ struct cd_file_header {
     thinsys::io::read(in, std::as_writable_bytes(std::span{fname}));
 
     res.filename = std::move(fname);
-    thinsys::io::seek(in, sizes.extrafield_size + sizes.file_comment_size,
-        thinsys::io::seek_whence::cur);
+    thinsys::io::seek(in, sizes.extrafield_size + sizes.file_comment_size, thinsys::io::seek_whence::cur);
 
     return res;
   }
@@ -197,18 +193,15 @@ struct local_file_header {
     thinsys::io::read(buf_tail, object_bytes(res.fname_size));
     thinsys::io::read(buf_tail, object_bytes(res.extra_field_size));
 
-    thinsys::io::seek(in, res.fname_size + res.extra_field_size,
-        thinsys::io::seek_whence::cur);
+    thinsys::io::seek(in, res.fname_size + res.extra_field_size, thinsys::io::seek_whence::cur);
 
     return res;
   }
 };
 
-size_t read_data_offsed_from_local_file_header(
-    thinsys::io::file_descriptor& in) {
+size_t read_data_offsed_from_local_file_header(thinsys::io::file_descriptor& in) {
   const auto hdr = local_file_header::read(in);
-  return local_file_header::serialized_size + hdr.fname_size +
-         hdr.extra_field_size;
+  return local_file_header::serialized_size + hdr.fname_size + hdr.extra_field_size;
 }
 
 thinsys::io::file_descriptor open_self_stream() {
@@ -229,9 +222,7 @@ thinsys::io::file_descriptor& archive::open(entry& e) {
 thinsys::io::file_descriptor& archive::open(const fs::path& path) {
   const auto it = entries_.find(path);
   if (it == entries_.end())
-    throw std::system_error{
-        std::make_error_code(std::errc::no_such_file_or_directory),
-        "sfx-archive open"};
+    throw std::system_error{std::make_error_code(std::errc::no_such_file_or_directory), "sfx-archive open"};
   return open(it->second);
 }
 
@@ -246,10 +237,14 @@ archive archive::open_self() {
   thinsys::io::seek(self, cd_end.cd_offset, thinsys::io::seek_whence::set);
   for (int i = 0; i < cd_end.total_entries_count; ++i) {
     const auto file_rec = cd_file_header::read(self);
-    entries.emplace(file_rec.filename,
-        entry{.size = file_rec.base_info.raw_size,
+    entries.emplace(
+        file_rec.filename,
+        entry{
+            .size = file_rec.base_info.raw_size,
             .offset = file_rec.file_attrs.local_header_offset,
-            .offset_is_adjusted = false});
+            .offset_is_adjusted = false
+        }
+    );
   }
 
   return {std::move(entries), std::move(self)};

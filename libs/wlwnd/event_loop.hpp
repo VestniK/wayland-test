@@ -46,8 +46,7 @@ public:
 
   asio::awaitable<void> dispatch_once(asio::io_context::executor_type exec);
   template <std::predicate Pred>
-  asio::awaitable<void> dispatch_while(
-      asio::io_context::executor_type exec, Pred&& pred) {
+  asio::awaitable<void> dispatch_while(asio::io_context::executor_type exec, Pred&& pred) {
     while (pred())
       co_await dispatch_once(exec);
     co_return;
@@ -70,6 +69,4 @@ inline void event_queue::dispatch() {
     dispatch_pending();
 }
 
-inline void event_queue::dispatch_pending() {
-  wl_display_dispatch_queue_pending(display_, queue_.get());
-}
+inline void event_queue::dispatch_pending() { wl_display_dispatch_queue_pending(display_, queue_.get()); }

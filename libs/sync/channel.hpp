@@ -21,20 +21,18 @@ private:
 
 public:
   value_update_channel() noexcept = default;
-  explicit value_update_channel(const T& initial) noexcept(
-      std::is_nothrow_copy_constructible_v<T>) {
+  explicit value_update_channel(const T& initial) noexcept(std::is_nothrow_copy_constructible_v<T>) {
     update(initial);
   }
 
-  std::optional<T> get_update() const
-      noexcept(std::is_nothrow_copy_constructible_v<T>) {
+  std::optional<T> get_update() const noexcept(std::is_nothrow_copy_constructible_v<T>) {
     const T val = consumer_val();
     if (!try_fetch_update() || val == consumer_val())
       return std::nullopt;
     return consumer_val();
   }
-  T get_current() const noexcept(std::is_nothrow_copy_constructible_v<T>&&
-          std::is_nothrow_move_constructible_v<T>) {
+  T get_current() const
+      noexcept(std::is_nothrow_copy_constructible_v<T> && std::is_nothrow_move_constructible_v<T>) {
     const T val = consumer_val();
     if (try_fetch_update())
       return consumer_val();
@@ -42,14 +40,11 @@ public:
   }
   void update(const T& t) noexcept(std::is_nothrow_copy_constructible_v<T>) {
     buf_[producer_].val = t;
-    producer_ = cur_.exchange(producer_, std::memory_order::release) &
-                ~(seen_mask | old_mask);
+    producer_ = cur_.exchange(producer_, std::memory_order::release) & ~(seen_mask | old_mask);
   }
 
 private:
-  const T& consumer_val() const noexcept {
-    return buf_[consumer_ & ~(seen_mask | old_mask)].val;
-  }
+  const T& consumer_val() const noexcept { return buf_[consumer_ & ~(seen_mask | old_mask)].val; }
 
   bool try_fetch_update() const noexcept {
     // Consumer index is marked as seen in constructor and always marked as seen
@@ -93,8 +88,7 @@ private:
     //      1      |      1     |    ?       | impossible case
     // The combination of bit operations bellow changes single bit in "old" bit
     // position for three possible cases and keeps other bits unchanged.
-    consumer_ = cur_.exchange(consumer_, std::memory_order::acquire) |
-                (was_old ^ old_mask);
+    consumer_ = cur_.exchange(consumer_, std::memory_order::acquire) | (was_old ^ old_mask);
     if (consumer_ & seen_mask)
       return false;
     // Update case is handled separatelly here marking index with s1:o0.

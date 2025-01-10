@@ -22,8 +22,7 @@ const std::error_category& category();
 class display {
 public:
   display() noexcept = default;
-  explicit display(wl_display& native_display)
-      : disp_(eglGetDisplay(&native_display)) {
+  explicit display(wl_display& native_display) : disp_(eglGetDisplay(&native_display)) {
     if (disp_ == EGL_NO_DISPLAY)
       throw std::runtime_error{"Failed to get EGL display"};
     if (eglInitialize(disp_, nullptr, nullptr) == EGL_FALSE)
@@ -33,8 +32,7 @@ public:
   display(const display&) = delete;
   display& operator=(const display&) = delete;
 
-  display(display&& rhs) noexcept
-      : disp_{std::exchange(rhs.disp_, EGL_NO_DISPLAY)} {}
+  display(display&& rhs) noexcept : disp_{std::exchange(rhs.disp_, EGL_NO_DISPLAY)} {}
   display& operator=(display&& rhs) noexcept {
     if (disp_ != EGL_NO_DISPLAY)
       eglTerminate(disp_);
@@ -64,12 +62,9 @@ private:
 class context {
 public:
   context() noexcept = default;
-  explicit context(display disp, EGLConfig cfg)
-      : display_{std::move(disp)}, cfg_{cfg} {
-    const EGLint attr[] = {
-        EGL_CONTEXT_MAJOR_VERSION, 2, EGL_CONTEXT_MINOR_VERSION, 0, EGL_NONE};
-    ctx_ =
-        eglCreateContext(display_.native_handle(), cfg_, EGL_NO_CONTEXT, attr);
+  explicit context(display disp, EGLConfig cfg) : display_{std::move(disp)}, cfg_{cfg} {
+    const EGLint attr[] = {EGL_CONTEXT_MAJOR_VERSION, 2, EGL_CONTEXT_MINOR_VERSION, 0, EGL_NONE};
+    ctx_ = eglCreateContext(display_.native_handle(), cfg_, EGL_NO_CONTEXT, attr);
     if (ctx_ == EGL_NO_CONTEXT)
       throw std::system_error{eglGetError(), category(), "eglCreateContext"};
   }
@@ -81,8 +76,7 @@ public:
   context(const context&) = delete;
   context& operator=(const context&) = delete;
   context(context&& rhs) noexcept
-      : display_{std::move(rhs.display_)}, cfg_(rhs.cfg_),
-        ctx_{std::exchange(rhs.ctx_, EGL_NO_CONTEXT)} {}
+      : display_{std::move(rhs.display_)}, cfg_(rhs.cfg_), ctx_{std::exchange(rhs.ctx_, EGL_NO_CONTEXT)} {}
   context& operator=(context&& rhs) noexcept {
     if (ctx_ != EGL_NO_CONTEXT)
       eglDestroyContext(display_.native_handle(), ctx_);
@@ -118,8 +112,7 @@ public:
   }
 
   surface(surface&& rhs) noexcept
-      : ctx_(std::move(rhs.ctx_)),
-        surf_(std::exchange(rhs.surf_, EGL_NO_SURFACE)) {}
+      : ctx_(std::move(rhs.ctx_)), surf_(std::exchange(rhs.surf_, EGL_NO_SURFACE)) {}
 
   surface& operator=(surface&& rhs) noexcept {
     if (surf_ != EGL_NO_SURFACE)
@@ -137,16 +130,13 @@ public:
   void set_window(wl_egl_window& wnd) {
     if (surf_ != EGL_NO_SURFACE)
       eglDestroySurface(ctx_.get_display(), surf_);
-    surf_ = eglCreateWindowSurface(
-        ctx_.get_display(), ctx_.get_config(), &wnd, nullptr);
+    surf_ = eglCreateWindowSurface(ctx_.get_display(), ctx_.get_config(), &wnd, nullptr);
     if (surf_ == EGL_NO_SURFACE)
-      throw std::system_error{
-          eglGetError(), category(), "eglCreateWindowSurface"};
+      throw std::system_error{eglGetError(), category(), "eglCreateWindowSurface"};
   }
 
   void make_current() {
-    if (eglMakeCurrent(ctx_.get_display(), surf_, surf_,
-            ctx_.native_handle()) == EGL_FALSE)
+    if (eglMakeCurrent(ctx_.get_display(), surf_, surf_, ctx_.native_handle()) == EGL_FALSE)
       throw std::system_error{eglGetError(), category(), "eglMakeCurrent"};
   }
 

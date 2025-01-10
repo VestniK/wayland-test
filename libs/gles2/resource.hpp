@@ -56,10 +56,7 @@ inline void shader_handle::free(shader_handle handle) noexcept {
   glDeleteShader(handle.handle_);
 }
 using shader = resource<shader_handle>;
-enum class shader_type : GLenum {
-  vertex = GL_VERTEX_SHADER,
-  fragment = GL_FRAGMENT_SHADER
-};
+enum class shader_type : GLenum { vertex = GL_VERTEX_SHADER, fragment = GL_FRAGMENT_SHADER };
 shader compile(shader_type type, const char* src);
 shader compile(shader_type type, std::span<const char* const> srcs);
 shader compile(shader_type type, std::string_view src);
@@ -70,18 +67,16 @@ template <>
 inline void shader_program_handle::free(shader_program_handle handle) noexcept {
   glDeleteProgram(handle.handle_);
 }
-resource<shader_program_handle> link(
-    shader_handle vertex, shader_handle fragment);
+resource<shader_program_handle> link(shader_handle vertex, shader_handle fragment);
 
 class shader_program : public resource<shader_program_handle> {
 public:
   explicit shader_program(shader_handle vertex, shader_handle fragment);
+  explicit shader_program(const char* vertex_shader_sources, const char* fragment_shader_sources);
   explicit shader_program(
-      const char* vertex_shader_sources, const char* fragment_shader_sources);
-  explicit shader_program(std::span<const char* const> vertex_shader_sources,
-      std::span<const char* const> fragment_shader_sources);
-  explicit shader_program(std::string_view vertex_shader_sources,
-      std::string_view fragment_shader_sources);
+      std::span<const char* const> vertex_shader_sources, std::span<const char* const> fragment_shader_sources
+  );
+  explicit shader_program(std::string_view vertex_shader_sources, std::string_view fragment_shader_sources);
 
   void use() { glUseProgram(native_handle()); }
 

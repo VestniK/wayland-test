@@ -41,8 +41,7 @@ public:
       const auto parse_res = parse_include(ln);
       if (parse_res.has_value()) {
         finish_piece();
-        auto [it, inserted] = once_handled_includes_.emplace(
-            parse_res.value(), std::vector<size_t>{});
+        auto [it, inserted] = once_handled_includes_.emplace(parse_res.value(), std::vector<size_t>{});
         if (inserted) {
           auto include = resolver(it->first);
           it->second = parse_shader(include, resolver);
@@ -70,6 +69,5 @@ public:
 
 private:
   std::vector<std::string> pieces_;
-  std::unordered_map<std::filesystem::path, std::vector<size_t>>
-      once_handled_includes_;
+  std::unordered_map<std::filesystem::path, std::vector<size_t>> once_handled_includes_;
 };

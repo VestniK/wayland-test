@@ -20,49 +20,51 @@
 
 using namespace std::literals;
 
-evdev_gamepad::evdev_gamepad(asio::io_context::executor_type io_executor,
-    const std::filesystem::path& devnode)
-    : dev_{io_executor,
-          thinsys::io::open(
-              devnode, thinsys::io::mode::read_only | thinsys::io::mode::ndelay)
-              .release()} {
+evdev_gamepad::evdev_gamepad(
+    asio::io_context::executor_type io_executor, const std::filesystem::path& devnode
+)
+    : dev_{
+          io_executor,
+          thinsys::io::open(devnode, thinsys::io::mode::read_only | thinsys::io::mode::ndelay).release()
+      } {
   asio::co_spawn(io_executor, watch_device(io_executor), asio::detached);
 }
 
-asio::awaitable<void> evdev_gamepad::watch_device(
-    asio::io_context::executor_type io_executor) {
+asio::awaitable<void> evdev_gamepad::watch_device(asio::io_context::executor_type io_executor) {
   const input_id id = evio::load_dev_id(dev_);
-  spdlog::debug("gamepad id: bustype[{}]-vendor[{}]-product[{}]-version[{}]",
-      id.bustype, id.vendor, id.product, id.version);
+  spdlog::debug(
+      "gamepad id: bustype[{}]-vendor[{}]-product[{}]-version[{}]", id.bustype, id.vendor, id.product,
+      id.version
+  );
   spdlog::debug("gamepad name: {}", evio::load_dev_name(dev_));
 
   gamepad::axes3d axes3d;
   axes3d[gamepad::axis::main] = {
       *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::x),
       *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::y),
-      *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::z)};
+      *evio::load_absinfo(dev_, gamepad::axis::main, gamepad::dimention::z)
+  };
   if (axis3d_handler_)
     axis3d_handler_(gamepad::axis::main, axes3d[gamepad::axis::main]);
   axes3d[gamepad::axis::rotational] = {
-      *evio::load_absinfo(
-          dev_, gamepad::axis::rotational, gamepad::dimention::x),
-      *evio::load_absinfo(
-          dev_, gamepad::axis::rotational, gamepad::dimention::y),
-      *evio::load_absinfo(
-          dev_, gamepad::axis::rotational, gamepad::dimention::z)};
+      *evio::load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::x),
+      *evio::load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::y),
+      *evio::load_absinfo(dev_, gamepad::axis::rotational, gamepad::dimention::z)
+  };
   if (axis3d_handler_)
-    axis3d_handler_(
-        gamepad::axis::rotational, axes3d[gamepad::axis::rotational]);
+    axis3d_handler_(gamepad::axis::rotational, axes3d[gamepad::axis::rotational]);
 
   gamepad::axes2d axes2d;
   axes2d[gamepad::axis::HAT0] = {
       *evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::x),
-      *evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::y)};
+      *evio::load_absinfo(dev_, gamepad::axis::HAT0, gamepad::dimention::y)
+  };
   if (axis2d_handler_)
     axis2d_handler_(gamepad::axis::HAT0, axes2d[gamepad::axis::HAT0]);
   axes2d[gamepad::axis::HAT2] = {
       *evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::x),
-      *evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::y)};
+      *evio::load_absinfo(dev_, gamepad::axis::HAT2, gamepad::dimention::y)
+  };
   if (axis2d_handler_)
     axis2d_handler_(gamepad::axis::HAT2, axes2d[gamepad::axis::HAT2]);
 
@@ -71,11 +73,10 @@ asio::awaitable<void> evdev_gamepad::watch_device(
     for (const input_event& ev : *chunk) {
       if (ev.type == EV_SYN)
         continue;
-      SPDLOG_TRACE("{}: time: {} code: 0x{:x} value: {}",
-          evio::ev_type_name(ev.type),
-          std::chrono::seconds{ev.time.tv_sec} +
-              std::chrono::microseconds{ev.time.tv_usec},
-          ev.code, ev.value);
+      SPDLOG_TRACE(
+          "{}: time: {} code: 0x{:x} value: {}", evio::ev_type_name(ev.type),
+          std::chrono::seconds{ev.time.tv_sec} + std::chrono::microseconds{ev.time.tv_usec}, ev.code, ev.value
+      );
       switch (ev.type) {
       case EV_KEY:
         if (auto key = evio::code2key(ev.code)) {

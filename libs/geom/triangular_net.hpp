@@ -15,9 +15,7 @@ using point = glm::ivec2;
 
 extern const glm::mat2 to_cartesian_transformation;
 
-inline glm::vec2 to_cartesian(point pt) noexcept {
-  return to_cartesian_transformation * pt;
-}
+inline glm::vec2 to_cartesian(point pt) noexcept { return to_cartesian_transformation * pt; }
 
 } // namespace triangular
 
@@ -44,17 +42,9 @@ constexpr inline triangular::point cell_center(int m, int n) noexcept {
  *   \         /
  *    bl --- br
  */
-enum class corner {
-  top_left,
-  top_right,
-  midle_left,
-  midle_right,
-  bottom_left,
-  bottom_right
-};
+enum class corner { top_left, top_right, midle_left, midle_right, bottom_left, bottom_right };
 
-constexpr triangular::point cell_coord(
-    triangular::point center, corner point_corner) noexcept {
+constexpr triangular::point cell_coord(triangular::point center, corner point_corner) noexcept {
   triangular::point res = center;
   switch (point_corner) {
   case corner::top_left:

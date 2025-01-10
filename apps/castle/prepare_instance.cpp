@@ -43,35 +43,35 @@ using namespace std::literals;
 
 namespace {
 
-constexpr vk::ClearValue clear_color{
-    .color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
+constexpr vk::ClearValue clear_color{.color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
 
 constexpr std::array<const char*, 2> required_extensions{
-    VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME};
+    VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME
+};
 
-constexpr auto required_device_extensions =
-    make_sorted_array<const char*>(std::less<std::string_view>{},
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+constexpr auto required_device_extensions = make_sorted_array<const char*>(
+    std::less<std::string_view>{}, VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE_4_EXTENSION_NAME
+);
 
 vk::raii::Instance create_instance() {
   VULKAN_HPP_DEFAULT_DISPATCHER.init();
 
   vk::raii::Context context;
 
-  vk::ApplicationInfo app_info{.pApplicationName = "wayland-test",
+  vk::ApplicationInfo app_info{
+      .pApplicationName = "wayland-test",
       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
       .pEngineName = "no_engine",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-      .apiVersion = VK_API_VERSION_1_2};
-  auto inst_create_info = vk::InstanceCreateInfo{.pApplicationInfo = &app_info}
-                              .setPEnabledExtensionNames(required_extensions);
+      .apiVersion = VK_API_VERSION_1_2
+  };
+  auto inst_create_info =
+      vk::InstanceCreateInfo{.pApplicationInfo = &app_info}.setPEnabledExtensionNames(required_extensions);
 
 #if !defined(NDEBUG)
   std::array<const char*, 1> debug_layers{"VK_LAYER_KHRONOS_validation"};
-  if (std::ranges::contains(
-          vk::enumerateInstanceLayerProperties(VULKAN_HPP_DEFAULT_DISPATCHER),
-          std::string_view{debug_layers.front()},
-          as_string_view<&vk::LayerProperties::layerName>)) {
+  if (std::ranges::contains(vk::enumerateInstanceLayerProperties(VULKAN_HPP_DEFAULT_DISPATCHER),
+          std::string_view{debug_layers.front()}, as_string_view<&vk::LayerProperties::layerName>)) {
     inst_create_info.setPEnabledLayerNames(debug_layers);
   }
 #endif
@@ -81,63 +81,74 @@ vk::raii::Instance create_instance() {
   return inst;
 }
 
-vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev,
-    uint32_t graphics_queue_family, uint32_t presentation_queue_family) {
+vk::raii::Device create_logical_device(
+    const vk::raii::PhysicalDevice& dev, uint32_t graphics_queue_family, uint32_t presentation_queue_family
+) {
   float queue_prio = 1.0f;
   std::array<vk::DeviceQueueCreateInfo, 2> device_queues{
-      vk::DeviceQueueCreateInfo{.flags = {},
+      vk::DeviceQueueCreateInfo{
+          .flags = {},
           .queueFamilyIndex = graphics_queue_family,
           .queueCount = 1,
-          .pQueuePriorities = &queue_prio},
-      vk::DeviceQueueCreateInfo{.flags = {},
+          .pQueuePriorities = &queue_prio
+      },
+      vk::DeviceQueueCreateInfo{
+          .flags = {},
           .queueFamilyIndex = presentation_queue_family,
           .queueCount = 1,
-          .pQueuePriorities = &queue_prio}};
+          .pQueuePriorities = &queue_prio
+      }
+  };
 
   vk::PhysicalDeviceFeatures features{};
   features.samplerAnisotropy = true;
 
-  vk::DeviceCreateInfo device_create_info{.flags = {},
-      .queueCreateInfoCount = graphics_queue_family == presentation_queue_family
-                                  ? 1u
-                                  : 2u, // TODO: better duplication needed
+  vk::DeviceCreateInfo device_create_info{
+      .flags = {},
+      .queueCreateInfoCount =
+          graphics_queue_family == presentation_queue_family ? 1u : 2u, // TODO: better duplication needed
       .pQueueCreateInfos = device_queues.data(),
       .enabledExtensionCount = required_device_extensions.size(),
       .ppEnabledExtensionNames = required_device_extensions.data(),
-      .pEnabledFeatures = &features};
+      .pEnabledFeatures = &features
+  };
 
   vk::raii::Device device{dev, device_create_info};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
   return device;
 }
 
-vk::raii::RenderPass make_render_pass(const vk::raii::Device& dev,
-    vk::Format img_fmt, vk::SampleCountFlagBits samples) {
+vk::raii::RenderPass
+make_render_pass(const vk::raii::Device& dev, vk::Format img_fmt, vk::SampleCountFlagBits samples) {
   using enum vk::SampleCountFlagBits;
 
   std::array<vk::AttachmentDescription, 2> attachments{
-      vk::AttachmentDescription{.format = img_fmt,
+      vk::AttachmentDescription{
+          .format = img_fmt,
           .samples = samples,
           .loadOp = vk::AttachmentLoadOp::eClear,
           .storeOp = vk::AttachmentStoreOp::eStore,
           .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
           .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
           .initialLayout = vk::ImageLayout::eUndefined,
-          .finalLayout = vk::ImageLayout::eColorAttachmentOptimal},
-      vk::AttachmentDescription{.format = img_fmt,
+          .finalLayout = vk::ImageLayout::eColorAttachmentOptimal
+      },
+      vk::AttachmentDescription{
+          .format = img_fmt,
           .samples = e1,
           .loadOp = vk::AttachmentLoadOp::eDontCare,
           .storeOp = vk::AttachmentStoreOp::eDontCare,
           .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
           .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
           .initialLayout = vk::ImageLayout::eUndefined,
-          .finalLayout = vk::ImageLayout::ePresentSrcKHR}};
+          .finalLayout = vk::ImageLayout::ePresentSrcKHR
+      }
+  };
 
   std::array<vk::AttachmentReference, 2> refs{
-      vk::AttachmentReference{
-          .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal},
-      vk::AttachmentReference{
-          .attachment = 1, .layout = vk::ImageLayout::eColorAttachmentOptimal}};
+      vk::AttachmentReference{.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal},
+      vk::AttachmentReference{.attachment = 1, .layout = vk::ImageLayout::eColorAttachmentOptimal}
+  };
   vk::SubpassDescription subpass{
       .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
       .inputAttachmentCount = 0,
@@ -147,31 +158,35 @@ vk::raii::RenderPass make_render_pass(const vk::raii::Device& dev,
       .pResolveAttachments = &refs[1],
       .pDepthStencilAttachment = nullptr,
       .preserveAttachmentCount = 0,
-      .pPreserveAttachments = nullptr};
+      .pPreserveAttachments = nullptr
+  };
 
   return vk::raii::RenderPass{
-      dev, vk::RenderPassCreateInfo{.attachmentCount = attachments.size(),
-               .pAttachments = attachments.data(),
-               .subpassCount = 1,
-               .pSubpasses = &subpass,
-               .dependencyCount = 0,
-               .pDependencies = nullptr}};
+      dev,
+      vk::RenderPassCreateInfo{
+          .attachmentCount = attachments.size(),
+          .pAttachments = attachments.data(),
+          .subpassCount = 1,
+          .pSubpasses = &subpass,
+          .dependencyCount = 0,
+          .pDependencies = nullptr
+      }
+  };
 }
 
 constexpr vk::Extent2D as_extent(size sz) noexcept {
-  return {.width = static_cast<uint32_t>(sz.width),
-      .height = static_cast<uint32_t>(sz.height)};
+  return {.width = static_cast<uint32_t>(sz.width), .height = static_cast<uint32_t>(sz.height)};
 }
 
 bool has_required_extensions(const vk::PhysicalDevice& dev) {
-  spdlog::debug("Checking required extensions on suitable device {}",
-      std::string_view{dev.getProperties().deviceName});
+  spdlog::debug(
+      "Checking required extensions on suitable device {}", std::string_view{dev.getProperties().deviceName}
+  );
 
   auto exts = dev.enumerateDeviceExtensionProperties();
-  std::ranges::sort(exts,
-      [](const vk::ExtensionProperties& l, const vk::ExtensionProperties& r) {
-        return l.extensionName < r.extensionName;
-      });
+  std::ranges::sort(exts, [](const vk::ExtensionProperties& l, const vk::ExtensionProperties& r) {
+    return l.extensionName < r.extensionName;
+  });
 
   bool has_missing_exts = false;
   std::span<const char* const> remaining_required{required_device_extensions};
@@ -180,12 +195,10 @@ bool has_required_extensions(const vk::PhysicalDevice& dev) {
     if (remaining_required.empty() || name < remaining_required.front())
       continue;
 
-    while (
-        !remaining_required.empty() && !(name < remaining_required.front())) {
+    while (!remaining_required.empty() && !(name < remaining_required.front())) {
       if (name != remaining_required.front()) {
         has_missing_exts = true;
-        spdlog::debug(
-            "\tMissing required extension {}", remaining_required.front());
+        spdlog::debug("\tMissing required extension {}", remaining_required.front());
       }
       remaining_required = remaining_required.subspan(1);
     }
@@ -197,19 +210,16 @@ bool has_required_extensions(const vk::PhysicalDevice& dev) {
   return !has_missing_exts;
 }
 
-std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
-    const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf,
-    vk::Extent2D sz) {
+std::optional<vk::SwapchainCreateInfoKHR>
+choose_swapchain_params(const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf, vk::Extent2D sz) {
   const auto capabilities = dev.getSurfaceCapabilitiesKHR(surf);
   const auto formats = dev.getSurfaceFormatsKHR(surf);
   const auto modes = dev.getSurfacePresentModesKHR(surf);
 
-  const auto fmt_it =
-      std::ranges::find_if(formats, [](vk::SurfaceFormatKHR fmt) {
-        return fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear &&
-               (fmt.format == vk::Format::eR8G8B8A8Srgb ||
-                   fmt.format == vk::Format::eB8G8R8A8Srgb);
-      });
+  const auto fmt_it = std::ranges::find_if(formats, [](vk::SurfaceFormatKHR fmt) {
+    return fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear &&
+           (fmt.format == vk::Format::eR8G8B8A8Srgb || fmt.format == vk::Format::eB8G8R8A8Srgb);
+  });
   if (fmt_it == formats.end())
     return std::nullopt;
 
@@ -218,18 +228,23 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
   if (mode_it == modes.end())
     return std::nullopt;
 
-  return vk::SwapchainCreateInfoKHR{.flags = {},
+  return vk::SwapchainCreateInfoKHR{
+      .flags = {},
       .surface = surf,
-      .minImageCount = std::min(capabilities.minImageCount + 1,
-          capabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max()
-                                          : capabilities.maxImageCount),
+      .minImageCount = std::min(
+          capabilities.minImageCount + 1,
+          capabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max() : capabilities.maxImageCount
+      ),
       .imageFormat = fmt_it->format,
       .imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
-      .imageExtent = vk::Extent2D{.width = std::clamp(sz.width,
-                                      capabilities.minImageExtent.width,
-                                      capabilities.maxImageExtent.width),
-          .height = std::clamp(sz.height, capabilities.minImageExtent.height,
-              capabilities.maxImageExtent.height)},
+      .imageExtent =
+          vk::Extent2D{
+              .width =
+                  std::clamp(sz.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+              .height = std::clamp(
+                  sz.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height
+              )
+          },
       .imageArrayLayers = 1,
       .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
       .imageSharingMode = vk::SharingMode::eExclusive,
@@ -239,7 +254,8 @@ std::optional<vk::SwapchainCreateInfoKHR> choose_swapchain_params(
       .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::ePreMultiplied,
       .presentMode = *mode_it,
       .clipped = true,
-      .oldSwapchain = {}};
+      .oldSwapchain = {}
+  };
 }
 
 struct device_rendering_params {
@@ -249,9 +265,8 @@ struct device_rendering_params {
   } queue_families;
   vk::SwapchainCreateInfoKHR swapchain_info;
 
-  static std::optional<device_rendering_params> choose(
-      const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf,
-      vk::Extent2D sz) {
+  static std::optional<device_rendering_params>
+  choose(const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf, vk::Extent2D sz) {
     if (dev.getProperties().apiVersion < VK_API_VERSION_1_2)
       return std::nullopt;
     if (!dev.getFeatures().samplerAnisotropy)
@@ -259,22 +274,19 @@ struct device_rendering_params {
 
     std::optional<uint32_t> graphics_family;
     std::optional<uint32_t> presentation_family;
-    for (const auto& [idx, queue_family] :
-        std::views::enumerate(dev.getQueueFamilyProperties())) {
+    for (const auto& [idx, queue_family] : std::views::enumerate(dev.getQueueFamilyProperties())) {
       if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
         graphics_family = idx;
       if (dev.getSurfaceSupportKHR(idx, surf))
         presentation_family = idx;
     }
-    if (graphics_family && presentation_family &&
-        has_required_extensions(dev)) {
-      if (auto res = choose_swapchain_params(dev, surf, sz)
-                         .transform([&](auto swapchain_info) {
-                           return device_rendering_params{
-                               .queue_families = {.graphics = *graphics_family,
-                                   .presentation = *presentation_family},
-                               .swapchain_info = swapchain_info};
-                         })) {
+    if (graphics_family && presentation_family && has_required_extensions(dev)) {
+      if (auto res = choose_swapchain_params(dev, surf, sz).transform([&](auto swapchain_info) {
+            return device_rendering_params{
+                .queue_families = {.graphics = *graphics_family, .presentation = *presentation_family},
+                .swapchain_info = swapchain_info
+            };
+          })) {
         // TODO: get rid of this strange patching
         std::array<uint32_t, 2> queues{*graphics_family, *presentation_family};
         if (graphics_family != presentation_family) {
@@ -294,15 +306,18 @@ struct device_rendering_params {
 
 class mesh {
 public:
-  mesh(vlk::memory_pools& pools, const vk::raii::Device& dev,
-      const vk::Queue& transfer_queue, const vk::CommandBuffer& copy_cmd,
-      vlk::mesh_data_view<scene::vertex, uint16_t> data)
-      : vbo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::vbo,
-            pools.allocate_staging_memory(std::as_bytes(data.vertices)))},
-        ibo_{pools.prepare_buffer(dev, transfer_queue, copy_cmd,
-            vlk::memory_pools::ibo,
-            pools.allocate_staging_memory(std::as_bytes(data.indices)))},
+  mesh(
+      vlk::memory_pools& pools, const vk::raii::Device& dev, const vk::Queue& transfer_queue,
+      const vk::CommandBuffer& copy_cmd, vlk::mesh_data_view<scene::vertex, uint16_t> data
+  )
+      : vbo_{pools.prepare_buffer(
+            dev, transfer_queue, copy_cmd, vlk::memory_pools::vbo,
+            pools.allocate_staging_memory(std::as_bytes(data.vertices))
+        )},
+        ibo_{pools.prepare_buffer(
+            dev, transfer_queue, copy_cmd, vlk::memory_pools::ibo,
+            pools.allocate_staging_memory(std::as_bytes(data.indices))
+        )},
         count_{data.indices.size()} {}
 
   const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
@@ -315,9 +330,10 @@ private:
   size_t count_;
 };
 
-vk::raii::Image load_sfx_texture(vlk::memory_pools& pools,
-    const vk::raii::Device& dev, vk::Queue transfer_queue,
-    vk::CommandBuffer cmd, const fs::path& sfx_path) {
+vk::raii::Image load_sfx_texture(
+    vlk::memory_pools& pools, const vk::raii::Device& dev, vk::Queue transfer_queue, vk::CommandBuffer cmd,
+    const fs::path& sfx_path
+) {
   auto resources = sfx::archive::open_self();
   auto& fd = resources.open(sfx_path);
   auto reader = img::load_reader(fd);
@@ -335,13 +351,13 @@ vk::raii::Image load_sfx_texture(vlk::memory_pools& pools,
   auto stage_mem = pools.allocate_staging_memory(reader.pixels_size());
   reader.read_pixels(stage_mem);
 
-  return pools.prepare_image(dev, transfer_queue, cmd,
-      vlk::image_purpose::texture, std::move(stage_mem), fmt,
-      as_extent(reader.size()));
+  return pools.prepare_image(
+      dev, transfer_queue, cmd, vlk::image_purpose::texture, std::move(stage_mem), fmt,
+      as_extent(reader.size())
+  );
 }
 
-static vk::raii::Sampler make_sampler(
-    const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
+static vk::raii::Sampler make_sampler(const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
   return dev.createSampler(vk::SamplerCreateInfo{
       .flags = {},
       .magFilter = vk::Filter::eLinear,
@@ -362,37 +378,39 @@ static vk::raii::Sampler make_sampler(
   });
 }
 
-static vk::raii::ImageView make_view(
-    const vk::raii::Device& dev, vk::Image img) {
-  return dev.createImageView(vk::ImageViewCreateInfo{.flags = {},
+static vk::raii::ImageView make_view(const vk::raii::Device& dev, vk::Image img) {
+  return dev.createImageView(vk::ImageViewCreateInfo{
+      .flags = {},
       .image = img,
       .viewType = vk::ImageViewType::e2D,
       .format = vk::Format::eR8G8B8A8Srgb,
       .components = {},
-      .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
-          .baseMipLevel = 0,
-          .levelCount = 1,
-          .baseArrayLayer = 0,
-          .layerCount = 1}});
+      .subresourceRange =
+          {.aspectMask = vk::ImageAspectFlagBits::eColor,
+           .baseMipLevel = 0,
+           .levelCount = 1,
+           .baseArrayLayer = 0,
+           .layerCount = 1}
+  });
 }
 
-std::tuple<vk::raii::Image, vk::raii::ImageView> make_image_view(
-    const vk::raii::Device& dev, vk::raii::Image&& img) {
+std::tuple<vk::raii::Image, vk::raii::ImageView>
+make_image_view(const vk::raii::Device& dev, vk::raii::Image&& img) {
   auto view = make_view(dev, *img);
   return std::tuple{std::move(img), std::move(view)};
 }
 
 struct uniform_objects {
-  uniform_objects(const vk::raii::Device& dev,
-      const vk::PhysicalDeviceLimits& limits,
-      std::array<vk::raii::Image, 4> img, vk::raii::Image fwheel,
-      vk::raii::Image rwheel, vk::raii::Image platform, vk::raii::Image arm)
+  uniform_objects(
+      const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits, std::array<vk::raii::Image, 4> img,
+      vk::raii::Image fwheel, vk::raii::Image rwheel, vk::raii::Image platform, vk::raii::Image arm
+  )
       : sampler{make_sampler(dev, limits)}, castle_textures{std::move(img)},
         castle_texture_view{make_view(dev, *castle_textures[0])},
-        catapult{make_image_view(dev, std::move(fwheel)),
-            make_image_view(dev, std::move(rwheel)),
-            make_image_view(dev, std::move(platform)),
-            make_image_view(dev, std::move(arm))} {}
+        catapult{
+            make_image_view(dev, std::move(fwheel)), make_image_view(dev, std::move(rwheel)),
+            make_image_view(dev, std::move(platform)), make_image_view(dev, std::move(arm))
+        } {}
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
@@ -409,111 +427,126 @@ struct uniform_objects {
   }
 
   void bind(vlk::ubo_builder& bldr) {
-    std::array<vk::ImageView, 5> sprites{*castle_texture_view,
-        *std::get<1>(catapult[0]), *std::get<1>(catapult[1]),
-        *std::get<1>(catapult[2]), *std::get<1>(catapult[3])};
+    std::array<vk::ImageView, 5> sprites{
+        *castle_texture_view, *std::get<1>(catapult[0]), *std::get<1>(catapult[1]), *std::get<1>(catapult[2]),
+        *std::get<1>(catapult[3])
+    };
 
     world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
     light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
     bldr.bind<vlk::fragment_uniform<vk::Sampler>>(2, *sampler);
-    transformations =
-        bldr.create<vlk::fragment_uniform<scene::texture_transform>>(3);
+    transformations = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(3);
     bldr.bind<vlk::fragment_uniform<vk::ImageView[5]>>(4, sprites);
   }
 
   void rebind(vlk::ubo_builder& bldr) {
-    std::array<vk::ImageView, 5> sprites{*castle_texture_view,
-        *std::get<1>(catapult[0]), *std::get<1>(catapult[1]),
-        *std::get<1>(catapult[2]), *std::get<1>(catapult[3])};
+    std::array<vk::ImageView, 5> sprites{
+        *castle_texture_view, *std::get<1>(catapult[0]), *std::get<1>(catapult[1]), *std::get<1>(catapult[2]),
+        *std::get<1>(catapult[3])
+    };
 
     bldr.bind<vlk::graphics_uniform<scene::world_transformations>>(0, *world);
     bldr.bind<vlk::fragment_uniform<scene::light_source>>(1, *light);
     bldr.bind<vlk::fragment_uniform<vk::Sampler>>(2, *sampler);
-    bldr.bind<vlk::fragment_uniform<scene::texture_transform>>(
-        3, *transformations);
+    bldr.bind<vlk::fragment_uniform<scene::texture_transform>>(3, *transformations);
     bldr.bind<vlk::fragment_uniform<vk::ImageView[5]>>(4, sprites);
   }
 };
 
 class render_environment : public renderer_iface {
 public:
-  render_environment(vk::raii::Instance inst, vk::raii::PhysicalDevice dev,
-      vk::raii::SurfaceKHR surf, device_rendering_params params)
+  render_environment(
+      vk::raii::Instance inst, vk::raii::PhysicalDevice dev, vk::raii::SurfaceKHR surf,
+      device_rendering_params params
+  )
       : instance_{std::move(inst)}, phydev_{std::move(dev)},
-        device_{create_logical_device(phydev_, params.queue_families.graphics,
-            params.queue_families.presentation)},
-        uniform_pools_{device_, phydev_.getMemoryProperties(),
-            phydev_.getProperties().limits,
+        device_{
+            create_logical_device(phydev_, params.queue_families.graphics, params.queue_families.presentation)
+        },
+        uniform_pools_{
+            device_, phydev_.getMemoryProperties(), phydev_.getProperties().limits,
             vlk::descriptor_pool_builder{}
                 .add_binding<
                     vlk::graphics_uniform<scene::world_transformations>,
-                    vlk::fragment_uniform<scene::light_source>,
-                    vlk::fragment_uniform<vk::Sampler>,
-                    vlk::fragment_uniform<scene::texture_transform>,
-                    vlk::fragment_uniform<vk::ImageView[5]>>(1)
+                    vlk::fragment_uniform<scene::light_source>, vlk::fragment_uniform<vk::Sampler>,
+                    vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[5]>>(
+                    1
+                )
                 .build(device_, 1),
-            128 * 1024},
-        mempools_{device_, phydev_.getMemoryProperties(),
+            128 * 1024
+        },
+        mempools_{
+            device_,
+            phydev_.getMemoryProperties(),
             phydev_.getProperties().limits,
             {.vbo_capacity = 2 * 1024 * 1024,
-                .ibo_capacity = 2 * 1024 * 1024,
-                .textures_capacity = 256 * 1024 * 1024,
-                .staging_size = 64 * 1024 * 1024}},
+             .ibo_capacity = 2 * 1024 * 1024,
+             .textures_capacity = 256 * 1024 * 1024,
+             .staging_size = 64 * 1024 * 1024}
+        },
         render_pass_{
-            make_render_pass(device_, params.swapchain_info.imageFormat,
-                find_max_usable_samples(phydev_))},
-        render_target_{device_, phydev_.getMemoryProperties(),
-            params.queue_families.presentation, std::move(surf),
-            params.swapchain_info, *render_pass_,
-            find_max_usable_samples(phydev_)},
+            make_render_pass(device_, params.swapchain_info.imageFormat, find_max_usable_samples(phydev_))
+        },
+        render_target_{
+            device_,
+            phydev_.getMemoryProperties(),
+            params.queue_families.presentation,
+            std::move(surf),
+            params.swapchain_info,
+            *render_pass_,
+            find_max_usable_samples(phydev_)
+        },
 
         cmd_buffs_{device_, params.queue_families.graphics},
-        uniforms_{device_, phydev_.getProperties().limits,
-            {load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                 cmd_buffs_.front(), "textures/castle-0hit.png"),
-                load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                    cmd_buffs_.front(), "textures/castle-1hit.png"),
-                load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                    cmd_buffs_.front(), "textures/castle-2hit.png"),
-                load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                    cmd_buffs_.front(), "textures/castle-3hit.png")},
-            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/catapult-front-wheel.png"),
-            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/catapult-rear-wheel.png"),
-            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/catapult-platform.png"),
-            load_sfx_texture(mempools_, device_, cmd_buffs_.queue(),
-                cmd_buffs_.front(), "textures/catapult-arm.png")},
-        descriptor_bindings_{
-            uniform_pools_.make_pipeline_bindings<uniform_objects, 1,
-                vlk::graphics_uniform<scene::world_transformations>,
-                vlk::fragment_uniform<scene::light_source>,
-                vlk::fragment_uniform<vk::Sampler>,
-                vlk::fragment_uniform<scene::texture_transform>,
-                vlk::fragment_uniform<vk::ImageView[5]>>(device_,
-                phydev_.getProperties().limits,
-                std::span<uniform_objects, 1>{&uniforms_, 1})},
-        pipelines_{device_, *render_pass_, find_max_usable_samples(phydev_),
-            descriptor_bindings_.layout(),
+        uniforms_{
+            device_,
+            phydev_.getProperties().limits,
+            {load_sfx_texture(
+                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-0hit.png"
+             ),
+             load_sfx_texture(
+                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-1hit.png"
+             ),
+             load_sfx_texture(
+                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-2hit.png"
+             ),
+             load_sfx_texture(
+                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-3hit.png"
+             )},
+            load_sfx_texture(
+                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
+                "textures/catapult-front-wheel.png"
+            ),
+            load_sfx_texture(
+                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-rear-wheel.png"
+            ),
+            load_sfx_texture(
+                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-platform.png"
+            ),
+            load_sfx_texture(
+                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
+            )
+        },
+        descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
+            uniform_objects, 1, vlk::graphics_uniform<scene::world_transformations>,
+            vlk::fragment_uniform<scene::light_source>, vlk::fragment_uniform<vk::Sampler>,
+            vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[5]>>(
+            device_, phydev_.getProperties().limits, std::span<uniform_objects, 1>{&uniforms_, 1}
+        )},
+        pipelines_{
+            device_, *render_pass_, find_max_usable_samples(phydev_), descriptor_bindings_.layout(),
             vlk::shaders<scene::vertex>{
-                .vertex = {_binary_triangle_vert_spv_start,
-                    _binary_triangle_vert_spv_end},
-                .fragment = {_binary_triangle_frag_spv_start,
-                    _binary_triangle_frag_spv_end}}},
-        mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
-            scene::make_paper()},
+                .vertex = {_binary_triangle_vert_spv_start, _binary_triangle_vert_spv_end},
+                .fragment = {_binary_triangle_frag_spv_start, _binary_triangle_frag_spv_end}
+            }
+        },
+        mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
-        image_available_{device_, vk::SemaphoreCreateInfo{}},
-        frame_done_{device_, vk::FenceCreateInfo{}} {
-    uniforms_.world->camera =
-        scene::setup_camera(params.swapchain_info.imageExtent);
-    uniforms_.transformations->models[0] = glm::translate(
-        glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
-    *uniforms_.light = {.pos = {2., 5., 15.},
-        .intense = 0.8,
-        .ambient = 0.4,
-        .attenuation = 0.01};
+        image_available_{device_, vk::SemaphoreCreateInfo{}}, frame_done_{device_, vk::FenceCreateInfo{}} {
+    uniforms_.world->camera = scene::setup_camera(params.swapchain_info.imageExtent);
+    uniforms_.transformations->models[0] =
+        glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
+    *uniforms_.light = {.pos = {2., 5., 15.}, .intense = 0.8, .ambient = 0.4, .attenuation = 0.01};
   }
 
   render_environment(const render_environment&) = delete;
@@ -531,36 +564,34 @@ public:
     device_.waitIdle();
     const auto extent = as_extent(sz);
 
-    auto params = device_rendering_params::choose(
-        *phydev_, render_target_.surface(), extent);
+    auto params = device_rendering_params::choose(*phydev_, render_target_.surface(), extent);
     if (!params)
-      throw std::runtime_error{
-          "Restore swapchain params after resise have failed"};
+      throw std::runtime_error{"Restore swapchain params after resise have failed"};
 
-    render_target_.resize(device_, phydev_.getMemoryProperties(), *render_pass_,
-        find_max_usable_samples(phydev_), params->swapchain_info, extent);
+    render_target_.resize(
+        device_, phydev_.getMemoryProperties(), *render_pass_, find_max_usable_samples(phydev_),
+        params->swapchain_info, extent
+    );
 
     if (sz.height > 0 && sz.height > 0)
       uniforms_.world->camera = scene::setup_camera(extent);
   }
 
   void draw(frames_clock::time_point ts) override {
-    draw(render_target_.start_frame(*image_available_), ts)
-        .present(*render_finished_);
+    draw(render_target_.start_frame(*image_available_), ts).present(*render_finished_);
 
     // Wait untill rendering commands from the buffer are finished in order
     // to safely reuse the buffer on the next frame.
-    if (auto ec = make_error_code(device_.waitForFences(
-            {*frame_done_}, true, std::numeric_limits<uint64_t>::max())))
+    if (auto ec =
+            make_error_code(device_.waitForFences({*frame_done_}, true, std::numeric_limits<uint64_t>::max())
+            ))
       throw std::system_error(ec, "vkWaitForFence");
     device_.resetFences({*frame_done_});
   }
 
 private:
-  vlk::render_target::frame draw(
-      vlk::render_target::frame frame, frames_clock::time_point ts) {
-    const size_t next_uniform =
-        (ts.time_since_epoch() / 3s) % uniforms_.castle_textures.size();
+  vlk::render_target::frame draw(vlk::render_target::frame frame, frames_clock::time_point ts) {
+    const size_t next_uniform = (ts.time_since_epoch() / 3s) % uniforms_.castle_textures.size();
     if (std::exchange(cur_uniform_, next_uniform) != next_uniform) {
       uniforms_.switch_castle_image(device_, cur_uniform_);
       descriptor_bindings_.update(0, *device_, uniforms_);
@@ -568,39 +599,44 @@ private:
     scene::update_world(ts, *uniforms_.world);
 
     std::ranges::copy(
-        scene::calculate_catapult_transformations({-7, -5},
-            std::sin(M_2_PI * float_time::seconds(ts.time_since_epoch()) / 1s),
-            std::sin(float_time::seconds(ts.time_since_epoch()) / 700ms)),
-        std::next(std::begin(uniforms_.transformations->models)));
+        scene::calculate_catapult_transformations(
+            {-7, -5}, std::sin(M_2_PI * float_time::seconds(ts.time_since_epoch()) / 1s),
+            std::sin(float_time::seconds(ts.time_since_epoch()) / 700ms)
+        ),
+        std::next(std::begin(uniforms_.transformations->models))
+    );
 
     submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
     return frame;
   }
 
-  vk::CommandBuffer record_cmd_buffer(
-      vk::CommandBuffer cmd, const vk::Framebuffer& fb) const {
+  vk::CommandBuffer record_cmd_buffer(vk::CommandBuffer cmd, const vk::Framebuffer& fb) const {
     cmd.reset();
 
-    cmd.begin(
-        vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
+    cmd.begin(vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
     cmd.beginRenderPass(
-        vk::RenderPassBeginInfo{.renderPass = *render_pass_,
+        vk::RenderPassBeginInfo{
+            .renderPass = *render_pass_,
             .framebuffer = fb,
             .renderArea = {.offset = {0, 0}, .extent = render_target_.extent()},
             .clearValueCount = 1,
-            .pClearValues = &clear_color},
-        vk::SubpassContents::eInline);
+            .pClearValues = &clear_color
+        },
+        vk::SubpassContents::eInline
+    );
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines_[0]);
 
     cmd.setViewport(
-        0, {vk::Viewport{.x = 0.,
+        0, {vk::Viewport{
+               .x = 0.,
                .y = 0.,
                .width = static_cast<float>(render_target_.extent().width),
                .height = static_cast<float>(render_target_.extent().height),
                .minDepth = 0.,
-               .maxDepth = 1.}});
-    cmd.setScissor(
-        0, {vk::Rect2D{.offset = {0, 0}, .extent = render_target_.extent()}});
+               .maxDepth = 1.
+           }}
+    );
+    cmd.setScissor(0, {vk::Rect2D{.offset = {0, 0}, .extent = render_target_.extent()}});
 
     vk::DeviceSize offsets[] = {0};
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
@@ -616,29 +652,25 @@ private:
   void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
     uniform_pools_.flush(descriptor_bindings_.flush_region(0));
 
-    const vk::PipelineStageFlags wait_stage =
-        vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    std::array<vk::SubmitInfo, 1> submit_infos{
-        vk::SubmitInfo{.waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*image_available_,
-            .pWaitDstStageMask = &wait_stage,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &cmd,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &*render_finished_}};
+    const vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    std::array<vk::SubmitInfo, 1> submit_infos{vk::SubmitInfo{
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &*image_available_,
+        .pWaitDstStageMask = &wait_stage,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &cmd,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &*render_finished_
+    }};
     cmd_buffs_.queue().submit(submit_infos, *frame_done_);
   }
 
-  static vk::SampleCountFlagBits find_max_usable_samples(
-      vk::PhysicalDevice dev) {
+  static vk::SampleCountFlagBits find_max_usable_samples(vk::PhysicalDevice dev) {
     using enum vk::SampleCountFlagBits;
-    constexpr vk::SampleCountFlagBits prio_order[] = {
-        e64, e32, e16, e8, e4, e2};
+    constexpr vk::SampleCountFlagBits prio_order[] = {e64, e32, e16, e8, e4, e2};
 
-    const auto counts_mask =
-        dev.getProperties().limits.framebufferColorSampleCounts;
-    const auto it = std::ranges::find_if(
-        prio_order, [&](auto e) { return bool{e & counts_mask}; });
+    const auto counts_mask = dev.getProperties().limits.framebufferColorSampleCounts;
+    const auto it = std::ranges::find_if(prio_order, [&](auto e) { return bool{e & counts_mask}; });
     return it != std::end(prio_order) ? *it : e1;
   }
 
@@ -655,10 +687,9 @@ private:
 
   vlk::command_buffers<1> cmd_buffs_;
   uniform_objects uniforms_;
-  vlk::pipeline_bindings<1, vlk::graphics_uniform<scene::world_transformations>,
-      vlk::fragment_uniform<scene::light_source>,
-      vlk::fragment_uniform<vk::Sampler>,
-      vlk::fragment_uniform<scene::texture_transform>,
+  vlk::pipeline_bindings<
+      1, vlk::graphics_uniform<scene::world_transformations>, vlk::fragment_uniform<scene::light_source>,
+      vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<scene::texture_transform>,
       vlk::fragment_uniform<vk::ImageView[5]>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
@@ -670,16 +701,13 @@ private:
   vk::raii::Fence frame_done_;
 };
 
-auto select_suitable_device(
-    const vk::raii::Instance& inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
+auto select_suitable_device(const vk::raii::Instance& inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
   for (vk::raii::PhysicalDevice dev : inst.enumeratePhysicalDevices()) {
     if (auto params = device_rendering_params::choose(*dev, surf, sz)) {
-      spdlog::info("Using Vulkan device: {}",
-          std::string_view{dev.getProperties().deviceName});
+      spdlog::info("Using Vulkan device: {}", std::string_view{dev.getProperties().deviceName});
       return std::pair{dev, *params};
     }
-    spdlog::debug("Vulkan device '{}' is rejected",
-        std::string_view{dev.getProperties().deviceName});
+    spdlog::debug("Vulkan device '{}' is rejected", std::string_view{dev.getProperties().deviceName});
   }
 
   throw std::runtime_error{"No suitable Vulkan device found"};
@@ -687,15 +715,13 @@ auto select_suitable_device(
 
 } // namespace
 
-std::unique_ptr<renderer_iface> make_vk_renderer(
-    wl_display& display, wl_surface& surf, size sz) {
+std::unique_ptr<renderer_iface> make_vk_renderer(wl_display& display, wl_surface& surf, size sz) {
   vk::raii::Instance inst = create_instance();
   vk::raii::SurfaceKHR vk_surf{
-      inst, vk::WaylandSurfaceCreateInfoKHR{
-                .flags = {}, .display = &display, .surface = &surf}};
+      inst, vk::WaylandSurfaceCreateInfoKHR{.flags = {}, .display = &display, .surface = &surf}
+  };
 
   auto [dev, params] = select_suitable_device(inst, *vk_surf, as_extent(sz));
 
-  return std::make_unique<render_environment>(
-      std::move(inst), std::move(dev), std::move(vk_surf), params);
+  return std::make_unique<render_environment>(std::move(inst), std::move(dev), std::move(vk_surf), params);
 }

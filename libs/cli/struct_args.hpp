@@ -55,14 +55,12 @@ public:
   args_help_parser(std::ostream& out) noexcept : out_{out} {}
 
   const char* get_option(const option_info& opt) override {
-    out_ << '\t' << opt.long_name << (opt.short_name.empty() ? "" : ", ")
-         << opt.short_name << " VAL\t" << opt.description << '\n';
+    out_ << '\t' << opt.long_name << (opt.short_name.empty() ? "" : ", ") << opt.short_name << " VAL\t"
+         << opt.description << '\n';
     return nullptr;
   }
 
-  const char* get_required_option(const option_info& opt) override {
-    return get_option(opt);
-  }
+  const char* get_required_option(const option_info& opt) override { return get_option(opt); }
 
 private:
   std::ostream& out_;
@@ -73,13 +71,11 @@ public:
   usage_parser(std::ostream& out) noexcept : out_{out} {}
 
   const char* get_option(const option_info& opt) override {
-    out_ << " [" << (opt.short_name.empty() ? opt.long_name : opt.short_name)
-         << " VAL]";
+    out_ << " [" << (opt.short_name.empty() ? opt.long_name : opt.short_name) << " VAL]";
     return nullptr;
   }
   const char* get_required_option(const option_info& opt) override {
-    out_ << ' ' << (opt.short_name.empty() ? opt.long_name : opt.short_name)
-         << " VAL";
+    out_ << ' ' << (opt.short_name.empty() ? opt.long_name : opt.short_name) << " VAL";
     return nullptr;
   }
 
@@ -88,11 +84,10 @@ private:
 };
 
 template <typename T>
-concept sequential_container =
-    std::ranges::forward_range<T> && std::default_initializable<T> &&
-    requires(T& t, std::ranges::range_value_t<T> val) {
-      { t.push_back(std::move(val)) };
-    };
+concept sequential_container = std::ranges::forward_range<T> && std::default_initializable<T> &&
+                               requires(T& t, std::ranges::range_value_t<T> val) {
+                                 { t.push_back(std::move(val)) };
+                               };
 
 } // namespace detail
 
@@ -100,14 +95,10 @@ template <typename T>
 class option : private detail::option_info {
 public:
   option(const char* long_name, const char* description)
-      : detail::option_info{.long_name = long_name,
-            .short_name = {},
-            .description = description} {}
+      : detail::option_info{.long_name = long_name, .short_name = {}, .description = description} {}
 
   option(const char* short_name, const char* long_name, const char* description)
-      : detail::option_info{.long_name = long_name,
-            .short_name = short_name,
-            .description = description} {}
+      : detail::option_info{.long_name = long_name, .short_name = short_name, .description = description} {}
 
   option& default_value(const T& val) {
     default_ = val;
@@ -121,9 +112,8 @@ public:
         res.push_back(std::ranges::range_value_t<T>{argval});
       return res;
     } else {
-      const char* val =
-          default_ ? detail::current_parser->get_option(*this)
-                   : detail::current_parser->get_required_option(*this);
+      const char* val = default_ ? detail::current_parser->get_option(*this)
+                                 : detail::current_parser->get_required_option(*this);
       return val ? T{val} : default_.value_or(T{});
     }
   }

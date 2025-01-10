@@ -12,9 +12,10 @@ class gui_shell;
 class animation_window {
 public:
   animation_window() noexcept = default;
-  animation_window(event_queue queue, co::pool_executor pool_exec,
-      wl::sized_window<wl::shell_window>&& wnd,
-      animation_function animation_func);
+  animation_window(
+      event_queue queue, co::pool_executor pool_exec, wl::sized_window<wl::shell_window>&& wnd,
+      animation_function animation_func
+  );
 
   animation_window(const animation_window&) = delete;
   animation_window& operator=(const animation_window&) = delete;

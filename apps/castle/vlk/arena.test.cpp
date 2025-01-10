@@ -15,8 +15,7 @@ namespace {
 class typed_memory {
 public:
   typed_memory() noexcept = default;
-  typed_memory(uint32_t memtype, size_t sz) noexcept
-      : size_{sz}, memtype_{memtype} {}
+  typed_memory(uint32_t memtype, size_t sz) noexcept : size_{sz}, memtype_{memtype} {}
 
   typed_memory(const typed_memory&) = delete;
   typed_memory& operator=(const typed_memory&) = delete;
@@ -29,9 +28,7 @@ public:
 
   uint32_t type() const noexcept { return memtype_; }
 
-  static typed_memory allocate(uint32_t memtype, size_t sz) noexcept {
-    return {memtype, sz};
-  }
+  static typed_memory allocate(uint32_t memtype, size_t sz) noexcept { return {memtype, sz}; }
 
 private:
   size_t size_ = 0;
@@ -62,82 +59,66 @@ struct test_arena_prams {
 };
 
 test_arena_prams cases[] = {
-    {.description = "all requirements same",
-        .params{100_mem_type(8), 100_mem_type(8), 100_mem_type(8)}},
-    {.description = "all requirements differs",
-        .params{100_mem_type(8), 200_mem_type(16), 150_mem_type(32)}},
+    {.description = "all requirements same", .params{100_mem_type(8), 100_mem_type(8), 100_mem_type(8)}},
+    {.description = "all requirements differs", .params{100_mem_type(8), 200_mem_type(16), 150_mem_type(32)}},
     {.description = "same requirements for buffers",
-        .params{100_mem_type(8), 100_mem_type(16), 150_mem_type(32)}},
+     .params{100_mem_type(8), 100_mem_type(16), 150_mem_type(32)}},
     {.description = "same requirements between some buffer and image purpose",
-        .params{100_mem_type(16), 200_mem_type(16), 100_mem_type(32)}}};
+     .params{100_mem_type(16), 200_mem_type(16), 100_mem_type(32)}}
+};
 
 } // namespace
 
 SCENARIO("Locking available amount of bytes") {
   auto case_params = GENERATE(from_range(cases));
-  GIVEN(fmt::format(
-      "some nonempty arena_pools with {}", case_params.description)) {
-    vlk::detail::arena_pools<typed_memory> arenas{{.vbo_capacity = 100,
-                                                      .ibo_capacity = 100,
-                                                      .textures_capacity = 500,
-                                                      .staging_size = 0},
+  GIVEN(fmt::format("some nonempty arena_pools with {}", case_params.description)) {
+    vlk::detail::arena_pools<typed_memory> arenas{
+        {.vbo_capacity = 100, .ibo_capacity = 100, .textures_capacity = 500, .staging_size = 0},
         [&](vlk::memory_purpose auto purpose) {
-          return vk::MemoryRequirements{.size = 1 << 30,
+          return vk::MemoryRequirements{
+              .size = 1 << 30,
               .alignment = case_params.params[purpose].alignment,
-              .memoryTypeBits = case_params.params[purpose].type};
+              .memoryTypeBits = case_params.params[purpose].type
+          };
         },
-        typed_memory::allocate};
+        typed_memory::allocate
+    };
 
     WHEN("available amount of bytes are locked for a buffer purpose") {
-      const auto purpose =
-          GENERATE(from_range(vlk::all_purposes<vlk::buffer_purpose>));
+      const auto purpose = GENERATE(from_range(vlk::all_purposes<vlk::buffer_purpose>));
       const auto purpose_params = case_params.params[purpose];
       auto [mem, region] = arenas.lock_memory_for(purpose, 35);
 
       THEN("requested amount of bytes locked") { CHECK(region.len == 35); }
 
-      THEN("locked region is properly aligned") {
-        CHECK(region.offset % purpose_params.alignment == 0);
-      }
+      THEN("locked region is properly aligned") { CHECK(region.offset % purpose_params.alignment == 0); }
 
-      THEN("locks memory of ptoper type") {
-        CHECK(mem.type() == purpose_params.type);
-      }
+      THEN("locks memory of ptoper type") { CHECK(mem.type() == purpose_params.type); }
     }
 
     WHEN("available amount of bytes are locked for an image purpose") {
-      const auto purpose =
-          GENERATE(from_range(vlk::all_purposes<vlk::image_purpose>));
+      const auto purpose = GENERATE(from_range(vlk::all_purposes<vlk::image_purpose>));
       const auto purpose_params = case_params.params[purpose];
       auto [mem, region] = arenas.lock_memory_for(purpose, 25);
 
       THEN("requested amount of bytes locked") { CHECK(region.len == 25); }
 
-      THEN("locked region is properly aligned") {
-        CHECK(region.offset % purpose_params.alignment == 0);
-      }
+      THEN("locked region is properly aligned") { CHECK(region.offset % purpose_params.alignment == 0); }
 
-      THEN("locks memory of ptoper type") {
-        CHECK(mem.type() == purpose_params.type);
-      }
+      THEN("locks memory of ptoper type") { CHECK(mem.type() == purpose_params.type); }
     }
 
     WHEN("available amount of bytes are locked for an image purpose with "
          "custom alignment requirements") {
-      const auto purpose =
-          GENERATE(from_range(vlk::all_purposes<vlk::image_purpose>));
+      const auto purpose = GENERATE(from_range(vlk::all_purposes<vlk::image_purpose>));
       const auto purpose_params = case_params.params[purpose];
       auto [mem, region] = arenas.lock_memory_for(purpose, 35, 512);
 
       THEN("requested amount of bytes locked") { CHECK(region.len == 35); }
 
-      THEN("locked region is properly aligned") {
-        CHECK(region.offset % 512 == 0);
-      }
+      THEN("locked region is properly aligned") { CHECK(region.offset % 512 == 0); }
 
-      THEN("locks memory of ptoper type") {
-        CHECK(mem.type() == purpose_params.type);
-      }
+      THEN("locks memory of ptoper type") { CHECK(mem.type() == purpose_params.type); }
     }
   }
 }
@@ -147,21 +128,21 @@ SCENARIO("arena_pools creation") {
   using enum vlk::image_purpose;
 
   auto req4type = [](uint32_t type) {
-    return vk::MemoryRequirements{
-        .size = 1 << 30, .alignment = 8, .memoryTypeBits = type};
+    return vk::MemoryRequirements{.size = 1 << 30, .alignment = 8, .memoryTypeBits = type};
   };
-  vlk::detail::sizes arena_sizes{.vbo_capacity = 400,
-      .ibo_capacity = 500,
-      .textures_capacity = 600,
-      .staging_size = 0};
+  vlk::detail::sizes arena_sizes{
+      .vbo_capacity = 400, .ibo_capacity = 500, .textures_capacity = 600, .staging_size = 0
+  };
 
   GIVEN("diferent mem requirements for diferent purpuses") {
     vlk::detail::purpose_data<vk::MemoryRequirements> requierments{
-        req4type(100), req4type(200), req4type(300)};
+        req4type(100), req4type(200), req4type(300)
+    };
 
     WHEN("arena_pools created") {
-      vlk::detail::arena_pools<typed_memory> arenas{arena_sizes,
-          [&](auto p) { return requierments[p]; }, typed_memory::allocate};
+      vlk::detail::arena_pools<typed_memory> arenas{
+          arena_sizes, [&](auto p) { return requierments[p]; }, typed_memory::allocate
+      };
       auto mem = arenas.get_memory_handles();
 
       THEN("no memory allocation was collapsed") {
@@ -180,11 +161,13 @@ SCENARIO("arena_pools creation") {
 
   GIVEN("mem requirements same for two buffer puproses") {
     vlk::detail::purpose_data<vk::MemoryRequirements> requierments{
-        req4type(100), req4type(100), req4type(300)};
+        req4type(100), req4type(100), req4type(300)
+    };
 
     WHEN("arena_pools created") {
-      vlk::detail::arena_pools<typed_memory> arenas{arena_sizes,
-          [&](auto p) { return requierments[p]; }, typed_memory::allocate};
+      vlk::detail::arena_pools<typed_memory> arenas{
+          arena_sizes, [&](auto p) { return requierments[p]; }, typed_memory::allocate
+      };
       auto mem = arenas.get_memory_handles();
 
       THEN("memory allocation was same type are collapsed") {
@@ -203,11 +186,13 @@ SCENARIO("arena_pools creation") {
 
   GIVEN("same mem requirements fow all purposes") {
     vlk::detail::purpose_data<vk::MemoryRequirements> requierments{
-        req4type(100), req4type(100), req4type(100)};
+        req4type(100), req4type(100), req4type(100)
+    };
 
     WHEN("arena_pools created") {
-      vlk::detail::arena_pools<typed_memory> arenas{arena_sizes,
-          [&](auto p) { return requierments[p]; }, typed_memory::allocate};
+      vlk::detail::arena_pools<typed_memory> arenas{
+          arena_sizes, [&](auto p) { return requierments[p]; }, typed_memory::allocate
+      };
       auto mem = arenas.get_memory_handles();
 
       THEN("all memory allocation are collapsed") {

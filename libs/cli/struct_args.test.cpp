@@ -34,14 +34,11 @@ private:
 SCENARIO("parse CLI options") {
   GIVEN("opts type") {
     struct opts {
-      std::string_view name =
-          args::option<std::string_view>{"--name", "User name"};
-      std::string_view threads = args::option<std::string_view>{"-j",
-          "--threads", "Number of threads to use"}
-                                     .default_value("8");
+      std::string_view name = args::option<std::string_view>{"--name", "User name"};
+      std::string_view threads =
+          args::option<std::string_view>{"-j", "--threads", "Number of threads to use"}.default_value("8");
       std::vector<std::string_view> incdirs =
-          args::option<std::vector<std::string_view>>(
-              "-I", "--include", "include directories");
+          args::option<std::vector<std::string_view>>("-I", "--include", "include directories");
     };
 
     WHEN("args with all required options are parsed") {
@@ -52,18 +49,14 @@ SCENARIO("parse CLI options") {
 
       THEN("threads is set to default value") { REQUIRE(opt.threads == "8"); }
 
-      THEN("include dirs list is empty") {
-        REQUIRE_THAT(opt.incdirs, IsEmpty());
-      }
+      THEN("include dirs list is empty") { REQUIRE_THAT(opt.incdirs, IsEmpty()); }
     }
 
     WHEN("optional arg is passed") {
       cli_args argv{{"--name", "Vasja", "-j", "32"}};
       auto opt = args::parse<opts>(argv);
 
-      THEN("threads is set to specified falue") {
-        REQUIRE(opt.threads == "32");
-      }
+      THEN("threads is set to specified falue") { REQUIRE(opt.threads == "32"); }
     }
 
     WHEN("collection option is specified once") {
@@ -76,13 +69,11 @@ SCENARIO("parse CLI options") {
     }
 
     WHEN("collection option is specified multile times") {
-      cli_args argv{{"--name", "Vasja", "-I", "include/name", "-I",
-          "build/include/name"}};
+      cli_args argv{{"--name", "Vasja", "-I", "include/name", "-I", "build/include/name"}};
       auto opt = args::parse<opts>(argv);
 
       THEN("incdirs contains passed dir") {
-        REQUIRE_THAT(opt.incdirs,
-            RangeEquals(std::vector{"include/name", "build/include/name"}));
+        REQUIRE_THAT(opt.incdirs, RangeEquals(std::vector{"include/name", "build/include/name"}));
       }
     }
 
@@ -91,9 +82,11 @@ SCENARIO("parse CLI options") {
       args::args_help<opts>(out);
 
       THEN("all members are documented") {
-        REQUIRE(out.str() == "\t--name VAL\tUser name\n"
-                             "\t--threads, -j VAL\tNumber of threads to use\n"
-                             "\t--include, -I VAL\tinclude directories\n");
+        REQUIRE(
+            out.str() == "\t--name VAL\tUser name\n"
+                         "\t--threads, -j VAL\tNumber of threads to use\n"
+                         "\t--include, -I VAL\tinclude directories\n"
+        );
       }
     }
 

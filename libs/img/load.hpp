@@ -14,16 +14,13 @@ enum class pixel_fmt : size_t { rgb = 3, rgba = 4 };
 class reader {
 public:
   reader() noexcept = default;
-  reader(::size sz, pixel_fmt fmt,
-      std::move_only_function<size_t(std::span<std::byte>)> read_pixels)
+  reader(::size sz, pixel_fmt fmt, std::move_only_function<size_t(std::span<std::byte>)> read_pixels)
       : read_pixels_{std::move(read_pixels)}, sz_{sz}, fmt_{fmt} {}
 
   ::size size() const noexcept { return sz_; }
   pixel_fmt format() const noexcept { return fmt_; }
 
-  size_t pixels_size() const noexcept {
-    return sz_.height * sz_.width * std::to_underlying(fmt_);
-  }
+  size_t pixels_size() const noexcept { return sz_.height * sz_.width * std::to_underlying(fmt_); }
 
   size_t read_pixels(std::span<std::byte> dest) { return read_pixels_(dest); }
 
@@ -39,8 +36,7 @@ template <pixel_fmt Fmt>
 class image {
 public:
   image() noexcept = default;
-  image(std::unique_ptr<std::byte[]> data, ::size sz) noexcept
-      : sz_{sz}, data_{std::move(data)} {}
+  image(std::unique_ptr<std::byte[]> data, ::size sz) noexcept : sz_{sz}, data_{std::move(data)} {}
 
   std::span<const std::byte> bytes() const noexcept {
     return {data_.get(), sz_.height * sz_.width * std::to_underlying(Fmt)};

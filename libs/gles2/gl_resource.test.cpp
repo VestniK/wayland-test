@@ -24,9 +24,10 @@ using scalar_resource = gl::resource<scalar_handle>;
 using array_handle = gl::basic_handle<test_type::array>;
 template <>
 inline void array_handle::free(std::span<array_handle> res) noexcept {
-  std::ranges::copy(res | std::views::transform(
-                              [](array_handle h) { return h.native_handle(); }),
-      std::back_inserter(deleted_handles));
+  std::ranges::copy(
+      res | std::views::transform([](array_handle h) { return h.native_handle(); }),
+      std::back_inserter(deleted_handles)
+  );
 }
 template <size_t N>
 using array_resource = gl::resource<array_handle[N]>;

@@ -17,12 +17,9 @@
 class evdev_gamepad {
 public:
   using key_handler = std::function<void(gamepad::key, bool)>;
-  using axis2d_handler =
-      std::function<void(gamepad::axis, gamepad::axis2d_state)>;
-  using axis3d_handler =
-      std::function<void(gamepad::axis, gamepad::axis3d_state)>;
-  evdev_gamepad(asio::io_context::executor_type io_executor,
-      const std::filesystem::path& devnode);
+  using axis2d_handler = std::function<void(gamepad::axis, gamepad::axis2d_state)>;
+  using axis3d_handler = std::function<void(gamepad::axis, gamepad::axis3d_state)>;
+  evdev_gamepad(asio::io_context::executor_type io_executor, const std::filesystem::path& devnode);
 
   evdev_gamepad(const evdev_gamepad&) = delete;
   evdev_gamepad(evdev_gamepad&&) = delete;
@@ -34,18 +31,13 @@ public:
   void set_key_handler(key_handler&& val) { key_handler_ = std::move(val); }
 
   void set_axis_handler(const axis2d_handler& val) { axis2d_handler_ = val; }
-  void set_axis_handler(axis2d_handler&& val) {
-    axis2d_handler_ = std::move(val);
-  }
+  void set_axis_handler(axis2d_handler&& val) { axis2d_handler_ = std::move(val); }
 
   void set_axis_handler(const axis3d_handler& val) { axis3d_handler_ = val; }
-  void set_axis_handler(axis3d_handler&& val) {
-    axis3d_handler_ = std::move(val);
-  }
+  void set_axis_handler(axis3d_handler&& val) { axis3d_handler_ = std::move(val); }
 
 private:
-  asio::awaitable<void> watch_device(
-      asio::io_context::executor_type io_executor);
+  asio::awaitable<void> watch_device(asio::io_context::executor_type io_executor);
 
 private:
   asio::posix::stream_descriptor dev_;

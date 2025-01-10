@@ -70,32 +70,29 @@ public:
 
     connected_gamepads(udev& udev);
 
-    iterator begin() noexcept {
-      return {udev_enumerate_get_list_entry(enumerator_.get())};
-    }
+    iterator begin() noexcept { return {udev_enumerate_get_list_entry(enumerator_.get())}; }
     iterator end() const noexcept { return {}; };
 
   private:
     detail::udev::unique_ptr<udev_enumerate> enumerator_;
   };
 
-  udev_gamepads(evdev_gamepad::key_handler key_handler,
-      evdev_gamepad::axis2d_handler axis2d_handler,
-      evdev_gamepad::axis3d_handler axis3d_handler);
+  udev_gamepads(
+      evdev_gamepad::key_handler key_handler, evdev_gamepad::axis2d_handler axis2d_handler,
+      evdev_gamepad::axis3d_handler axis3d_handler
+  );
 
   connected_gamepads connected() { return {*udev_}; }
   asio::awaitable<void> watch(asio::io_context::executor_type exec);
   udev& native_handle() const noexcept { return *udev_; }
 
 private:
-  void on_add(asio::io_context::executor_type exec, std::string_view devnode,
-      udev_device& dev);
+  void on_add(asio::io_context::executor_type exec, std::string_view devnode, udev_device& dev);
   void on_remove(std::string_view devnode, udev_device& dev);
 
 private:
   detail::udev::unique_ptr<udev> udev_{udev_new()};
-  detail::udev::unique_ptr<udev_monitor> monitor_{
-      udev_monitor_new_from_netlink(udev_.get(), "udev")};
+  detail::udev::unique_ptr<udev_monitor> monitor_{udev_monitor_new_from_netlink(udev_.get(), "udev")};
   std::unordered_map<std::filesystem::path, evdev_gamepad> gamepads_;
   evdev_gamepad::key_handler key_handler_;
   evdev_gamepad::axis2d_handler axis2d_handler_;

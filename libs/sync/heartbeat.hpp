@@ -24,8 +24,7 @@ public:
 
 private:
   friend class heartbeat;
-  explicit heartbeat_waiter(
-      std::atomic<uint32_t>* beat_count, uint32_t start_count) noexcept
+  explicit heartbeat_waiter(std::atomic<uint32_t>* beat_count, uint32_t start_count) noexcept
       : beat_count_{beat_count}, recieved_count_{start_count} {}
 
   static void wake_impl(std::atomic<uint32_t>& beat_count) noexcept {
@@ -47,9 +46,7 @@ public:
 
   void wake_waiters() noexcept { heartbeat_waiter::wake_impl(beat_count_); }
 
-  heartbeat_waiter make_waiter() {
-    return heartbeat_waiter{&beat_count_, beat_count_.load()};
-  }
+  heartbeat_waiter make_waiter() { return heartbeat_waiter{&beat_count_, beat_count_.load()}; }
 
 private:
   std::atomic<uint32_t> beat_count_ = 0;

@@ -25,9 +25,7 @@ inline void run_shader_compilation(shader& shdr) {
 
 } // namespace
 
-shader compile(shader_type type, const char* src) {
-  return compile(type, std::span<const char*>{&src, 1});
-}
+shader compile(shader_type type, const char* src) { return compile(type, std::span<const char*>{&src, 1}); }
 
 shader compile(shader_type type, std::span<const char* const> srcs) {
   shader res{shader_handle{glCreateShader(static_cast<GLenum>(type))}};
@@ -49,8 +47,7 @@ shader compile(shader_type type, std::string_view src) {
   return res;
 }
 
-resource<shader_program_handle> link(
-    shader_handle vertex, shader_handle fragment) {
+resource<shader_program_handle> link(shader_handle vertex, shader_handle fragment) {
   resource<shader_program_handle> res{shader_program_handle{glCreateProgram()}};
   if (!res)
     throw std::runtime_error{"Failed to create GLSL program"};
@@ -78,23 +75,26 @@ resource<shader_program_handle> link(
 shader_program::shader_program(shader_handle vertex, shader_handle fragment)
     : resource<shader_program_handle>{link(vertex, fragment)} {}
 
-shader_program::shader_program(
-    const char* vertex_shader_sources, const char* fragment_shader_sources)
+shader_program::shader_program(const char* vertex_shader_sources, const char* fragment_shader_sources)
     : shader_program{
           compile(gl::shader_type::vertex, vertex_shader_sources).get(),
-          compile(gl::shader_type::fragment, fragment_shader_sources).get()} {}
+          compile(gl::shader_type::fragment, fragment_shader_sources).get()
+      } {}
 
 shader_program::shader_program(
-    std::span<const char* const> vertex_shader_sources,
-    std::span<const char* const> fragment_shader_sources)
+    std::span<const char* const> vertex_shader_sources, std::span<const char* const> fragment_shader_sources
+)
     : shader_program{
           compile(gl::shader_type::vertex, vertex_shader_sources).get(),
-          compile(gl::shader_type::fragment, fragment_shader_sources).get()} {}
+          compile(gl::shader_type::fragment, fragment_shader_sources).get()
+      } {}
 
-shader_program::shader_program(std::string_view vertex_shader_sources,
-    std::string_view fragment_shader_sources)
+shader_program::shader_program(
+    std::string_view vertex_shader_sources, std::string_view fragment_shader_sources
+)
     : shader_program{
           compile(gl::shader_type::vertex, vertex_shader_sources).get(),
-          compile(gl::shader_type::fragment, fragment_shader_sources).get()} {}
+          compile(gl::shader_type::fragment, fragment_shader_sources).get()
+      } {}
 
 } // namespace gl

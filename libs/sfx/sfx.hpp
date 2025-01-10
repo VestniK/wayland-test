@@ -15,9 +15,7 @@ public:
     bool offset_is_adjusted = false;
   };
 
-  const std::unordered_map<fs::path, entry>& entries() const noexcept {
-    return entries_;
-  }
+  const std::unordered_map<fs::path, entry>& entries() const noexcept { return entries_; }
 
   thinsys::io::file_descriptor& open(entry& e);
   thinsys::io::file_descriptor& open(const fs::path& path);
@@ -25,8 +23,7 @@ public:
   static archive open_self();
 
 private:
-  archive(std::unordered_map<fs::path, entry> entries,
-      thinsys::io::file_descriptor fd)
+  archive(std::unordered_map<fs::path, entry> entries, thinsys::io::file_descriptor fd)
       : entries_{std::move(entries)}, fd_{std::move(fd)} {}
 
 private:

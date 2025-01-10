@@ -9,9 +9,7 @@ namespace wl {
 
 namespace {
 
-void xdg_ping(void*, xdg_wm_base* wm, uint32_t serial) {
-  xdg_wm_base_pong(wm, serial);
-}
+void xdg_ping(void*, xdg_wm_base* wm, uint32_t serial) { xdg_wm_base_pong(wm, serial); }
 
 constexpr uint32_t ivi_main_glapp_id = 1337;
 
@@ -39,8 +37,8 @@ std::error_code gui_shell::check() noexcept {
   return {};
 }
 
-asio::awaitable<sized_window<shell_window>> gui_shell::create_maximized_window(
-    event_loop& eloop, asio::io_context::executor_type io_exec) {
+asio::awaitable<sized_window<shell_window>>
+gui_shell::create_maximized_window(event_loop& eloop, asio::io_context::executor_type io_exec) {
   struct : xdg::delegate {
     void resize(size sz) override { wnd_size = sz; }
     void close() override { closed = true; }
@@ -51,8 +49,7 @@ asio::awaitable<sized_window<shell_window>> gui_shell::create_maximized_window(
 
   shell_window wnd;
   if (get_ivi())
-    wnd = shell_window{ivi::window{
-        *get_compositor(), *get_ivi(), ivi_main_glapp_id, &szdelegate}};
+    wnd = shell_window{ivi::window{*get_compositor(), *get_ivi(), ivi_main_glapp_id, &szdelegate}};
   else {
     xdg::toplevel_window xdg_wnd{*get_compositor(), *get_xdg_wm(), &szdelegate};
     xdg_wnd.maximize();
@@ -64,12 +61,10 @@ asio::awaitable<sized_window<shell_window>> gui_shell::create_maximized_window(
   if (szdelegate.closed)
     throw std::system_error{ui_errc::window_closed, "create_maximized_window"};
 
-  co_return sized_window<shell_window>{
-      .window = std::move(wnd), .sz = szdelegate.wnd_size.value()};
+  co_return sized_window<shell_window>{.window = std::move(wnd), .sz = szdelegate.wnd_size.value()};
 }
 
-void gui_shell::global(
-    void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver) {
+void gui_shell::global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver) {
   gui_shell* self = reinterpret_cast<gui_shell*>(data);
   if (name == wl::service_trait<wl_compositor>::name)
     self->compositor_ = {wl::bind<wl_compositor>(reg, id, ver), id};

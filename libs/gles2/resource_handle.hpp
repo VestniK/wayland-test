@@ -12,8 +12,7 @@ namespace gl {
 
 template <typename T>
 concept resource_handle =
-    std::regular<T> && std::same_as<typename T::native_handle_t, GLuint> &&
-    requires(const T& t) {
+    std::regular<T> && std::same_as<typename T::native_handle_t, GLuint> && requires(const T& t) {
       { t.native_handle() } -> std::same_as<typename T::native_handle_t>;
       { static_cast<bool>(t) };
       { T::invalid } -> std::same_as<const T&>;
@@ -35,15 +34,11 @@ public:
   using native_handle_t = GLuint;
 
   constexpr basic_handle() noexcept = default;
-  constexpr explicit basic_handle(native_handle_t handle) noexcept
-      : handle_{handle} {}
-  constexpr std::strong_ordering operator<=>(
-      const basic_handle&) const noexcept = default;
+  constexpr explicit basic_handle(native_handle_t handle) noexcept : handle_{handle} {}
+  constexpr std::strong_ordering operator<=>(const basic_handle&) const noexcept = default;
 
   constexpr native_handle_t native_handle() const noexcept { return handle_; }
-  constexpr explicit operator bool() const noexcept {
-    return handle_ != invalid.handle_;
-  }
+  constexpr explicit operator bool() const noexcept { return handle_ != invalid.handle_; }
 
   static void free(basic_handle res) noexcept = delete;
   static void free(std::span<basic_handle> res) noexcept = delete;
@@ -81,14 +76,10 @@ public:
       T::free(handle_);
   }
 
-  constexpr explicit operator bool() const noexcept {
-    return static_cast<bool>(handle_);
-  }
+  constexpr explicit operator bool() const noexcept { return static_cast<bool>(handle_); }
   constexpr T release() noexcept { return std::exchange(handle_, T::invalid); }
   constexpr T get() noexcept { return handle_; }
-  constexpr native_handle_t native_handle() noexcept {
-    return handle_.native_handle();
-  }
+  constexpr native_handle_t native_handle() noexcept { return handle_.native_handle(); }
 
 private:
   T handle_ = T::invalid;
@@ -99,8 +90,10 @@ class resource<T[N]> {
 public:
   constexpr resource() noexcept { handls_.fill(T::invalid); }
   constexpr resource(std::span<const T, N> handls) noexcept {
-    assert(std::ranges::all_of(handls, [](const T& h) { return !h; }) ||
-           std::ranges::none_of(handls, [](const T& h) { return !h; }));
+    assert(
+        std::ranges::all_of(handls, [](const T& h) { return !h; }) ||
+        std::ranges::none_of(handls, [](const T& h) { return !h; })
+    );
     std::ranges::copy(handls, handls_.begin());
   }
 
@@ -126,9 +119,7 @@ public:
       T::free(handls_);
   }
 
-  constexpr const T& operator[](size_t idx) const noexcept {
-    return handls_[idx];
-  }
+  constexpr const T& operator[](size_t idx) const noexcept { return handls_[idx]; }
 
 private:
   std::array<T, N> handls_;

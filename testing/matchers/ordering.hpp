@@ -9,8 +9,7 @@
 #include <fmt/format.h>
 
 template <typename E>
-concept ordering_category = std::same_as<E, std::strong_ordering> ||
-                            std::same_as<E, std::weak_ordering> ||
+concept ordering_category = std::same_as<E, std::strong_ordering> || std::same_as<E, std::weak_ordering> ||
                             std::same_as<E, std::partial_ordering>;
 
 template <ordering_category Cat, const Cat&... Ops>
@@ -26,8 +25,7 @@ struct format_str<std::strong_ordering, std::strong_ordering::less> {
 };
 
 template <>
-struct format_str<std::strong_ordering, std::strong_ordering::less,
-    std::strong_ordering::equal> {
+struct format_str<std::strong_ordering, std::strong_ordering::less, std::strong_ordering::equal> {
   static constexpr const char* value = "Less than or equal to value: {}";
 };
 
@@ -37,8 +35,7 @@ struct format_str<std::strong_ordering, std::strong_ordering::greater> {
 };
 
 template <>
-struct format_str<std::strong_ordering, std::strong_ordering::greater,
-    std::strong_ordering::equal> {
+struct format_str<std::strong_ordering, std::strong_ordering::greater, std::strong_ordering::equal> {
   static constexpr const char* value = "Greater than or equal to value: {}";
 };
 
@@ -54,8 +51,7 @@ struct format_str<std::partial_ordering, std::partial_ordering::less> {
 };
 
 template <>
-struct format_str<std::partial_ordering, std::partial_ordering::less,
-    std::partial_ordering::equivalent> {
+struct format_str<std::partial_ordering, std::partial_ordering::less, std::partial_ordering::equivalent> {
   static constexpr const char* value = "Less than or equivalent to value: {}";
 };
 
@@ -65,8 +61,7 @@ struct format_str<std::partial_ordering, std::partial_ordering::greater> {
 };
 
 template <>
-struct format_str<std::partial_ordering, std::partial_ordering::greater,
-    std::partial_ordering::equivalent> {
+struct format_str<std::partial_ordering, std::partial_ordering::greater, std::partial_ordering::equivalent> {
   static constexpr const char* value = "Greater than or eqivalent to value: {}";
 };
 
@@ -87,8 +82,7 @@ struct format_str<std::weak_ordering, std::weak_ordering::less> {
 };
 
 template <>
-struct format_str<std::weak_ordering, std::weak_ordering::less,
-    std::weak_ordering::equivalent> {
+struct format_str<std::weak_ordering, std::weak_ordering::less, std::weak_ordering::equivalent> {
   static constexpr const char* value = "Less than or equivalent to value: {}";
 };
 
@@ -98,10 +92,8 @@ struct format_str<std::weak_ordering, std::weak_ordering::greater> {
 };
 
 template <>
-struct format_str<std::weak_ordering, std::weak_ordering::greater,
-    std::weak_ordering::equivalent> {
-  static constexpr const char* value =
-      "Greater than or equivalent to value: {}";
+struct format_str<std::weak_ordering, std::weak_ordering::greater, std::weak_ordering::equivalent> {
+  static constexpr const char* value = "Greater than or equivalent to value: {}";
 };
 
 template <>
@@ -111,19 +103,15 @@ struct format_str<std::weak_ordering, std::weak_ordering::equivalent> {
 
 // Matchers
 
-template <ordering_category Cat, std::three_way_comparable<Cat> T,
-    const Cat&... Co>
+template <ordering_category Cat, std::three_way_comparable<Cat> T, const Cat&... Co>
 class order_matcher : public Catch::Matchers::MatcherGenericBase {
 public:
   explicit order_matcher(const T& val) : expectation_{val} {}
 
-  bool match(const T& val) const {
-    return (((val <=> expectation_) == Co) || ...);
-  }
+  bool match(const T& val) const { return (((val <=> expectation_) == Co) || ...); }
 
   std::string describe() const override {
-    return fmt::format(
-        format_str_v<Cat, Co...>, Catch::Detail::stringify(expectation_));
+    return fmt::format(format_str_v<Cat, Co...>, Catch::Detail::stringify(expectation_));
   }
 
 private:
@@ -132,30 +120,27 @@ private:
 
 template <std::three_way_comparable<std::strong_ordering> T>
 auto gt(const T& val) {
-  return order_matcher<std::strong_ordering, std::decay_t<T>,
-      std::strong_ordering::greater>(val);
+  return order_matcher<std::strong_ordering, std::decay_t<T>, std::strong_ordering::greater>(val);
 }
 
 template <std::three_way_comparable<std::strong_ordering> T>
 auto ge(const T& val) {
-  return order_matcher<std::strong_ordering, std::decay_t<T>,
-      std::strong_ordering::greater, std::strong_ordering::equal>(val);
+  return order_matcher<
+      std::strong_ordering, std::decay_t<T>, std::strong_ordering::greater, std::strong_ordering::equal>(val);
 }
 
 template <std::three_way_comparable<std::strong_ordering> T>
 auto lt(const T& val) {
-  return order_matcher<std::strong_ordering, std::decay_t<T>,
-      std::strong_ordering::less>(val);
+  return order_matcher<std::strong_ordering, std::decay_t<T>, std::strong_ordering::less>(val);
 }
 
 template <std::three_way_comparable<std::strong_ordering> T>
 auto le(const T& val) {
-  return order_matcher<std::strong_ordering, std::decay_t<T>,
-      std::strong_ordering::less, std::strong_ordering::equal>(val);
+  return order_matcher<
+      std::strong_ordering, std::decay_t<T>, std::strong_ordering::less, std::strong_ordering::equal>(val);
 }
 
 template <std::three_way_comparable<std::strong_ordering> T>
 auto eq(const T& val) {
-  return order_matcher<std::strong_ordering, std::decay_t<T>,
-      std::strong_ordering::equal>(val);
+  return order_matcher<std::strong_ordering, std::decay_t<T>, std::strong_ordering::equal>(val);
 }

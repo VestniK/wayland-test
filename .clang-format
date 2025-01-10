@@ -1,8 +1,8 @@
 ﻿---
 BasedOnStyle: LLVM
-AlignAfterOpenBracket: 'false'
+AlignAfterOpenBracket: 'BlockIndent'
 AlwaysBreakTemplateDeclarations: 'true'
-ColumnLimit: '80'
+ColumnLimit: '110'
 MaxEmptyLinesToKeep: '1'
 PointerAlignment: Left
 

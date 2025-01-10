@@ -8,6 +8,7 @@
 
 #include <apps/colorcube/controller.hpp>
 
-asio::awaitable<void> draw_scene(co::io_executor io_exec,
-    co::pool_executor pool_exec, const scene::controller& controller,
-    const char* wl_display);
+asio::awaitable<void> draw_scene(
+    co::io_executor io_exec, co::pool_executor pool_exec, const scene::controller& controller,
+    const char* wl_display
+);

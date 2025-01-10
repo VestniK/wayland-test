@@ -21,8 +21,7 @@ egl::context make_egl_context(wl_display& display) {
       EGL_NONE};
   // clang-format on
   EGLConfig cfg;
-  if (eglChooseConfig(egl_display.native_handle(), cfg_attr, &cfg, 1, &count) ==
-      EGL_FALSE)
+  if (eglChooseConfig(egl_display.native_handle(), cfg_attr, &cfg, 1, &count) == EGL_FALSE)
     throw std::system_error{eglGetError(), egl::category(), "eglChooseConfig"};
 
   eglSwapInterval(egl_display.native_handle(), 0);
@@ -32,8 +31,7 @@ egl::context make_egl_context(wl_display& display) {
 } // namespace
 
 gles_context::gles_context(wl_display& display, wl_surface& surf, size sz)
-    : egl_surface_(make_egl_context(display)),
-      egl_wnd_{wl_egl_window_create(&surf, sz.width, sz.height)} {
+    : egl_surface_(make_egl_context(display)), egl_wnd_{wl_egl_window_create(&surf, sz.width, sz.height)} {
   egl_surface_.set_window(*egl_wnd_);
   egl_surface_.make_current();
 }

@@ -19,14 +19,14 @@ SCENARIO("Open self executable as zip-archive") {
       const auto& entries = archive.entries();
 
       THEN("attached file are enlisted") {
-        CHECK_THAT(entries | std::views::keys,
-            UnorderedRangeEquals(std::vector{"a.txt"sv, "b.txt"sv}));
+        CHECK_THAT(entries | std::views::keys, UnorderedRangeEquals(std::vector{"a.txt"sv, "b.txt"sv}));
       }
 
       THEN("sizes of attached files are correct") {
-        CHECK_THAT(entries | std::views::values |
-                       std::views::transform(&sfx::archive::entry::size),
-            UnorderedRangeEquals(std::vector{12, 35}));
+        CHECK_THAT(
+            entries | std::views::values | std::views::transform(&sfx::archive::entry::size),
+            UnorderedRangeEquals(std::vector{12, 35})
+        );
       }
     }
 

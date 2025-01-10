@@ -13,15 +13,13 @@
 
 namespace evio {
 
-std::expected<input_absinfo, evio::error> load_absinfo(
-    asio::posix::stream_descriptor& dev, gamepad::axis axis,
-    gamepad::dimention coord);
+std::expected<input_absinfo, evio::error>
+load_absinfo(asio::posix::stream_descriptor& dev, gamepad::axis axis, gamepad::dimention coord);
 
 input_id load_dev_id(asio::posix::stream_descriptor& dev);
 
 std::string load_dev_name(asio::posix::stream_descriptor& dev);
 
-asio::experimental::coro<std::span<const input_event>> read_events(
-    asio::posix::stream_descriptor& dev);
+asio::experimental::coro<std::span<const input_event>> read_events(asio::posix::stream_descriptor& dev);
 
 } // namespace evio

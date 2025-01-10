@@ -19,10 +19,12 @@ using namespace asio::experimental::awaitable_operators;
 namespace {
 
 struct opts {
-  const char* display = args::option<const char*>{"-d", "--display",
-      "Specify wayland display. Current session default is used if nothing is "
-      "specified."}
-                            .default_value(nullptr);
+  const char* display =
+      args::option<const char*>{
+          "-d", "--display",
+          "Specify wayland display. Current session default is used if nothing is specified."
+      }
+          .default_value(nullptr);
 };
 
 } // namespace
@@ -31,8 +33,7 @@ namespace co {
 
 unsigned min_threads = 3;
 
-asio::awaitable<int> main(
-    io_executor io_exec, pool_executor pool_exec, std::span<char*> args) {
+asio::awaitable<int> main(io_executor io_exec, pool_executor pool_exec, std::span<char*> args) {
   if (get_flag(args, "-h")) {
     args::usage<opts>(args[0], std::cout);
     std::cout << '\n';

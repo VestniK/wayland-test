@@ -13,8 +13,7 @@ template <typename T>
 class uniform_location {
 public:
   constexpr uniform_location() noexcept = default;
-  constexpr explicit uniform_location(GLint location) noexcept
-      : location_{location} {}
+  constexpr explicit uniform_location(GLint location) noexcept : location_{location} {}
 
   // must be specialized for each reauired T
   void set_value(const T& val) = delete;

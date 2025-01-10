@@ -12,20 +12,13 @@ namespace vlk {
 namespace detail {
 
 template <std::default_initializable Memory>
-template <query_memreq_function QueryReq,
-    device_allocation_function<Memory> AllocMem>
-arena_pools<Memory>::arena_pools(
-    sizes pool_sizes, QueryReq&& query_req_fn, AllocMem&& alloc_fn) {
-  std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>,
-      purpose_data_arity>
-      type2purpose{
-          std::tuple{
-              query_req_fn(vbo), purpose_idx(vbo), pool_sizes.vbo_capacity},
-          std::tuple{
-              query_req_fn(ibo), purpose_idx(ibo), pool_sizes.ibo_capacity},
-          std::tuple{query_req_fn(texture), purpose_idx(texture),
-              pool_sizes.textures_capacity},
-      };
+template <query_memreq_function QueryReq, device_allocation_function<Memory> AllocMem>
+arena_pools<Memory>::arena_pools(sizes pool_sizes, QueryReq&& query_req_fn, AllocMem&& alloc_fn) {
+  std::array<std::tuple<vk::MemoryRequirements, size_t, size_t>, purpose_data_arity> type2purpose{
+      std::tuple{query_req_fn(vbo), purpose_idx(vbo), pool_sizes.vbo_capacity},
+      std::tuple{query_req_fn(ibo), purpose_idx(ibo), pool_sizes.ibo_capacity},
+      std::tuple{query_req_fn(texture), purpose_idx(texture), pool_sizes.textures_capacity},
+  };
 
   std::ranges::sort(type2purpose, [](auto l, auto r) {
     return std::get<0>(l).memoryTypeBits < std::get<0>(r).memoryTypeBits;
@@ -37,8 +30,7 @@ arena_pools<Memory>::arena_pools(
   for (auto [mem_req, purp, capacity] : type2purpose) {
     if (const auto prev = std::exchange(last_type_bits, mem_req.memoryTypeBits);
         prev && prev != mem_req.memoryTypeBits) {
-      pools_[next_mem_slot_idx++] =
-          alloc_fn(*prev, std::exchange(total_capacity, 0));
+      pools_[next_mem_slot_idx++] = alloc_fn(*prev, std::exchange(total_capacity, 0));
     }
     total_capacity += capacity;
     arena_infos_[purp] = {
@@ -53,33 +45,30 @@ arena_pools<Memory>::arena_pools(
 
 template <std::default_initializable Memory>
 template <memory_purpose Purpose>
-std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
-    Purpose p, size_t sz) {
+std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(Purpose p, size_t sz) {
   return lock_memory_for(p, sz, 0);
 }
 
 template <std::default_initializable Memory>
 template <memory_purpose Purpose>
-std::tuple<Memory&, memory_region> arena_pools<Memory>::lock_memory_for(
-    Purpose p, size_t sz, size_t alignment) {
+std::tuple<Memory&, memory_region>
+arena_pools<Memory>::lock_memory_for(Purpose p, size_t sz, size_t alignment) {
   arena_info& arena = arena_infos_[p];
   const size_t offset = std::ranges::fold_left(
-      arena_infos_ | std::views::filter([&arena](auto&& item) {
-        return item.pool_idx == arena.pool_idx;
-      }) | std::views::transform(&arena_info::used),
-      size_t{0}, std::plus{});
+      arena_infos_ | std::views::filter([&arena](auto&& item) { return item.pool_idx == arena.pool_idx; }) |
+          std::views::transform(&arena_info::used),
+      size_t{0}, std::plus{}
+  );
   const size_t align = std::max(alignment, arena.alignment);
   const size_t padding = align > 0 ? (align - offset % align) % align : 0;
   if (arena.capacity - arena.used < sz + padding)
     throw std::bad_alloc{};
   arena.used = arena.used + sz + padding;
-  return {pools_[arena.pool_idx],
-      memory_region{.offset = offset + padding, .len = sz}};
+  return {pools_[arena.pool_idx], memory_region{.offset = offset + padding, .len = sz}};
 }
 
 template <std::default_initializable Memory>
-purpose_data<const Memory*>
-arena_pools<Memory>::get_memory_handles() const noexcept {
+purpose_data<const Memory*> arena_pools<Memory>::get_memory_handles() const noexcept {
   purpose_data<const Memory*> res;
   for (const auto& [idx, info] : arena_infos_ | std::views::enumerate) {
     res[idx] = &pools_[info.pool_idx];

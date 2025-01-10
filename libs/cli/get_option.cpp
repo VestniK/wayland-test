@@ -12,15 +12,13 @@ bool get_flag(std::span<char*>& args, std::string_view flag) noexcept {
   return fres != last;
 }
 
-const char* get_option(
-    std::span<char*>& args, std::string_view option) noexcept {
+const char* get_option(std::span<char*>& args, std::string_view option) noexcept {
   assert(!args.empty());
   auto first = std::next(args.begin());
   auto last = args.end();
-  auto fres =
-      std::adjacent_find(first, last, [&](const char* opt, const char* val) {
-        return opt == option && val[0] != '-';
-      });
+  auto fres = std::adjacent_find(first, last, [&](const char* opt, const char* val) {
+    return opt == option && val[0] != '-';
+  });
   if (fres == last)
     return nullptr;
   fres = std::rotate(fres, std::next(fres, 2), last);

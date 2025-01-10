@@ -25,8 +25,7 @@ public:
     if constexpr (std::derived_from<T, Catch::Matchers::MatcherGenericBase>)
       return "Contains expected value that: " + expectation_.describe();
     else
-      return "Contains expected value equals: " +
-             Catch::Detail::stringify(expectation_);
+      return "Contains expected value equals: " + Catch::Detail::stringify(expectation_);
   }
 
 private:

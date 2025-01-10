@@ -65,9 +65,7 @@ public:
     struct box : Wnd, iface {
       box(Wnd&& rhs) noexcept : Wnd{std::move(rhs)} {}
       wl_surface& get_surface() override { return Wnd::get_surface(); }
-      void set_delegate(xdg::delegate* delegate) override {
-        return Wnd::set_delegate(delegate);
-      }
+      void set_delegate(xdg::delegate* delegate) override { return Wnd::set_delegate(delegate); }
       iface* move_to(std::byte (&dest)[storage]) noexcept override {
         static_assert(sizeof(box) <= storage && alignof(box) <= align);
         iface* res = new (dest) box{static_cast<Wnd&&>(*this)};
@@ -89,8 +87,7 @@ public:
 
 private:
   bool is_embedded() const noexcept {
-    return reinterpret_cast<uintptr_t>(iface_) ==
-           reinterpret_cast<uintptr_t>(&storage_);
+    return reinterpret_cast<uintptr_t>(iface_) == reinterpret_cast<uintptr_t>(&storage_);
   }
   void destroy() noexcept {
     if (is_embedded()) {

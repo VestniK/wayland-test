@@ -66,7 +66,6 @@ inline vsync_frames::iterator vsync_frames::begin() {
     return iterator{.vsync = nullptr, .current = {}};
 }
 
-inline constexpr bool operator==(
-    const vsync_frames::iterator& it, vsync_frames::sentinel) noexcept {
+inline constexpr bool operator==(const vsync_frames::iterator& it, vsync_frames::sentinel) noexcept {
   return it.vsync == nullptr;
 }

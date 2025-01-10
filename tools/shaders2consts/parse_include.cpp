@@ -20,8 +20,7 @@ constexpr std::string_view rtrim(std::string_view in) noexcept {
 
 } // namespace
 
-std::expected<std::filesystem::path, include_parse_error> parse_include(
-    std::string_view ln) {
+std::expected<std::filesystem::path, include_parse_error> parse_include(std::string_view ln) {
   using enum include_parse_error;
   constexpr std::string_view include = "@include";
 

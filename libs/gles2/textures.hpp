@@ -17,10 +17,11 @@ enum class texel_format { rgb = GL_RGB, rgba = GL_RGBA };
 class texture_sampler {
 public:
   struct bind_editor {
-    bind_editor& image_2d(
-        texel_format fmt, ::size sz, std::span<const std::byte> img) noexcept {
-      glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(fmt), sz.width,
-          sz.height, 0, static_cast<GLint>(fmt), GL_UNSIGNED_BYTE, img.data());
+    bind_editor& image_2d(texel_format fmt, ::size sz, std::span<const std::byte> img) noexcept {
+      glTexImage2D(
+          GL_TEXTURE_2D, 0, static_cast<GLint>(fmt), sz.width, sz.height, 0, static_cast<GLint>(fmt),
+          GL_UNSIGNED_BYTE, img.data()
+      );
       return *this;
     }
 
@@ -65,8 +66,7 @@ struct texture_samplers {
 inline constexpr texture_samplers samplers = {};
 
 template <>
-inline void uniform_location<texture_sampler>::set_value(
-    const texture_sampler& val) {
+inline void uniform_location<texture_sampler>::set_value(const texture_sampler& val) {
   glUniform1i(location_, val.native_handle() - GL_TEXTURE0);
 }
 

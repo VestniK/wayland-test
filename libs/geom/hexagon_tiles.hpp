@@ -18,26 +18,23 @@ class hexagon_tiles {
 private:
   struct morton_hash {
     constexpr size_t operator()(triangular::point pt) const noexcept {
-      return morton::code(
-          static_cast<unsigned>(pt.x), static_cast<unsigned>(pt.y));
+      return morton::code(static_cast<unsigned>(pt.x), static_cast<unsigned>(pt.y));
     }
   };
 
 public:
-  using radius_t =
-      mp_units::quantity<mp_units::isq::radius[mp_units::si::metre], float>;
+  using radius_t = mp_units::quantity<mp_units::isq::radius[mp_units::si::metre], float>;
 
   template <typename F>
-  static hexagon_tiles generate(
-      radius_t cell_radius, int columns, int rows, F&& to_vertex) {
+  static hexagon_tiles generate(radius_t cell_radius, int columns, int rows, F&& to_vertex) {
     hexagon_tiles res;
     std::unordered_map<triangular::point, unsigned, morton_hash> idxs;
     auto idx = [&](triangular::point pt) {
       auto [it, success] = idxs.insert({pt, res.verticies_.size()});
       if (success) {
-        res.verticies_.push_back(
-            to_vertex(cell_radius.numerical_value_in(mp_units::si::metre) *
-                      triangular::to_cartesian(it->first)));
+        res.verticies_.push_back(to_vertex(
+            cell_radius.numerical_value_in(mp_units::si::metre) * triangular::to_cartesian(it->first)
+        ));
       }
       return it->second;
     };
@@ -56,16 +53,15 @@ public:
         const unsigned tr = idx(cell_coord(center, corner::top_right));
 
         res.hexagons_.push_back(
-            {triangle{c, bl, ml}, triangle{c, ml, tl}, triangle{c, tl, tr},
-                triangle{c, tr, mr}, triangle{c, mr, br}, triangle{c, br, bl}});
+            {triangle{c, bl, ml}, triangle{c, ml, tl}, triangle{c, tl, tr}, triangle{c, tr, mr},
+             triangle{c, mr, br}, triangle{c, br, bl}}
+        );
       }
     }
     return res;
   }
 
-  [[nodiscard]] std::span<const Vertex> verticies() const noexcept {
-    return verticies_;
-  }
+  [[nodiscard]] std::span<const Vertex> verticies() const noexcept { return verticies_; }
   [[nodiscard]] std::span<const unsigned> indexes() const noexcept {
     return as_concated(as_concated(hexagons_));
   }

@@ -33,9 +33,7 @@ SCENARIO("allocate from arena") {
     std::span storage_mem_area{buf};
     monotonic_arena arena{std::move(buf)};
 
-    THEN("capacity is equal to initial vector size") {
-      CHECK(arena.capacity() == 100500);
-    }
+    THEN("capacity is equal to initial vector size") { CHECK(arena.capacity() == 100500); }
 
     WHEN("some bytes are allocated") {
       auto bytes = arena.allocate(20);
@@ -44,8 +42,7 @@ SCENARIO("allocate from arena") {
 
       THEN("allocated memory is inside initial vector") {
         CHECK(static_cast<std::byte*>(bytes) >= storage_mem_area.data());
-        CHECK(static_cast<std::byte*>(bytes) + 20 <=
-              storage_mem_area.data() + storage_mem_area.size());
+        CHECK(static_cast<std::byte*>(bytes) + 20 <= storage_mem_area.data() + storage_mem_area.size());
       }
     }
 
@@ -53,9 +50,7 @@ SCENARIO("allocate from arena") {
       auto one_byte [[maybe_unused]] = arena.allocate(1);
       auto aligned_bytes = arena.allocate(8, 128);
 
-      THEN("capacity delta contains padding") {
-        CHECK(arena.capacity() < 100500 - (1 + 8));
-      }
+      THEN("capacity delta contains padding") { CHECK(arena.capacity() < 100500 - (1 + 8)); }
 
       THEN("alligned allocated bytes has requested alignment") {
         CHECK(reinterpret_cast<uintptr_t>(aligned_bytes) % 128 == 0);
@@ -65,9 +60,7 @@ SCENARIO("allocate from arena") {
     WHEN("class with nontrivial constructor/destructor allocated") {
       auto val = arena.allocate_unique<counted>(42);
 
-      THEN("sideeffects of constructor are observable") {
-        CHECK(counted::instances_count == 1);
-      }
+      THEN("sideeffects of constructor are observable") { CHECK(counted::instances_count == 1); }
 
       THEN("sideeffects destructor is called on allocated object destruction") {
         val.reset();

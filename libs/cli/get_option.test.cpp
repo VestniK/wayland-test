@@ -22,16 +22,11 @@ TEST_CASE("get_option") {
   char* args_arr[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6};
   std::span<char*> args = args_arr;
 
-  SECTION("returns nullptr when there is no requested option") {
-    REQUIRE(get_option(args, "-s") == nullptr);
-  }
-  SECTION("returns requested option value") {
-    REQUIRE(get_option(args, "-d") == "wayland-1"sv);
-  }
+  SECTION("returns nullptr when there is no requested option") { REQUIRE(get_option(args, "-s") == nullptr); }
+  SECTION("returns requested option value") { REQUIRE(get_option(args, "-d") == "wayland-1"sv); }
   SECTION("removes found option") {
     get_option(args, "-d");
-    REQUIRE(arg_views{args.begin(), args.end()} ==
-            arg_views{"prog", "-m", "nsk", "-m", "msk"});
+    REQUIRE(arg_views{args.begin(), args.end()} == arg_views{"prog", "-m", "nsk", "-m", "msk"});
   }
   SECTION("returns repeating options preserving order") {
     arg_views maps;

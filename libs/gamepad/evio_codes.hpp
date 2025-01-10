@@ -98,8 +98,8 @@ constexpr auto evcode2axis(uint16_t evcode) noexcept {
   return res;
 }
 
-constexpr std::expected<evio::axe, evio::error> axis2evcode(
-    gamepad::axis axis, gamepad::dimention coord) noexcept {
+constexpr std::expected<evio::axe, evio::error>
+axis2evcode(gamepad::axis axis, gamepad::dimention coord) noexcept {
   using enum gamepad::dimention;
   evio::axe res;
   switch (axis) {
@@ -157,8 +157,7 @@ constexpr std::expected<evio::axe, evio::error> axis2evcode(
   return res;
 }
 
-constexpr std::expected<gamepad::key, evio::error> code2key(
-    std::uint16_t code) noexcept {
+constexpr std::expected<gamepad::key, evio::error> code2key(std::uint16_t code) noexcept {
   switch (code) {
   case BTN_A:
     return gamepad::key::A;

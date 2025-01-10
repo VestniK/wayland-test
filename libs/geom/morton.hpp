@@ -48,9 +48,7 @@ constexpr uint64_t interleave_2(uint32_t val) noexcept {
   return r;
 }
 
-constexpr uint64_t code(uint32_t x, uint32_t y) noexcept {
-  return interleave_1(x) | (interleave_1(y) << 1);
-}
+constexpr uint64_t code(uint32_t x, uint32_t y) noexcept { return interleave_1(x) | (interleave_1(y) << 1); }
 
 constexpr uint64_t code(uint32_t x, uint32_t y, uint32_t z) noexcept {
   return interleave_2(x) | (interleave_2(y) << 1) | (interleave_2(z) << 2);

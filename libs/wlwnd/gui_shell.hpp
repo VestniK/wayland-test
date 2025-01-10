@@ -19,24 +19,17 @@ public:
   gui_shell& operator=(gui_shell&&) = delete;
   ~gui_shell() noexcept = default;
 
-  [[nodiscard]] wl_compositor* get_compositor() const noexcept {
-    return compositor_.service.get();
-  }
-  [[nodiscard]] ivi_application* get_ivi() const noexcept {
-    return ivi_.service.get();
-  }
-  [[nodiscard]] xdg_wm_base* get_xdg_wm() const noexcept {
-    return xdg_wm_.service.get();
-  }
+  [[nodiscard]] wl_compositor* get_compositor() const noexcept { return compositor_.service.get(); }
+  [[nodiscard]] ivi_application* get_ivi() const noexcept { return ivi_.service.get(); }
+  [[nodiscard]] xdg_wm_base* get_xdg_wm() const noexcept { return xdg_wm_.service.get(); }
 
   std::error_code check() noexcept;
 
-  asio::awaitable<sized_window<shell_window>> create_maximized_window(
-      event_loop& eloop, asio::io_context::executor_type io_exec);
+  asio::awaitable<sized_window<shell_window>>
+  create_maximized_window(event_loop& eloop, asio::io_context::executor_type io_exec);
 
 private:
-  static void global(void* data, wl_registry* reg, uint32_t id,
-      const char* name, uint32_t ver);
+  static void global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver);
   static void global_remove(void* data, wl_registry*, uint32_t id);
 
 private:

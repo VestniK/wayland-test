@@ -11,25 +11,19 @@ public:
   constexpr bitmask(const E e) noexcept : val(static_cast<value_type>(e)) {}
   constexpr bitmask() = default;
 
-  constexpr bitmask operator|(const bitmask rhs) const noexcept {
-    return bitmask(val | rhs.val);
-  }
+  constexpr bitmask operator|(const bitmask rhs) const noexcept { return bitmask(val | rhs.val); }
   bitmask& operator|=(const bitmask rhs) noexcept {
     val = static_cast<value_type>(val | rhs.val);
     return *this;
   }
 
-  constexpr bitmask operator&(const bitmask rhs) const noexcept {
-    return bitmask(val & rhs.val);
-  }
+  constexpr bitmask operator&(const bitmask rhs) const noexcept { return bitmask(val & rhs.val); }
   bitmask& operator&=(const bitmask rhs) noexcept {
     val = static_cast<value_type>(val & rhs.val);
     return *this;
   }
 
-  constexpr bitmask operator^(const bitmask rhs) const noexcept {
-    return bitmask(val ^ rhs.val);
-  }
+  constexpr bitmask operator^(const bitmask rhs) const noexcept { return bitmask(val ^ rhs.val); }
   bitmask& operator^=(const bitmask rhs) noexcept {
     val = static_cast<value_type>(val ^ rhs.val);
     return *this;
@@ -37,8 +31,7 @@ public:
 
   constexpr bitmask operator~() const noexcept { return bitmask{~val}; }
 
-  constexpr std::strong_ordering operator<=>(
-      const bitmask&) const noexcept = default;
+  constexpr std::strong_ordering operator<=>(const bitmask&) const noexcept = default;
 
   constexpr explicit operator bool() const noexcept { return val != 0; }
 

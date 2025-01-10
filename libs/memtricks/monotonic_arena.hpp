@@ -12,9 +12,8 @@ struct non_deleting_deleter {
 } // namespace detail
 
 template <typename T>
-concept arena_buffer =
-    std::ranges::contiguous_range<T> && std::ranges::sized_range<T> &&
-    std::same_as<std::ranges::range_value_t<T>, std::byte>;
+concept arena_buffer = std::ranges::contiguous_range<T> && std::ranges::sized_range<T> &&
+                       std::same_as<std::ranges::range_value_t<T>, std::byte>;
 
 template <arena_buffer Src>
 class monotonic_arena {
@@ -26,8 +25,7 @@ public:
   using unique_ptr = std::unique_ptr<T, deleter<T>>;
 
 public:
-  monotonic_arena() noexcept(
-      std::is_nothrow_default_constructible_v<Src>) = default;
+  monotonic_arena() noexcept(std::is_nothrow_default_constructible_v<Src>) = default;
 
   monotonic_arena(Src&& src) noexcept : mem_source_{std::move(src)} {}
 
@@ -39,8 +37,7 @@ public:
 
   void clear() noexcept { offset_ = 0; }
 
-  void* allocate(
-      std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) {
+  void* allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) {
     auto alloc = find_mem_for(bytes, alignment);
     commit_allocation(alloc);
     return alloc.data();
@@ -64,9 +61,8 @@ public:
     requires std::constructible_from<T, A&&...>
   unique_ptr<T> allocate_unique(A&&... a) {
     return aligned_allocate_unique<T>(
-        static_cast<std::align_val_t>(
-            std::max(alignof(T), alignof(std::max_align_t))),
-        std::forward<A>(a)...);
+        static_cast<std::align_val_t>(std::max(alignof(T), alignof(std::max_align_t))), std::forward<A>(a)...
+    );
   }
 
 private:

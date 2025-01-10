@@ -18,28 +18,33 @@ struct vertex {
   glm::vec3 normal;
   glm::vec2 uv;
 
-  constexpr static vk::VertexInputBindingDescription
-  binding_description() noexcept {
-    return vk::VertexInputBindingDescription{.binding = 0,
-        .stride = sizeof(vertex),
-        .inputRate = vk::VertexInputRate::eVertex};
+  constexpr static vk::VertexInputBindingDescription binding_description() noexcept {
+    return vk::VertexInputBindingDescription{
+        .binding = 0, .stride = sizeof(vertex), .inputRate = vk::VertexInputRate::eVertex
+    };
   }
 
-  constexpr static std::array<vk::VertexInputAttributeDescription, 3>
-  attribute_description() noexcept {
+  constexpr static std::array<vk::VertexInputAttributeDescription, 3> attribute_description() noexcept {
     return {
-        vk::VertexInputAttributeDescription{.location = 0,
+        vk::VertexInputAttributeDescription{
+            .location = 0,
             .binding = 0,
             .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::position))},
-        vk::VertexInputAttributeDescription{.location = 1,
+            .offset = static_cast<uint32_t>(member_offset(&vertex::position))
+        },
+        vk::VertexInputAttributeDescription{
+            .location = 1,
             .binding = 0,
             .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::normal))},
-        vk::VertexInputAttributeDescription{.location = 2,
+            .offset = static_cast<uint32_t>(member_offset(&vertex::normal))
+        },
+        vk::VertexInputAttributeDescription{
+            .location = 2,
             .binding = 0,
             .format = vk::Format::eR32G32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::uv))}};
+            .offset = static_cast<uint32_t>(member_offset(&vertex::uv))
+        }
+    };
   }
 };
 
@@ -60,11 +65,10 @@ struct light_source {
   float attenuation;
 };
 
-void update_world(
-    frames_clock::time_point ts, world_transformations& world) noexcept;
+void update_world(frames_clock::time_point ts, world_transformations& world) noexcept;
 
-std::array<glm::mat4, 4> calculate_catapult_transformations(
-    glm::vec2 center, float arm_phase, float shift) noexcept;
+std::array<glm::mat4, 4>
+calculate_catapult_transformations(glm::vec2 center, float arm_phase, float shift) noexcept;
 
 glm::mat4 setup_camera(vk::Extent2D sz) noexcept;
 

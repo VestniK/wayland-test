@@ -22,8 +22,7 @@ template <std::regular T>
 class mutex_value_update_channel {
 public:
   mutex_value_update_channel() noexcept = default;
-  explicit mutex_value_update_channel(const T& init) noexcept(
-      std::is_nothrow_copy_constructible_v<T>) {
+  explicit mutex_value_update_channel(const T& init) noexcept(std::is_nothrow_copy_constructible_v<T>) {
     update(init);
   }
 
@@ -65,29 +64,20 @@ struct StringMaker<size> {
 
 } // namespace Catch
 
-TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
-    value_update_channel<size>) {
+TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>, value_update_channel<size>) {
   GIVEN("some channel") {
     TestType channel;
     WHEN("nothing updated") {
-      THEN("no value is returned from get_update") {
-        REQUIRE(channel.get_update() == std::nullopt);
-      }
+      THEN("no value is returned from get_update") { REQUIRE(channel.get_update() == std::nullopt); }
 
-      THEN("default constructed value is returned by current") {
-        REQUIRE(channel.get_current() == size{});
-      }
+      THEN("default constructed value is returned by current") { REQUIRE(channel.get_current() == size{}); }
     }
 
     WHEN("value is updaed") {
       channel.update({100, 500});
-      THEN("new value is returned from get_update") {
-        REQUIRE(channel.get_update() == size{100, 500});
-      }
+      THEN("new value is returned from get_update") { REQUIRE(channel.get_update() == size{100, 500}); }
 
-      THEN("new value is returned from get_current") {
-        REQUIRE(channel.get_current() == size{100, 500});
-      }
+      THEN("new value is returned from get_current") { REQUIRE(channel.get_current() == size{100, 500}); }
 
       THEN("same value is returned on second get_current call") {
         channel.get_current();
@@ -110,8 +100,7 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
         REQUIRE(channel.get_update() == std::nullopt);
       }
 
-      THEN(
-          "nothing is returned on call get_update after multiple get_current") {
+      THEN("nothing is returned on call get_update after multiple get_current") {
         channel.get_current();
         channel.get_current();
         REQUIRE(channel.get_update() == std::nullopt);
@@ -131,26 +120,18 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
 
       AND_WHEN("value is updated once again") {
         channel.update({42, 42});
-        THEN("new value is returned from get_update") {
-          REQUIRE(channel.get_update() == size{42, 42});
-        }
+        THEN("new value is returned from get_update") { REQUIRE(channel.get_update() == size{42, 42}); }
 
-        THEN("new value is returned from get_current") {
-          REQUIRE(channel.get_current() == size{42, 42});
-        }
+        THEN("new value is returned from get_current") { REQUIRE(channel.get_current() == size{42, 42}); }
       }
     }
 
     WHEN("value is updated twice without get_update in between") {
       channel.update({100, 500});
       channel.update({42, 42});
-      THEN("the last value is returned from get_update") {
-        REQUIRE(channel.get_update() == size{42, 42});
-      }
+      THEN("the last value is returned from get_update") { REQUIRE(channel.get_update() == size{42, 42}); }
 
-      THEN("the last value is returned from get_current") {
-        REQUIRE(channel.get_update() == size{42, 42});
-      }
+      THEN("the last value is returned from get_current") { REQUIRE(channel.get_update() == size{42, 42}); }
     }
 
     WHEN("value is set in another thread") {
@@ -183,30 +164,20 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
     THEN("channel is in updated state with initial value") {
       REQUIRE(channel.get_update() == size{100, 500});
     }
-    THEN("current value is equal to initial one") {
-      REQUIRE(channel.get_current() == size{100, 500});
-    }
+    THEN("current value is equal to initial one") { REQUIRE(channel.get_current() == size{100, 500}); }
 
     WHEN("initial update is received") {
       channel.get_update();
-      THEN("channel is not in updagetd state anymore") {
-        REQUIRE(channel.get_update() == std::nullopt);
-      }
+      THEN("channel is not in updagetd state anymore") { REQUIRE(channel.get_update() == std::nullopt); }
 
-      THEN("current value remains the same") {
-        REQUIRE(channel.get_current() == size{100, 500});
-      }
+      THEN("current value remains the same") { REQUIRE(channel.get_current() == size{100, 500}); }
     }
 
     WHEN("new value is set") {
       channel.update(size{42, 42});
-      THEN("channel is in updated state with new value") {
-        REQUIRE(channel.get_update() == size{42, 42});
-      }
+      THEN("channel is in updated state with new value") { REQUIRE(channel.get_update() == size{42, 42}); }
 
-      THEN("current value is the new one") {
-        REQUIRE(channel.get_current() == size{42, 42});
-      }
+      THEN("current value is the new one") { REQUIRE(channel.get_current() == size{42, 42}); }
     }
   }
 }
@@ -217,15 +188,16 @@ class bench_producer {
 public:
   template <typename Channel>
   void start(Channel& channel) {
-    asio::post(executors_environment::pool_executor(),
-        [&channel, vals = make_some_nums(0xffffff), &start = start_,
-            stop = stop_.get_token()] {
+    asio::post(
+        executors_environment::pool_executor(),
+        [&channel, vals = make_some_nums(0xffffff), &start = start_, stop = stop_.get_token()] {
           start.arrive_and_wait();
           do {
             for (int v : vals)
               channel.update(v);
           } while (!stop.stop_requested());
-        });
+        }
+    );
     start_.arrive_and_wait();
   }
 
@@ -241,9 +213,7 @@ private:
 
 } // namespace
 
-TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks",
-    "[!benchmark]", mutex_value_update_channel<int>,
-    value_update_channel<int>) {
+TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks", "[!benchmark]", mutex_value_update_channel<int>, value_update_channel<int>) {
   TestType channel;
 
   BENCHMARK_ADVANCED("check for empty update without thread contention")

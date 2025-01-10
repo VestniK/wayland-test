@@ -18,21 +18,17 @@ using axis3d_state = glm::vec<3, input_absinfo>;
 class axes2d {
 public:
   axis2d_state& operator[](gamepad::axis axis) noexcept {
-    return axes_states_[std::to_underlying(axis) -
-                        std::to_underlying(gamepad::axis::HAT0)];
+    return axes_states_[std::to_underlying(axis) - std::to_underlying(gamepad::axis::HAT0)];
   }
   const axis2d_state& operator[](gamepad::axis axis) const noexcept {
-    return axes_states_[std::to_underlying(axis) -
-                        std::to_underlying(gamepad::axis::HAT0)];
+    return axes_states_[std::to_underlying(axis) - std::to_underlying(gamepad::axis::HAT0)];
   }
 
-  input_absinfo& operator[](
-      gamepad::axis axis, gamepad::dimention coord) noexcept {
+  input_absinfo& operator[](gamepad::axis axis, gamepad::dimention coord) noexcept {
     return (*this)[axis][std::to_underlying(coord)];
   }
 
-  const input_absinfo& operator[](
-      gamepad::axis axis, gamepad::dimention coord) const noexcept {
+  const input_absinfo& operator[](gamepad::axis axis, gamepad::dimention coord) const noexcept {
     return (*this)[axis][std::to_underlying(coord)];
   }
 
@@ -43,21 +39,17 @@ private:
 class axes3d {
 public:
   axis3d_state& operator[](gamepad::axis axis) noexcept {
-    return axes_states_[std::to_underlying(axis) -
-                        std::to_underlying(gamepad::axis::main)];
+    return axes_states_[std::to_underlying(axis) - std::to_underlying(gamepad::axis::main)];
   }
   const axis3d_state& operator[](gamepad::axis axis) const noexcept {
-    return axes_states_[std::to_underlying(axis) -
-                        std::to_underlying(gamepad::axis::main)];
+    return axes_states_[std::to_underlying(axis) - std::to_underlying(gamepad::axis::main)];
   }
 
-  input_absinfo& operator[](
-      gamepad::axis axis, gamepad::dimention coord) noexcept {
+  input_absinfo& operator[](gamepad::axis axis, gamepad::dimention coord) noexcept {
     return (*this)[axis][std::to_underlying(coord)];
   }
 
-  const input_absinfo& operator[](
-      gamepad::axis axis, gamepad::dimention coord) const noexcept {
+  const input_absinfo& operator[](gamepad::axis axis, gamepad::dimention coord) const noexcept {
     return (*this)[axis][std::to_underlying(coord)];
   }
 
