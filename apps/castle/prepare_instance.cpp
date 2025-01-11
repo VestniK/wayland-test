@@ -496,7 +496,6 @@ public:
             *render_pass_,
             find_max_usable_samples(phydev_)
         },
-
         cmd_buffs_{device_, params.queue_families.graphics},
         uniforms_{
             device_,
@@ -542,7 +541,8 @@ public:
         },
         mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
-        image_available_{device_, vk::SemaphoreCreateInfo{}}, frame_done_{device_, vk::FenceCreateInfo{}} {
+        image_available_{device_, vk::SemaphoreCreateInfo{}},
+        frame_done_{device_, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}} {
     uniforms_.world->camera = scene::setup_camera(params.swapchain_info.imageExtent);
     uniforms_.transformations->models[0] =
         glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
@@ -566,7 +566,7 @@ public:
 
     auto params = device_rendering_params::choose(*phydev_, render_target_.surface(), extent);
     if (!params)
-      throw std::runtime_error{"Restore swapchain params after resise have failed"};
+      throw std::runtime_error{"Restore swapchain params after resize have failed"};
 
     render_target_.resize(
         device_, phydev_.getMemoryProperties(), *render_pass_, find_max_usable_samples(phydev_),
@@ -578,15 +578,13 @@ public:
   }
 
   void draw(frames_clock::time_point ts) override {
-    draw(render_target_.start_frame(*image_available_), ts).present(*render_finished_);
-
-    // Wait untill rendering commands from the buffer are finished in order
-    // to safely reuse the buffer on the next frame.
     if (auto ec =
             make_error_code(device_.waitForFences({*frame_done_}, true, std::numeric_limits<uint64_t>::max())
             ))
       throw std::system_error(ec, "vkWaitForFence");
     device_.resetFences({*frame_done_});
+
+    draw(render_target_.start_frame(*image_available_), ts).present(*render_finished_);
   }
 
 private:
