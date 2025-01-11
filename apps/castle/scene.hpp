@@ -67,8 +67,37 @@ struct light_source {
 
 void update_world(frames_clock::time_point ts, world_transformations& world) noexcept;
 
-std::array<glm::mat4, 4>
-calculate_catapult_transformations(glm::vec2 center, float arm_phase, float shift) noexcept;
+class catapult {
+public:
+  catapult() noexcept = default;
+  explicit catapult(glm::vec2 anchor_point) noexcept : anchor_point{anchor_point} {}
+
+  catapult& move(float distance) noexcept {
+    anchor_point.x += distance;
+    wheel_angle += distance / wheel_radius;
+    return *this;
+  }
+
+  catapult& turn_arm(float angle) noexcept {
+    arm_position = std::clamp(arm_position + angle, -1.f, 1.f);
+    return *this;
+  }
+
+  std::array<glm::mat4, 4> sprites_transformations() const noexcept;
+
+  glm::mat4 front_wheel_transformation() const noexcept;
+  glm::mat4 rear_wheel_transformation() const noexcept;
+  glm::mat4 platform_transformation() const noexcept;
+  glm::mat4 arm_transformation() const noexcept;
+
+private:
+  static constexpr float wheel_radius = 0.5;
+
+private:
+  glm::vec2 anchor_point;
+  float wheel_angle = 0.;
+  float arm_position = 0.;
+};
 
 glm::mat4 setup_camera(vk::Extent2D sz) noexcept;
 

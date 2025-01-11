@@ -597,10 +597,10 @@ private:
     scene::update_world(ts, *uniforms_.world);
 
     std::ranges::copy(
-        scene::calculate_catapult_transformations(
-            {-7, -5}, std::sin(M_2_PI * float_time::seconds(ts.time_since_epoch()) / 1s),
-            std::sin(float_time::seconds(ts.time_since_epoch()) / 700ms)
-        ),
+        scene::catapult{{-7, -5}}
+            .turn_arm(std::sin(M_2_PI * float_time::seconds(ts.time_since_epoch()) / 1s))
+            .move(std::sin(float_time::seconds(ts.time_since_epoch()) / 700ms))
+            .sprites_transformations(),
         std::next(std::begin(uniforms_.transformations->models))
     );
 
