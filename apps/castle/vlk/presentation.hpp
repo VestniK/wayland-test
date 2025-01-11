@@ -29,14 +29,9 @@ public:
     void present(
         const vk::SwapchainKHR& swpchain, const vk::Queue& presentation_queue, const vk::Semaphore& done_sem
     ) const {
-      const auto ec = make_error_code(presentation_queue.presentKHR(vk::PresentInfoKHR{
-          .waitSemaphoreCount = 1,
-          .pWaitSemaphores = &done_sem,
-          .swapchainCount = 1,
-          .pSwapchains = &swpchain,
-          .pImageIndices = &idx_,
-          .pResults = nullptr
-      }));
+      const auto ec = make_error_code(presentation_queue.presentKHR(
+          vk::PresentInfoKHR{}.setWaitSemaphores(done_sem).setSwapchains(swpchain).setPImageIndices(&idx_)
+      ));
       if (ec)
         throw std::system_error(ec, "vkQueuePresentKHR");
     }

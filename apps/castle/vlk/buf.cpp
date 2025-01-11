@@ -64,32 +64,18 @@ constexpr vk::PipelineStageFlags purpose_pipeline_stage(image_purpose p) noexcep
 }
 
 vk::BufferCreateInfo make_bufer_create_info(vk::BufferUsageFlags usage, size_t sz) noexcept {
-  return vk::BufferCreateInfo{
-      .size = sz,
-      .usage = usage,
-      .sharingMode = vk::SharingMode::eExclusive,
-      .queueFamilyIndexCount = {},
-      .pQueueFamilyIndices = {}
-  };
+  return vk::BufferCreateInfo{}.setSize(sz).setUsage(usage);
 }
 
 vk::ImageCreateInfo
 make_image_create_info(vk::ImageUsageFlags usage, vk::Format fmt, vk::Extent2D sz) noexcept {
-  return {
-      .flags = {},
-      .imageType = vk::ImageType::e2D,
-      .format = fmt,
-      .extent = {.width = sz.width, .height = sz.height, .depth = 1},
-      .mipLevels = 1,
-      .arrayLayers = 1,
-      .samples = vk::SampleCountFlagBits::e1,
-      .tiling = vk::ImageTiling::eOptimal,
-      .usage = usage,
-      .sharingMode = vk::SharingMode::eExclusive,
-      .queueFamilyIndexCount = 0,
-      .pQueueFamilyIndices = nullptr,
-      .initialLayout = vk::ImageLayout::eUndefined,
-  };
+  return vk::ImageCreateInfo{}
+      .setImageType(vk::ImageType::e2D)
+      .setFormat(fmt)
+      .setExtent(vk::Extent3D{sz, 1})
+      .setMipLevels(1)
+      .setArrayLayers(1)
+      .setUsage(usage);
 }
 
 vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::BufferUsageFlags usage) {
@@ -108,7 +94,9 @@ vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::BufferUsageFlags 
   // This merelly means that size can be anything for querying memoryTypeBit
   constexpr vk::DeviceSize dummy_size = 100500;
   const vk::BufferCreateInfo buf_create_info = make_bufer_create_info(usage, dummy_size);
-  return dev.getBufferMemoryRequirementsKHR({.pCreateInfo = &buf_create_info}).memoryRequirements;
+  return dev
+      .getBufferMemoryRequirementsKHR(vk::DeviceBufferMemoryRequirements{}.setPCreateInfo(&buf_create_info))
+      .memoryRequirements;
 }
 
 vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::ImageUsageFlags usage) {
@@ -137,9 +125,7 @@ vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::ImageUsageFlags u
   // exact image allignment requirements.
   const vk::ImageCreateInfo img_create_info = make_image_create_info(usage, vk::Format::eR8G8B8A8Srgb, {});
   return dev
-      .getImageMemoryRequirementsKHR(vk::DeviceImageMemoryRequirements{
-          .pCreateInfo = &img_create_info, .planeAspect = vk::ImageAspectFlagBits::eColor
-      })
+      .getImageMemoryRequirementsKHR(vk::DeviceImageMemoryRequirements{}.setPCreateInfo(&img_create_info))
       .memoryRequirements;
 }
 
@@ -156,9 +142,9 @@ memory memory::allocate(
     const vk::raii::Device& dev, const vk::PhysicalDeviceMemoryProperties& props,
     vk::MemoryPropertyFlags flags, uint32_t type_filter, vk::DeviceSize size
 ) {
-  return memory{dev.allocateMemory(vk::MemoryAllocateInfo{
-      .allocationSize = size, .memoryTypeIndex = choose_mem_type(type_filter, props, flags)
-  })};
+  return memory{dev.allocateMemory(vk::MemoryAllocateInfo{}.setAllocationSize(size).setMemoryTypeIndex(
+      choose_mem_type(type_filter, props, flags)
+  ))};
 }
 
 [[nodiscard]] mapped_memory mapped_memory::allocate(
@@ -199,19 +185,11 @@ vk::raii::Buffer memory_pools::prepare_buffer(
   auto [arena_memory, region] = arenas_.lock_memory_for(p, data.size());
   auto res = arena_memory.bind_buffer(dev, purpose_to_usage(p), region);
 
-  cmd.begin(vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
-  cmd.copyBuffer(*staging_buf, *res, vk::BufferCopy{.srcOffset = 0, .dstOffset = 0, .size = data.size()});
+  cmd.begin(vk::CommandBufferBeginInfo{});
+  cmd.copyBuffer(*staging_buf, *res, vk::BufferCopy{}.setSize(data.size()));
   cmd.end();
 
-  transfer_queue.submit({vk::SubmitInfo{
-      .waitSemaphoreCount = 0,
-      .pWaitSemaphores = nullptr,
-      .pWaitDstStageMask = nullptr,
-      .commandBufferCount = 1,
-      .pCommandBuffers = &cmd,
-      .signalSemaphoreCount = 0,
-      .pSignalSemaphores = nullptr
-  }});
+  transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));
   transfer_queue.waitIdle();
 
   return res;
@@ -232,69 +210,52 @@ vk::raii::Image memory_pools::prepare_image(
   auto [arena_memory, region] = arenas_.lock_memory_for(p, req.size, req.alignment);
   res.bindMemory(arena_memory.get(), region.offset);
 
-  cmd.begin(vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
+  cmd.begin(vk::CommandBufferBeginInfo{});
 
-  const vk::ImageMemoryBarrier img_dst_barrier{
-      .srcAccessMask = vk::AccessFlagBits::eNone,
-      .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
-      .oldLayout = vk::ImageLayout::eUndefined,
-      .newLayout = vk::ImageLayout::eTransferDstOptimal,
-      .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
-      .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-      .image = *res,
-      .subresourceRange =
-          {.aspectMask = vk::ImageAspectFlagBits::eColor,
-           .baseMipLevel = 0,
-           .levelCount = 1,
-           .baseArrayLayer = 0,
-           .layerCount = 1}
-  };
+  const auto img_dst_barrier = vk::ImageMemoryBarrier{}
+                                   .setSrcAccessMask(vk::AccessFlagBits::eNone)
+                                   .setDstAccessMask(vk::AccessFlagBits::eTransferWrite)
+                                   .setOldLayout(vk::ImageLayout::eUndefined)
+                                   .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+                                   .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
+                                   .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
+                                   .setImage(*res)
+                                   .setSubresourceRange(vk::ImageSubresourceRange{}
+                                                            .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                                            .setLevelCount(1)
+                                                            .setLayerCount(1));
   cmd.pipelineBarrier(
       vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, img_dst_barrier
   );
 
-  vk::BufferImageCopy regions[] = {vk::BufferImageCopy{
-      .bufferOffset = 0,
-      .bufferRowLength = 0,
-      .bufferImageHeight = 0,
-      .imageSubresource =
-          {.aspectMask = vk::ImageAspectFlagBits::eColor, .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
-          },
-      .imageOffset = {},
-      .imageExtent = {.width = sz.width, .height = sz.height, .depth = 1}
-  }};
-  cmd.copyBufferToImage(staging_buf, res, vk::ImageLayout::eTransferDstOptimal, regions);
+  auto copy_region =
+      vk::BufferImageCopy{}
+          .setImageExtent(vk::Extent3D{sz, 1})
+          .setImageSubresource(
+              vk::ImageSubresourceLayers{}.setLayerCount(1).setAspectMask(vk::ImageAspectFlagBits::eColor)
+          );
+  cmd.copyBufferToImage(staging_buf, res, vk::ImageLayout::eTransferDstOptimal, copy_region);
 
-  const vk::ImageMemoryBarrier img_sampler_barrier{
-      .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
-      .dstAccessMask = purpose_access_mask(p),
-      .oldLayout = vk::ImageLayout::eTransferDstOptimal,
-      .newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
-      .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
-      .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-      .image = *res,
-      .subresourceRange =
-          {.aspectMask = vk::ImageAspectFlagBits::eColor,
-           .baseMipLevel = 0,
-           .levelCount = 1,
-           .baseArrayLayer = 0,
-           .layerCount = 1}
-  };
+  const auto img_sampler_barrier =
+      vk::ImageMemoryBarrier{}
+          .setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
+          .setDstAccessMask(purpose_access_mask(p))
+          .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+          .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+          .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
+          .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
+          .setImage(*res)
+          .setSubresourceRange(vk::ImageSubresourceRange{}
+                                   .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                   .setLevelCount(1)
+                                   .setLayerCount(1));
   cmd.pipelineBarrier(
       vk::PipelineStageFlagBits::eTransfer, purpose_pipeline_stage(p), {}, {}, {}, img_sampler_barrier
   );
 
   cmd.end();
 
-  transfer_queue.submit({vk::SubmitInfo{
-      .waitSemaphoreCount = 0,
-      .pWaitSemaphores = nullptr,
-      .pWaitDstStageMask = nullptr,
-      .commandBufferCount = 1,
-      .pCommandBuffers = &cmd,
-      .signalSemaphoreCount = 0,
-      .pSignalSemaphores = nullptr
-  }});
+  transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));
   transfer_queue.waitIdle();
 
   return res;

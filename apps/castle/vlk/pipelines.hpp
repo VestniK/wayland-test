@@ -30,15 +30,7 @@ public:
 protected:
   pipelines_storage_base() noexcept = default;
   pipelines_storage_base(const vk::raii::Device& dev, const vk::DescriptorSetLayout& descriptors_layout)
-      : layout_{
-            dev,
-            vk::PipelineLayoutCreateInfo{
-                .setLayoutCount = 1,
-                .pSetLayouts = &descriptors_layout,
-                .pushConstantRangeCount = 0,
-                .pPushConstantRanges = nullptr,
-            }
-        } {}
+      : layout_{dev, vk::PipelineLayoutCreateInfo{}.setSetLayouts(descriptors_layout)} {}
 
   vk::raii::Pipeline make_pipeline(
       const vk::raii::Device& dev, vk::RenderPass render_pass, vk::SampleCountFlagBits samples,

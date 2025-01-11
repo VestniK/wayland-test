@@ -12,12 +12,15 @@ class command_buffers : private vk::raii::CommandPool {
 public:
   command_buffers() noexcept = default;
   command_buffers(const vk::raii::Device& dev, uint32_t queue_family)
-      : vk::raii::
-            CommandPool{dev, vk::CommandPoolCreateInfo{.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = queue_family}},
+      : vk::raii::CommandPool{
+          dev,
+          vk::CommandPoolCreateInfo{}.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer).setQueueFamilyIndex(queue_family)
+        },
         queue_{dev.getQueue(queue_family, 0)} {
-    vk::CommandBufferAllocateInfo alloc_info{
-        .commandPool = *(*this), .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = N
-    };
+    auto alloc_info = vk::CommandBufferAllocateInfo{}
+                          .setCommandPool(*this)
+                          .setLevel(vk::CommandBufferLevel::ePrimary)
+                          .setCommandBufferCount(N);
     // TODO: std::start_lifetime_as instead of reinterpret_casting
     dev.getDispatcher()->vkAllocateCommandBuffers(
         static_cast<VkDevice>(*dev), &static_cast<VkCommandBufferAllocateInfo&>(alloc_info),

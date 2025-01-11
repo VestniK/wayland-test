@@ -56,13 +56,11 @@ struct uniform {
   static constexpr vk::DescriptorType descriptor_type = vk::DescriptorType::eUniformBuffer;
 
   static constexpr vk::DescriptorSetLayoutBinding make_binding(uint32_t binding_idx) {
-    return {
-        .binding = binding_idx,
-        .descriptorType = descriptor_type,
-        .descriptorCount = count,
-        .stageFlags = stages,
-        .pImmutableSamplers = nullptr,
-    };
+    return vk::DescriptorSetLayoutBinding{}
+        .setBinding(binding_idx)
+        .setDescriptorType(descriptor_type)
+        .setDescriptorCount(count)
+        .setStageFlags(stages);
   }
 };
 
@@ -74,19 +72,18 @@ struct uniform<S, combined_image_sampler> {
   static constexpr vk::DescriptorType descriptor_type = vk::DescriptorType::eCombinedImageSampler;
 
   static constexpr vk::DescriptorSetLayoutBinding make_binding(uint32_t binding_idx) {
-    return {
-        .binding = binding_idx,
-        .descriptorType = descriptor_type,
-        .descriptorCount = count,
-        .stageFlags = stages,
-        .pImmutableSamplers = nullptr,
-    };
+    return vk::DescriptorSetLayoutBinding{}
+        .setBinding(binding_idx)
+        .setDescriptorType(descriptor_type)
+        .setDescriptorCount(count)
+        .setStageFlags(stages);
   }
 
   static constexpr vk::DescriptorImageInfo make_descriptor_info(const value_type& val) {
-    return {
-        .sampler = val.sampler, .imageView = val.image, .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
-    };
+    return vk::DescriptorImageInfo{}
+        .setSampler(val.sampler)
+        .setImageView(val.image)
+        .setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
   }
 };
 
@@ -98,17 +95,15 @@ struct uniform<S, vk::Sampler> {
   static constexpr vk::DescriptorType descriptor_type = vk::DescriptorType::eSampler;
 
   static constexpr vk::DescriptorSetLayoutBinding make_binding(uint32_t binding_idx) {
-    return {
-        .binding = binding_idx,
-        .descriptorType = descriptor_type,
-        .descriptorCount = count,
-        .stageFlags = stages,
-        .pImmutableSamplers = nullptr,
-    };
+    return vk::DescriptorSetLayoutBinding{}
+        .setBinding(binding_idx)
+        .setDescriptorType(descriptor_type)
+        .setDescriptorCount(count)
+        .setStageFlags(stages);
   }
 
   static constexpr vk::DescriptorImageInfo make_descriptor_info(const value_type& val) {
-    return {.sampler = val, .imageView = nullptr, .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+    return vk::DescriptorImageInfo{}.setSampler(val).setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
   }
 };
 
@@ -120,17 +115,16 @@ struct uniform<S, vk::ImageView> {
   static constexpr vk::DescriptorType descriptor_type = vk::DescriptorType::eSampledImage;
 
   static constexpr vk::DescriptorSetLayoutBinding make_binding(uint32_t binding_idx) {
-    return {
-        .binding = binding_idx,
-        .descriptorType = descriptor_type,
-        .descriptorCount = count,
-        .stageFlags = stages,
-        .pImmutableSamplers = nullptr,
-    };
+    return vk::DescriptorSetLayoutBinding{}
+        .setBinding(binding_idx)
+        .setDescriptorType(descriptor_type)
+        .setDescriptorCount(count)
+        .setStageFlags(stages);
   }
 
   static constexpr vk::DescriptorImageInfo make_descriptor_info(const value_type& val) {
-    return {.sampler = nullptr, .imageView = val, .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+    return vk::DescriptorImageInfo{}.setImageView(val).setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal
+    );
   }
 };
 
@@ -142,13 +136,11 @@ struct uniform<S, vk::ImageView[N]> {
   static constexpr vk::DescriptorType descriptor_type = vk::DescriptorType::eSampledImage;
 
   static constexpr vk::DescriptorSetLayoutBinding make_binding(uint32_t binding_idx) {
-    return {
-        .binding = binding_idx,
-        .descriptorType = descriptor_type,
-        .descriptorCount = count,
-        .stageFlags = stages,
-        .pImmutableSamplers = nullptr,
-    };
+    return vk::DescriptorSetLayoutBinding{}
+        .setBinding(binding_idx)
+        .setDescriptorType(descriptor_type)
+        .setDescriptorCount(count)
+        .setStageFlags(stages);
   }
 
   template <std::output_iterator<vk::DescriptorImageInfo> OIt>
@@ -197,14 +189,7 @@ public:
         )
             .begin()
     };
-    return {
-        dev,
-        vk::DescriptorPoolCreateInfo{
-            .maxSets = max_sets_count,
-            .poolSizeCount = static_cast<uint32_t>(nonempty.size()),
-            .pPoolSizes = nonempty.data()
-        }
-    };
+    return {dev, vk::DescriptorPoolCreateInfo{}.setMaxSets(max_sets_count).setPoolSizes(nonempty)};
   }
 
 private:
@@ -215,8 +200,8 @@ private:
 
 private:
   std::array<vk::DescriptorPoolSize, 4> sizes_{
-      vk::DescriptorPoolSize{.type = eUniformBuffer, .descriptorCount = 0},
-      vk::DescriptorPoolSize{.type = eCombinedImageSampler, .descriptorCount = 0}
+      vk::DescriptorPoolSize{}.setType(eUniformBuffer),
+      vk::DescriptorPoolSize{}.setType(eCombinedImageSampler)
   };
 };
 
@@ -226,9 +211,7 @@ vk::raii::DescriptorSetLayout binding_layout(const vk::raii::Device& dev) {
     return std::array<vk::DescriptorSetLayoutBinding, sizeof...(Is)>{U::make_binding(Is)...};
   }(std::index_sequence_for<U...>{});
 
-  return {
-      dev, vk::DescriptorSetLayoutCreateInfo{.bindingCount = bindings.size(), .pBindings = bindings.data()}
-  };
+  return {dev, vk::DescriptorSetLayoutCreateInfo{}.setBindings(bindings)};
 }
 
 class ubo_builder {
@@ -258,30 +241,28 @@ public:
     const auto region = subspan_region(ubo_mem_, obj_mem);
 
     write_desc_set_.push_back(
-        {.dstSet = nullptr,
-         .dstBinding = binding,
-         .dstArrayElement = 0,
-         .descriptorCount = U::count,
-         .descriptorType = U::descriptor_type,
-         .pImageInfo = nullptr,
-         .pBufferInfo = reinterpret_cast<vk::DescriptorBufferInfo*>(desc_buf_info_.size()),
-         .pTexelBufferView = nullptr}
+        vk::WriteDescriptorSet{}
+            .setDstBinding(binding)
+            .setDescriptorCount(U::count)
+            .setDescriptorType(U::descriptor_type)
+            // Attention voodo magick here. Size is passed instead of pointer to read it in the
+            // place responsible to set proper pointer
+            .setPBufferInfo(reinterpret_cast<vk::DescriptorBufferInfo*>(desc_buf_info_.size()))
     );
-    desc_buf_info_.push_back({.buffer = nullptr, .offset = region.offset, .range = region.len});
+    desc_buf_info_.push_back(vk::DescriptorBufferInfo{}.setOffset(region.offset).setRange(region.len));
   }
 
   template <uniform_type U>
     requires(is_image_descriptor_type(U::descriptor_type))
   void bind(uint32_t binding, const typename U::value_type& val) {
     write_desc_set_.push_back(
-        {.dstSet = nullptr,
-         .dstBinding = binding,
-         .dstArrayElement = 0,
-         .descriptorCount = U::count,
-         .descriptorType = U::descriptor_type,
-         .pImageInfo = reinterpret_cast<vk::DescriptorImageInfo*>(desc_img_info_.size()),
-         .pBufferInfo = nullptr,
-         .pTexelBufferView = nullptr}
+        vk::WriteDescriptorSet{}
+            .setDstBinding(binding)
+            .setDescriptorCount(U::count)
+            .setDescriptorType(U::descriptor_type)
+            // Attention voodo magick here. Size is passed instead of pointer to read it in the
+            // place responsible to set proper pointer
+            .setPImageInfo(reinterpret_cast<vk::DescriptorImageInfo*>(desc_img_info_.size()))
     );
     if constexpr (U::count == 1)
       desc_img_info_.push_back(U::make_descriptor_info(val));
@@ -339,9 +320,7 @@ public:
       : bindings_layout_{binding_layout<U...>(dev)} {
     std::array<vk::DescriptorSetLayout, N> layouts;
     layouts.fill(layout());
-    vk::DescriptorSetAllocateInfo alloc_inf{
-        .descriptorPool = desc_pool, .descriptorSetCount = layouts.size(), .pSetLayouts = layouts.data()
-    };
+    auto alloc_inf = vk::DescriptorSetAllocateInfo{}.setDescriptorPool(desc_pool).setSetLayouts(layouts);
     if (const auto ec = make_error_code((*dev).allocateDescriptorSets(&alloc_inf, desc_set_.data())))
       throw std::system_error{ec, "vkAllocateDescriptorSets"};
 

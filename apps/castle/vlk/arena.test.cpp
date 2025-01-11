@@ -76,9 +76,7 @@ SCENARIO("Locking available amount of bytes") {
         {.vbo_capacity = 100, .ibo_capacity = 100, .textures_capacity = 500, .staging_size = 0},
         [&](vlk::memory_purpose auto purpose) {
           return vk::MemoryRequirements{
-              .size = 1 << 30,
-              .alignment = case_params.params[purpose].alignment,
-              .memoryTypeBits = case_params.params[purpose].type
+              1 << 30, case_params.params[purpose].alignment, case_params.params[purpose].type
           };
         },
         typed_memory::allocate
@@ -127,9 +125,7 @@ SCENARIO("arena_pools creation") {
   using enum vlk::buffer_purpose;
   using enum vlk::image_purpose;
 
-  auto req4type = [](uint32_t type) {
-    return vk::MemoryRequirements{.size = 1 << 30, .alignment = 8, .memoryTypeBits = type};
-  };
+  auto req4type = [](uint32_t type) { return vk::MemoryRequirements{1 << 30, 8, type}; };
   vlk::detail::sizes arena_sizes{
       .vbo_capacity = 400, .ibo_capacity = 500, .textures_capacity = 600, .staging_size = 0
   };

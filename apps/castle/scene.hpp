@@ -19,31 +19,25 @@ struct vertex {
   glm::vec2 uv;
 
   constexpr static vk::VertexInputBindingDescription binding_description() noexcept {
-    return vk::VertexInputBindingDescription{
-        .binding = 0, .stride = sizeof(vertex), .inputRate = vk::VertexInputRate::eVertex
-    };
+    return vk::VertexInputBindingDescription{}
+        .setStride(sizeof(vertex))
+        .setInputRate(vk::VertexInputRate::eVertex);
   }
 
   constexpr static std::array<vk::VertexInputAttributeDescription, 3> attribute_description() noexcept {
     return {
-        vk::VertexInputAttributeDescription{
-            .location = 0,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::position))
-        },
-        vk::VertexInputAttributeDescription{
-            .location = 1,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::normal))
-        },
-        vk::VertexInputAttributeDescription{
-            .location = 2,
-            .binding = 0,
-            .format = vk::Format::eR32G32Sfloat,
-            .offset = static_cast<uint32_t>(member_offset(&vertex::uv))
-        }
+        vk::VertexInputAttributeDescription{}
+            .setLocation(0)
+            .setFormat(vk::Format::eR32G32B32Sfloat)
+            .setOffset(static_cast<uint32_t>(member_offset(&vertex::position))),
+        vk::VertexInputAttributeDescription{}
+            .setLocation(1)
+            .setFormat(vk::Format::eR32G32B32Sfloat)
+            .setOffset(static_cast<uint32_t>(member_offset(&vertex::normal))),
+        vk::VertexInputAttributeDescription{}
+            .setLocation(2)
+            .setFormat(vk::Format::eR32G32Sfloat)
+            .setOffset(static_cast<uint32_t>(member_offset(&vertex::uv))),
     };
   }
 };

@@ -43,7 +43,7 @@ using namespace std::literals;
 
 namespace {
 
-constexpr vk::ClearValue clear_color{.color = {.float32 = std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.75f}}};
+constexpr vk::ClearValue clear_color = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 0.75f};
 
 constexpr std::array<const char*, 2> required_extensions{
     VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME
@@ -58,15 +58,14 @@ vk::raii::Instance create_instance() {
 
   vk::raii::Context context;
 
-  vk::ApplicationInfo app_info{
-      .pApplicationName = "wayland-test",
-      .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-      .pEngineName = "no_engine",
-      .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-      .apiVersion = VK_API_VERSION_1_2
-  };
+  auto app_info = vk::ApplicationInfo{}
+                      .setPApplicationName("wayland-test")
+                      .setApplicationVersion(VK_MAKE_VERSION(1, 0, 0))
+                      .setPEngineName("no_engine")
+                      .setEngineVersion(VK_MAKE_VERSION(1, 0, 0))
+                      .setApiVersion(VK_API_VERSION_1_2);
   auto inst_create_info =
-      vk::InstanceCreateInfo{.pApplicationInfo = &app_info}.setPEnabledExtensionNames(required_extensions);
+      vk::InstanceCreateInfo{}.setPApplicationInfo(&app_info).setPEnabledExtensionNames(required_extensions);
 
 #if !defined(NDEBUG)
   std::array<const char*, 1> debug_layers{"VK_LAYER_KHRONOS_validation"};
@@ -84,34 +83,23 @@ vk::raii::Instance create_instance() {
 vk::raii::Device create_logical_device(
     const vk::raii::PhysicalDevice& dev, uint32_t graphics_queue_family, uint32_t presentation_queue_family
 ) {
-  float queue_prio = 1.0f;
+  const float queue_prio = 1.0f;
   std::array<vk::DeviceQueueCreateInfo, 2> device_queues{
-      vk::DeviceQueueCreateInfo{
-          .flags = {},
-          .queueFamilyIndex = graphics_queue_family,
-          .queueCount = 1,
-          .pQueuePriorities = &queue_prio
-      },
-      vk::DeviceQueueCreateInfo{
-          .flags = {},
-          .queueFamilyIndex = presentation_queue_family,
-          .queueCount = 1,
-          .pQueuePriorities = &queue_prio
-      }
+      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(graphics_queue_family).setQueuePriorities(queue_prio),
+      vk::DeviceQueueCreateInfo{}
+          .setQueueFamilyIndex(presentation_queue_family)
+          .setQueuePriorities(queue_prio),
   };
 
-  vk::PhysicalDeviceFeatures features{};
-  features.samplerAnisotropy = true;
+  const auto features = vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true);
 
-  vk::DeviceCreateInfo device_create_info{
-      .flags = {},
-      .queueCreateInfoCount =
-          graphics_queue_family == presentation_queue_family ? 1u : 2u, // TODO: better duplication needed
-      .pQueueCreateInfos = device_queues.data(),
-      .enabledExtensionCount = required_device_extensions.size(),
-      .ppEnabledExtensionNames = required_device_extensions.data(),
-      .pEnabledFeatures = &features
-  };
+  auto device_create_info = vk::DeviceCreateInfo{}
+                                .setQueueCreateInfoCount(
+                                    graphics_queue_family == presentation_queue_family ? 1u : 2u
+                                ) // TODO: better duplication needed
+                                .setPQueueCreateInfos(device_queues.data())
+                                .setPEnabledExtensionNames(required_device_extensions)
+                                .setPEnabledFeatures(&features);
 
   vk::raii::Device device{dev, device_create_info};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
@@ -123,59 +111,35 @@ make_render_pass(const vk::raii::Device& dev, vk::Format img_fmt, vk::SampleCoun
   using enum vk::SampleCountFlagBits;
 
   std::array<vk::AttachmentDescription, 2> attachments{
-      vk::AttachmentDescription{
-          .format = img_fmt,
-          .samples = samples,
-          .loadOp = vk::AttachmentLoadOp::eClear,
-          .storeOp = vk::AttachmentStoreOp::eStore,
-          .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-          .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-          .initialLayout = vk::ImageLayout::eUndefined,
-          .finalLayout = vk::ImageLayout::eColorAttachmentOptimal
-      },
-      vk::AttachmentDescription{
-          .format = img_fmt,
-          .samples = e1,
-          .loadOp = vk::AttachmentLoadOp::eDontCare,
-          .storeOp = vk::AttachmentStoreOp::eDontCare,
-          .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-          .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-          .initialLayout = vk::ImageLayout::eUndefined,
-          .finalLayout = vk::ImageLayout::ePresentSrcKHR
-      }
+      vk::AttachmentDescription{}
+          .setFormat(img_fmt)
+          .setSamples(samples)
+          .setLoadOp(vk::AttachmentLoadOp::eClear)
+          .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+          .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+          .setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal),
+      vk::AttachmentDescription{}
+          .setFormat(img_fmt)
+          .setLoadOp(vk::AttachmentLoadOp::eDontCare)
+          .setStoreOp(vk::AttachmentStoreOp::eDontCare)
+          .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+          .setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal)
+          .setFinalLayout(vk::ImageLayout::ePresentSrcKHR),
   };
 
   std::array<vk::AttachmentReference, 2> refs{
-      vk::AttachmentReference{.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal},
-      vk::AttachmentReference{.attachment = 1, .layout = vk::ImageLayout::eColorAttachmentOptimal}
+      vk::AttachmentReference{}.setAttachment(0).setLayout(vk::ImageLayout::eColorAttachmentOptimal),
+      vk::AttachmentReference{}.setAttachment(1).setLayout(vk::ImageLayout::eColorAttachmentOptimal)
   };
-  vk::SubpassDescription subpass{
-      .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-      .inputAttachmentCount = 0,
-      .pInputAttachments = nullptr,
-      .colorAttachmentCount = 1,
-      .pColorAttachments = &refs[0],
-      .pResolveAttachments = &refs[1],
-      .pDepthStencilAttachment = nullptr,
-      .preserveAttachmentCount = 0,
-      .pPreserveAttachments = nullptr
-  };
+  const auto subpass = vk::SubpassDescription{}.setColorAttachments(refs[0]).setResolveAttachments(refs[1]);
 
   return vk::raii::RenderPass{
-      dev,
-      vk::RenderPassCreateInfo{
-          .attachmentCount = attachments.size(),
-          .pAttachments = attachments.data(),
-          .subpassCount = 1,
-          .pSubpasses = &subpass,
-          .dependencyCount = 0,
-          .pDependencies = nullptr
-      }
+      dev, vk::RenderPassCreateInfo{}.setAttachments(attachments).setSubpasses(subpass)
   };
 }
 
 constexpr vk::Extent2D as_extent(size sz) noexcept {
-  return {.width = static_cast<uint32_t>(sz.width), .height = static_cast<uint32_t>(sz.height)};
+  return {static_cast<uint32_t>(sz.width), static_cast<uint32_t>(sz.height)};
 }
 
 bool has_required_extensions(const vk::PhysicalDevice& dev) {
@@ -228,34 +192,23 @@ choose_swapchain_params(const vk::PhysicalDevice& dev, const vk::SurfaceKHR& sur
   if (mode_it == modes.end())
     return std::nullopt;
 
-  return vk::SwapchainCreateInfoKHR{
-      .flags = {},
-      .surface = surf,
-      .minImageCount = std::min(
+  return vk::SwapchainCreateInfoKHR{}
+      .setSurface(surf)
+      .setMinImageCount(std::min(
           capabilities.minImageCount + 1,
           capabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max() : capabilities.maxImageCount
-      ),
-      .imageFormat = fmt_it->format,
-      .imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
-      .imageExtent =
-          vk::Extent2D{
-              .width =
-                  std::clamp(sz.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-              .height = std::clamp(
-                  sz.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height
-              )
-          },
-      .imageArrayLayers = 1,
-      .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-      .imageSharingMode = vk::SharingMode::eExclusive,
-      .queueFamilyIndexCount = {},
-      .pQueueFamilyIndices = {},
-      .preTransform = capabilities.currentTransform,
-      .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::ePreMultiplied,
-      .presentMode = *mode_it,
-      .clipped = true,
-      .oldSwapchain = {}
-  };
+      ))
+      .setImageFormat(fmt_it->format)
+      .setImageExtent(vk::Extent2D{
+          std::clamp(sz.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+          std::clamp(sz.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+      })
+      .setImageArrayLayers(1)
+      .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
+      .setPreTransform(capabilities.currentTransform)
+      .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
+      .setPresentMode(*mode_it)
+      .setClipped(true);
 }
 
 struct device_rendering_params {
@@ -358,40 +311,26 @@ vk::raii::Image load_sfx_texture(
 }
 
 static vk::raii::Sampler make_sampler(const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
-  return dev.createSampler(vk::SamplerCreateInfo{
-      .flags = {},
-      .magFilter = vk::Filter::eLinear,
-      .minFilter = vk::Filter::eLinear,
-      .mipmapMode = vk::SamplerMipmapMode::eLinear,
-      .addressModeU = vk::SamplerAddressMode::eClampToBorder,
-      .addressModeV = vk::SamplerAddressMode::eClampToBorder,
-      .addressModeW = vk::SamplerAddressMode::eClampToBorder,
-      .mipLodBias = 0.f,
-      .anisotropyEnable = true,
-      .maxAnisotropy = limits.maxSamplerAnisotropy,
-      .compareEnable = false,
-      .compareOp = vk::CompareOp::eNever,
-      .minLod = 0.f,
-      .maxLod = 0.f,
-      .borderColor = vk::BorderColor::eFloatTransparentBlack,
-      .unnormalizedCoordinates = false,
-  });
+  return dev.createSampler(vk::SamplerCreateInfo{}
+                               .setMagFilter(vk::Filter::eLinear)
+                               .setMinFilter(vk::Filter::eLinear)
+                               .setMipmapMode(vk::SamplerMipmapMode::eLinear)
+                               .setAddressModeU(vk::SamplerAddressMode::eClampToBorder)
+                               .setAddressModeV(vk::SamplerAddressMode::eClampToBorder)
+                               .setAddressModeW(vk::SamplerAddressMode::eClampToBorder)
+                               .setAnisotropyEnable(true)
+                               .setMaxAnisotropy(limits.maxSamplerAnisotropy));
 }
 
 static vk::raii::ImageView make_view(const vk::raii::Device& dev, vk::Image img) {
-  return dev.createImageView(vk::ImageViewCreateInfo{
-      .flags = {},
-      .image = img,
-      .viewType = vk::ImageViewType::e2D,
-      .format = vk::Format::eR8G8B8A8Srgb,
-      .components = {},
-      .subresourceRange =
-          {.aspectMask = vk::ImageAspectFlagBits::eColor,
-           .baseMipLevel = 0,
-           .levelCount = 1,
-           .baseArrayLayer = 0,
-           .layerCount = 1}
-  });
+  return dev.createImageView(vk::ImageViewCreateInfo{}
+                                 .setImage(img)
+                                 .setViewType(vk::ImageViewType::e2D)
+                                 .setFormat(vk::Format::eR8G8B8A8Srgb)
+                                 .setSubresourceRange(vk::ImageSubresourceRange{}
+                                                          .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                                          .setLevelCount(1)
+                                                          .setLayerCount(1)));
 }
 
 std::tuple<vk::raii::Image, vk::raii::ImageView>
@@ -542,7 +481,7 @@ public:
         mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
         render_finished_{device_, vk::SemaphoreCreateInfo{}},
         image_available_{device_, vk::SemaphoreCreateInfo{}},
-        frame_done_{device_, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}} {
+        frame_done_{device_, vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
     uniforms_.world->camera = scene::setup_camera(params.swapchain_info.imageExtent);
     uniforms_.transformations->models[0] =
         glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
@@ -611,30 +550,25 @@ private:
   vk::CommandBuffer record_cmd_buffer(vk::CommandBuffer cmd, const vk::Framebuffer& fb) const {
     cmd.reset();
 
-    cmd.begin(vk::CommandBufferBeginInfo{.flags = {}, .pInheritanceInfo = nullptr});
+    cmd.begin(vk::CommandBufferBeginInfo{});
     cmd.beginRenderPass(
-        vk::RenderPassBeginInfo{
-            .renderPass = *render_pass_,
-            .framebuffer = fb,
-            .renderArea = {.offset = {0, 0}, .extent = render_target_.extent()},
-            .clearValueCount = 1,
-            .pClearValues = &clear_color
-        },
+        vk::RenderPassBeginInfo{}
+            .setRenderPass(*render_pass_)
+            .setFramebuffer(fb)
+            .setRenderArea(vk::Rect2D{{0, 0}, render_target_.extent()})
+            .setClearValues(clear_color),
         vk::SubpassContents::eInline
     );
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines_[0]);
 
     cmd.setViewport(
-        0, {vk::Viewport{
-               .x = 0.,
-               .y = 0.,
-               .width = static_cast<float>(render_target_.extent().width),
-               .height = static_cast<float>(render_target_.extent().height),
-               .minDepth = 0.,
-               .maxDepth = 1.
-           }}
+        0, {vk::Viewport{}
+                .setWidth(static_cast<float>(render_target_.extent().width))
+                .setHeight(static_cast<float>(render_target_.extent().height))
+                .setMinDepth(0)
+                .setMaxDepth(1)}
     );
-    cmd.setScissor(0, {vk::Rect2D{.offset = {0, 0}, .extent = render_target_.extent()}});
+    cmd.setScissor(0, {vk::Rect2D{{0, 0}, render_target_.extent()}});
 
     vk::DeviceSize offsets[] = {0};
     cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
@@ -651,16 +585,14 @@ private:
     uniform_pools_.flush(descriptor_bindings_.flush_region(0));
 
     const vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    std::array<vk::SubmitInfo, 1> submit_infos{vk::SubmitInfo{
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &*image_available_,
-        .pWaitDstStageMask = &wait_stage,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &cmd,
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &*render_finished_
-    }};
-    cmd_buffs_.queue().submit(submit_infos, *frame_done_);
+    cmd_buffs_.queue().submit(
+        vk::SubmitInfo{}
+            .setWaitSemaphores(*image_available_)
+            .setPWaitDstStageMask(&wait_stage)
+            .setCommandBuffers(cmd)
+            .setSignalSemaphores(*render_finished_),
+        *frame_done_
+    );
   }
 
   static vk::SampleCountFlagBits find_max_usable_samples(vk::PhysicalDevice dev) {
@@ -716,7 +648,7 @@ auto select_suitable_device(const vk::raii::Instance& inst, vk::SurfaceKHR surf,
 std::unique_ptr<renderer_iface> make_vk_renderer(wl_display& display, wl_surface& surf, size sz) {
   vk::raii::Instance inst = create_instance();
   vk::raii::SurfaceKHR vk_surf{
-      inst, vk::WaylandSurfaceCreateInfoKHR{.flags = {}, .display = &display, .surface = &surf}
+      inst, vk::WaylandSurfaceCreateInfoKHR{}.setDisplay(&display).setSurface(&surf)
   };
 
   auto [dev, params] = select_suitable_device(inst, *vk_surf, as_extent(sz));

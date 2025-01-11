@@ -81,7 +81,7 @@ public:
     region.len = std::min(region.len + suffix, mapping_.size());
 
     get().getDevice().flushMappedMemoryRanges(
-        {vk::MappedMemoryRange{.memory = *get(), .offset = region.offset, .size = region.len}}
+        {vk::MappedMemoryRange{}.setMemory(*get()).setOffset(region.offset).setSize(region.len)}
     );
   }
 
@@ -89,7 +89,7 @@ public:
 
   void flush() const {
     get().getDevice().flushMappedMemoryRanges(
-        {vk::MappedMemoryRange{.memory = *get(), .offset = 0, .size = mapping_.size()}}
+        {vk::MappedMemoryRange{}.setMemory(*get()).setSize(mapping_.size())}
     );
   }
 

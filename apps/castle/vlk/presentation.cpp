@@ -12,15 +12,12 @@ vk::raii::Framebuffer make_fb_helper(
     std::array<vk::ImageView, 2> attachements
 ) {
   return vk::raii::Framebuffer{
-      dev,
-      vk::FramebufferCreateInfo{
-          .renderPass = pass,
-          .attachmentCount = attachements.size(),
-          .pAttachments = attachements.data(),
-          .width = sz.width,
-          .height = sz.height,
-          .layers = 1
-      }
+      dev, vk::FramebufferCreateInfo{}
+               .setRenderPass(pass)
+               .setAttachments(attachements)
+               .setWidth(sz.width)
+               .setHeight(sz.height)
+               .setLayers(1)
   };
 }
 
@@ -34,31 +31,20 @@ public:
       const vk::raii::Device& dev, vk::RenderPass render_pass, vk::ImageView multisampling_img,
       vk::Image image, vk::Extent2D extent, vk::Format fmt
   )
-      // clang-format off
-      // clang-format 18 turns this code into oneliner (check if 19 or 20 will do better)
       : view_{
           dev,
-          vk::ImageViewCreateInfo{
-            .image = image,
-            .viewType = vk::ImageViewType::e2D,
-            .format = fmt,
-            .components = {
-              .r = vk::ComponentSwizzle::eIdentity,
-              .g = vk::ComponentSwizzle::eIdentity,
-              .b = vk::ComponentSwizzle::eIdentity,
-              .a = vk::ComponentSwizzle::eIdentity
-            },
-            .subresourceRange = {
-              .aspectMask = vk::ImageAspectFlagBits::eColor,
-              .baseMipLevel = 0,
-              .levelCount = 1,
-              .baseArrayLayer = 0,
-              .layerCount = 1
-            }
-          }
-        },
-        // clang-format on
-        framebuf_{make_fb_helper(dev, render_pass, extent, {multisampling_img, *view_})} {}
+          vk::ImageViewCreateInfo{}
+            .setImage(image)
+            .setViewType(vk::ImageViewType::e2D)
+            .setFormat(fmt)
+            .setSubresourceRange(
+              vk::ImageSubresourceRange{}
+                .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                .setLevelCount(1)
+                .setLayerCount(1)
+            )
+        }
+      , framebuf_{make_fb_helper(dev, render_pass, extent, {multisampling_img, *view_})} {}
 
   static std::vector<frame> from_images(
       const vk::raii::Device& dev, vk::RenderPass render_pass, vk::ImageView multisampling_img,
@@ -87,41 +73,30 @@ swapchain::swapchain(
     const vk::RenderPass& render_pass, vk::SampleCountFlagBits samples
 )
     : swapchain_{device, swapchain_info},
-      multisampling_img_{device.createImage(vk::ImageCreateInfo{
-          .flags = {},
-          .imageType = vk::ImageType::e2D,
-          .format = swapchain_info.imageFormat,
-          .extent =
-              {.width = swapchain_info.imageExtent.width,
-               .height = swapchain_info.imageExtent.height,
-               .depth = 1},
-          .mipLevels = 1,
-          .arrayLayers = 1,
-          .samples = samples,
-          .tiling = vk::ImageTiling::eOptimal,
-          .usage = vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment,
-          .sharingMode = vk::SharingMode::eExclusive,
-          .queueFamilyIndexCount = {},
-          .pQueueFamilyIndices = {},
-          .initialLayout = vk::ImageLayout::eUndefined
-      })},
+      multisampling_img_{device.createImage(vk::ImageCreateInfo{}
+                                                .setImageType(vk::ImageType::e2D)
+                                                .setFormat(swapchain_info.imageFormat)
+                                                .setExtent(vk::Extent3D{swapchain_info.imageExtent, 1})
+                                                .setMipLevels(1)
+                                                .setArrayLayers(1)
+                                                .setSamples(samples)
+                                                .setUsage(
+                                                    vk::ImageUsageFlagBits::eTransientAttachment |
+                                                    vk::ImageUsageFlagBits::eColorAttachment
+                                                ))},
       swapchain_image_format_{swapchain_info.imageFormat}, swapchain_extent_{swapchain_info.imageExtent} {
   const auto req = multisampling_img_.getMemoryRequirements();
   multisampling_mem_ = vlk::memory::alocate(device, props, req.memoryTypeBits, req.size);
   (*device).bindImageMemory(*multisampling_img_, *multisampling_mem_.get(), 0);
-  multisampling_view_ = device.createImageView(vk::ImageViewCreateInfo{
-      .flags = {},
-      .image = *multisampling_img_,
-      .viewType = vk::ImageViewType::e2D,
-      .format = swapchain_image_format_,
-      .components = {},
-      .subresourceRange =
-          {.aspectMask = vk::ImageAspectFlagBits::eColor,
-           .baseMipLevel = 0,
-           .levelCount = 1,
-           .baseArrayLayer = 0,
-           .layerCount = 1}
-  });
+  multisampling_view_ =
+      device.createImageView(vk::ImageViewCreateInfo{}
+                                 .setImage(multisampling_img_)
+                                 .setViewType(vk::ImageViewType::e2D)
+                                 .setFormat(swapchain_image_format_)
+                                 .setSubresourceRange(vk::ImageSubresourceRange{}
+                                                          .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                                          .setLevelCount(1)
+                                                          .setLayerCount(1)));
   frames_ = frame::from_images(
       device, render_pass, *multisampling_view_, swapchain_.getImages(), swapchain_info.imageExtent,
       swapchain_info.imageFormat
