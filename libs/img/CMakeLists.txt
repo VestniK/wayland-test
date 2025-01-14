@@ -1,4 +1,5 @@
 find_package(Catch2 REQUIRED)
+find_package(freetype REQUIRED)
 find_package(PNG NO_MODULE REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(thinsys REQUIRED)
@@ -8,6 +9,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     geom
+    Freetype::Freetype
     thinsys-io
     PNG::PNG
     spdlog::spdlog

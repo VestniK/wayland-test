@@ -14,6 +14,7 @@ class Deps(ConanFile):
         self.requires("spdlog/1.14.1")
         self.requires("tracy/cci.20220130")
         self.requires("vulkan-headers/1.3.296.0")
+        self.requires("freetype/2.13.3")
 
     def build_requirements(self):
         self.test_requires("catch2/3.7.1")
