@@ -75,6 +75,8 @@ zip_sfx(castle
   textures/catapult-arm.png
   textures/catapult-front-wheel.png
   textures/catapult-rear-wheel.png
+
+  fonts/RuthlessSketch.ttf
 )
 
 add_subdirectory(vlk)
