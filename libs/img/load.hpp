@@ -1,34 +1,15 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <span>
 
-#include <libs/geom/geom.hpp>
 #include <thinsys/io/io.hpp>
 
+#include <libs/geom/geom.hpp>
+#include <libs/img/pixel_fmt.hpp>
+#include <libs/img/reader.hpp>
+
 namespace img {
-
-enum class pixel_fmt : size_t { rgb = 3, rgba = 4 };
-
-class reader {
-public:
-  reader() noexcept = default;
-  reader(::size sz, pixel_fmt fmt, std::move_only_function<size_t(std::span<std::byte>)> read_pixels)
-      : read_pixels_{std::move(read_pixels)}, sz_{sz}, fmt_{fmt} {}
-
-  ::size size() const noexcept { return sz_; }
-  pixel_fmt format() const noexcept { return fmt_; }
-
-  size_t pixels_size() const noexcept { return sz_.height * sz_.width * std::to_underlying(fmt_); }
-
-  size_t read_pixels(std::span<std::byte> dest) { return read_pixels_(dest); }
-
-private:
-  std::move_only_function<size_t(std::span<std::byte>)> read_pixels_;
-  ::size sz_;
-  pixel_fmt fmt_;
-};
 
 reader load_reader(thinsys::io::file_descriptor& in);
 
@@ -38,9 +19,7 @@ public:
   image() noexcept = default;
   image(std::unique_ptr<std::byte[]> data, ::size sz) noexcept : sz_{sz}, data_{std::move(data)} {}
 
-  std::span<const std::byte> bytes() const noexcept {
-    return {data_.get(), sz_.height * sz_.width * std::to_underlying(Fmt)};
-  }
+  std::span<const std::byte> bytes() const noexcept { return {data_.get(), bytes_size(sz_, Fmt)}; }
 
   ::size size() const noexcept { return sz_; }
 
