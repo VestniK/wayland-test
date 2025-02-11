@@ -15,7 +15,7 @@ layout(binding = 1) uniform light_source {
 
 layout(binding = 2) uniform sampler sprite_smp;
 
-#define SPRITES_COUNT 5
+#define SPRITES_COUNT 6
 layout(binding = 3) uniform sprites_transform {
   mat4 models[SPRITES_COUNT];
 } sprites_tr;

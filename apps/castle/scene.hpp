@@ -49,7 +49,7 @@ struct world_transformations {
 };
 
 struct texture_transform {
-  glm::mat4 models[5];
+  glm::mat4 models[6];
 };
 
 struct light_source {

@@ -15,6 +15,7 @@
 #include <glm/vec3.hpp>
 
 #include <libs/img/load.hpp>
+#include <libs/img/text.hpp>
 #include <libs/memtricks/member.hpp>
 #include <libs/memtricks/projections.hpp>
 #include <libs/memtricks/sorted_array.hpp>
@@ -283,6 +284,37 @@ private:
   size_t count_;
 };
 
+vk::raii::Image load_text_texture(
+    vlk::memory_pools& pools, const vk::raii::Device& dev, vk::Queue transfer_queue, vk::CommandBuffer cmd,
+    std::string_view text
+) {
+  auto resources = sfx::archive::open_self();
+  auto& fd = resources.open("fonts/RuthlessSketch.ttf");
+  auto font = img::font::load(fd);
+  auto reader = font.text_image_reader(text);
+
+  vk::Format fmt;
+  switch (reader.format()) {
+  case img::pixel_fmt::rgb:
+    fmt = vk::Format::eR8G8B8Srgb;
+    break;
+  case img::pixel_fmt::rgba:
+    fmt = vk::Format::eR8G8B8A8Srgb;
+    break;
+  case img::pixel_fmt::grayscale:
+    fmt = vk::Format::eR8Srgb;
+    break;
+  }
+
+  auto stage_mem = pools.allocate_staging_memory(reader.pixels_size());
+  reader.read_pixels(stage_mem);
+
+  return pools.prepare_image(
+      dev, transfer_queue, cmd, vlk::image_purpose::texture, std::move(stage_mem), fmt,
+      as_extent(reader.size())
+  );
+}
+
 vk::raii::Image load_sfx_texture(
     vlk::memory_pools& pools, const vk::raii::Device& dev, vk::Queue transfer_queue, vk::CommandBuffer cmd,
     const fs::path& sfx_path
@@ -298,6 +330,9 @@ vk::raii::Image load_sfx_texture(
     break;
   case img::pixel_fmt::rgba:
     fmt = vk::Format::eR8G8B8A8Srgb;
+    break;
+  case img::pixel_fmt::grayscale:
+    fmt = vk::Format::eR8Srgb;
     break;
   }
 
@@ -342,14 +377,16 @@ make_image_view(const vk::raii::Device& dev, vk::raii::Image&& img) {
 struct uniform_objects {
   uniform_objects(
       const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits, std::array<vk::raii::Image, 4> img,
-      vk::raii::Image fwheel, vk::raii::Image rwheel, vk::raii::Image platform, vk::raii::Image arm
+      vk::raii::Image fwheel, vk::raii::Image rwheel, vk::raii::Image platform, vk::raii::Image arm,
+      vk::raii::Image word_img
   )
       : sampler{make_sampler(dev, limits)}, castle_textures{std::move(img)},
         castle_texture_view{make_view(dev, *castle_textures[0])},
         catapult{
             make_image_view(dev, std::move(fwheel)), make_image_view(dev, std::move(rwheel)),
             make_image_view(dev, std::move(platform)), make_image_view(dev, std::move(arm))
-        } {}
+        },
+        word{std::move(word_img)}, word_view{make_view(dev, *word)} {}
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
@@ -360,35 +397,35 @@ struct uniform_objects {
   vk::raii::ImageView castle_texture_view;
 
   std::array<std::tuple<vk::raii::Image, vk::raii::ImageView>, 4> catapult;
+  vk::raii::Image word;
+  vk::raii::ImageView word_view;
 
   void switch_castle_image(const vk::raii::Device& dev, size_t n) {
     castle_texture_view = make_view(dev, *castle_textures[n]);
   }
 
   void bind(vlk::ubo_builder& bldr) {
-    std::array<vk::ImageView, 5> sprites{
-        *castle_texture_view, *std::get<1>(catapult[0]), *std::get<1>(catapult[1]), *std::get<1>(catapult[2]),
-        *std::get<1>(catapult[3])
-    };
+    std::array<vk::ImageView, 6> sprites{*castle_texture_view,      *std::get<1>(catapult[0]),
+                                         *std::get<1>(catapult[1]), *std::get<1>(catapult[2]),
+                                         *std::get<1>(catapult[3]), *word_view};
 
     world = bldr.create<vlk::graphics_uniform<scene::world_transformations>>(0);
     light = bldr.create<vlk::fragment_uniform<scene::light_source>>(1);
     bldr.bind<vlk::fragment_uniform<vk::Sampler>>(2, *sampler);
     transformations = bldr.create<vlk::fragment_uniform<scene::texture_transform>>(3);
-    bldr.bind<vlk::fragment_uniform<vk::ImageView[5]>>(4, sprites);
+    bldr.bind<vlk::fragment_uniform<vk::ImageView[6]>>(4, sprites);
   }
 
   void rebind(vlk::ubo_builder& bldr) {
-    std::array<vk::ImageView, 5> sprites{
-        *castle_texture_view, *std::get<1>(catapult[0]), *std::get<1>(catapult[1]), *std::get<1>(catapult[2]),
-        *std::get<1>(catapult[3])
-    };
+    std::array<vk::ImageView, 6> sprites{*castle_texture_view,      *std::get<1>(catapult[0]),
+                                         *std::get<1>(catapult[1]), *std::get<1>(catapult[2]),
+                                         *std::get<1>(catapult[3]), *word_view};
 
     bldr.bind<vlk::graphics_uniform<scene::world_transformations>>(0, *world);
     bldr.bind<vlk::fragment_uniform<scene::light_source>>(1, *light);
     bldr.bind<vlk::fragment_uniform<vk::Sampler>>(2, *sampler);
     bldr.bind<vlk::fragment_uniform<scene::texture_transform>>(3, *transformations);
-    bldr.bind<vlk::fragment_uniform<vk::ImageView[5]>>(4, sprites);
+    bldr.bind<vlk::fragment_uniform<vk::ImageView[6]>>(4, sprites);
   }
 };
 
@@ -408,7 +445,7 @@ public:
                 .add_binding<
                     vlk::graphics_uniform<scene::world_transformations>,
                     vlk::fragment_uniform<scene::light_source>, vlk::fragment_uniform<vk::Sampler>,
-                    vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[5]>>(
+                    vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[6]>>(
                     1
                 )
                 .build(device_, 1),
@@ -463,12 +500,13 @@ public:
             ),
             load_sfx_texture(
                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
-            )
+            ),
+            load_text_texture(mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "привет")
         },
         descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
             uniform_objects, 1, vlk::graphics_uniform<scene::world_transformations>,
             vlk::fragment_uniform<scene::light_source>, vlk::fragment_uniform<vk::Sampler>,
-            vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[5]>>(
+            vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[6]>>(
             device_, phydev_.getProperties().limits, std::span<uniform_objects, 1>{&uniforms_, 1}
         )},
         pipelines_{
@@ -485,6 +523,7 @@ public:
     uniforms_.world->camera = scene::setup_camera(params.swapchain_info.imageExtent);
     uniforms_.transformations->models[0] =
         glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
+    uniforms_.transformations->models[5] = glm::translate(glm::mat4{1.}, {-1, -3, 0});
     *uniforms_.light = {.pos = {2., 5., 15.}, .intense = 0.8, .ambient = 0.4, .attenuation = 0.01};
   }
 
@@ -620,7 +659,7 @@ private:
   vlk::pipeline_bindings<
       1, vlk::graphics_uniform<scene::world_transformations>, vlk::fragment_uniform<scene::light_source>,
       vlk::fragment_uniform<vk::Sampler>, vlk::fragment_uniform<scene::texture_transform>,
-      vlk::fragment_uniform<vk::ImageView[5]>>
+      vlk::fragment_uniform<vk::ImageView[6]>>
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;
