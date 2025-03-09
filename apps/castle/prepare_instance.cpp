@@ -92,7 +92,7 @@ vk::raii::Device create_logical_device(
           .setQueuePriorities(queue_prio),
   };
 
-  const auto features = vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true);
+  constexpr auto features = vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true);
 
   auto device_create_info = vk::DeviceCreateInfo{}
                                 .setQueueCreateInfoCount(
@@ -256,6 +256,40 @@ struct device_rendering_params {
     }
     return std::nullopt;
   }
+};
+
+class gpu_device {
+public:
+  gpu_device() noexcept = default;
+  gpu_device(
+      vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_rendering_params params
+  ) noexcept
+      : instance_{std::move(inst)}, phydev_{std::move(dev)},
+        device_{
+            create_logical_device(phydev_, params.queue_families.graphics, params.queue_families.presentation)
+        } {}
+
+  const vk::raii::PhysicalDevice& phydev() const noexcept { return phydev_; }
+  const vk::raii::Device& dev() const noexcept { return device_; }
+
+  vk::PhysicalDeviceMemoryProperties memory_properties() const noexcept {
+    return phydev_.getMemoryProperties();
+  }
+  vk::PhysicalDeviceLimits limits() const noexcept { return phydev_.getProperties().limits; }
+
+  vk::SampleCountFlagBits find_max_usable_samples() const noexcept {
+    using enum vk::SampleCountFlagBits;
+    constexpr vk::SampleCountFlagBits prio_order[] = {e64, e32, e16, e8, e4, e2};
+
+    const auto counts_mask = phydev_.getProperties().limits.framebufferColorSampleCounts;
+    const auto it = std::ranges::find_if(prio_order, [&](auto e) { return bool{e & counts_mask}; });
+    return it != std::end(prio_order) ? *it : e1;
+  }
+
+private:
+  vk::raii::Instance instance_ = nullptr;
+  vk::raii::PhysicalDevice phydev_ = nullptr;
+  vk::raii::Device device_ = nullptr;
 };
 
 class mesh {
@@ -435,12 +469,9 @@ public:
       vk::raii::Instance inst, vk::raii::PhysicalDevice dev, vk::raii::SurfaceKHR surf,
       device_rendering_params params
   )
-      : instance_{std::move(inst)}, phydev_{std::move(dev)},
-        device_{
-            create_logical_device(phydev_, params.queue_families.graphics, params.queue_families.presentation)
-        },
+      : gpu_{std::move(inst), std::move(dev), params},
         uniform_pools_{
-            device_, phydev_.getMemoryProperties(), phydev_.getProperties().limits,
+            gpu_.dev(), gpu_.memory_properties(), gpu_.limits(),
             vlk::descriptor_pool_builder{}
                 .add_binding<
                     vlk::graphics_uniform<scene::world_transformations>,
@@ -448,82 +479,84 @@ public:
                     vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[6]>>(
                     1
                 )
-                .build(device_, 1),
+                .build(gpu_.dev(), 1),
             128 * 1024
         },
         mempools_{
-            device_,
-            phydev_.getMemoryProperties(),
-            phydev_.getProperties().limits,
+            gpu_.dev(),
+            gpu_.memory_properties(),
+            gpu_.limits(),
             {.vbo_capacity = 2 * 1024 * 1024,
              .ibo_capacity = 2 * 1024 * 1024,
              .textures_capacity = 256 * 1024 * 1024,
              .staging_size = 64 * 1024 * 1024}
         },
         render_pass_{
-            make_render_pass(device_, params.swapchain_info.imageFormat, find_max_usable_samples(phydev_))
+            make_render_pass(gpu_.dev(), params.swapchain_info.imageFormat, gpu_.find_max_usable_samples())
         },
         render_target_{
-            device_,
-            phydev_.getMemoryProperties(),
+            gpu_.dev(),
+            gpu_.memory_properties(),
             params.queue_families.presentation,
             std::move(surf),
             params.swapchain_info,
             *render_pass_,
-            find_max_usable_samples(phydev_)
+            gpu_.find_max_usable_samples()
         },
-        cmd_buffs_{device_, params.queue_families.graphics},
+        cmd_buffs_{gpu_.dev(), params.queue_families.graphics},
         uniforms_{
-            device_,
-            phydev_.getProperties().limits,
+            gpu_.dev(),
+            gpu_.limits(),
             {load_sfx_texture(
-                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-0hit.png"
+                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-0hit.png"
              ),
              load_sfx_texture(
-                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-1hit.png"
+                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-1hit.png"
              ),
              load_sfx_texture(
-                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-2hit.png"
+                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-2hit.png"
              ),
              load_sfx_texture(
-                 mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-3hit.png"
+                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-3hit.png"
              )},
             load_sfx_texture(
-                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(),
+                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(),
                 "textures/catapult-front-wheel.png"
             ),
             load_sfx_texture(
-                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-rear-wheel.png"
+                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(),
+                "textures/catapult-rear-wheel.png"
             ),
             load_sfx_texture(
-                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-platform.png"
+                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(),
+                "textures/catapult-platform.png"
             ),
             load_sfx_texture(
-                mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
+                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
             ),
-            load_text_texture(mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), "привет")
+            load_text_texture(mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "привет")
         },
         descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
             uniform_objects, 1, vlk::graphics_uniform<scene::world_transformations>,
             vlk::fragment_uniform<scene::light_source>, vlk::fragment_uniform<vk::Sampler>,
             vlk::fragment_uniform<scene::texture_transform>, vlk::fragment_uniform<vk::ImageView[6]>>(
-            device_, phydev_.getProperties().limits, std::span<uniform_objects, 1>{&uniforms_, 1}
+            gpu_.dev(), gpu_.limits(), std::span<uniform_objects, 1>{&uniforms_, 1}
         )},
         pipelines_{
-            device_, *render_pass_, find_max_usable_samples(phydev_), descriptor_bindings_.layout(),
+            gpu_.dev(), *render_pass_, gpu_.find_max_usable_samples(), descriptor_bindings_.layout(),
             vlk::shaders<scene::vertex>{
                 .vertex = {_binary_triangle_vert_spv_start, _binary_triangle_vert_spv_end},
                 .fragment = {_binary_triangle_frag_spv_start, _binary_triangle_frag_spv_end}
             }
         },
-        mesh_{mempools_, device_, cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
-        render_finished_{device_, vk::SemaphoreCreateInfo{}},
-        image_available_{device_, vk::SemaphoreCreateInfo{}},
-        frame_done_{device_, vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
+        mesh_{mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
+        render_finished_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
+        image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
+        frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
     uniforms_.world->camera = scene::setup_camera(params.swapchain_info.imageExtent);
     uniforms_.transformations->models[0] =
         glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
-    uniforms_.transformations->models[5] = glm::translate(glm::mat4{1.}, {-1, -3, 0});
+    uniforms_.transformations->models[5] = glm::translate(glm::mat4{1.}, {-1, -2, 0});
     *uniforms_.light = {.pos = {2., 5., 15.}, .intense = 0.8, .ambient = 0.4, .attenuation = 0.01};
   }
 
@@ -534,21 +567,20 @@ public:
   render_environment& operator=(render_environment&&) noexcept = default;
 
   ~render_environment() noexcept {
-    if (*device_ != nullptr)
-      device_.waitIdle();
+    if (*gpu_.dev() != nullptr)
+      gpu_.dev().waitIdle();
   }
 
   void resize(size sz) override {
-    device_.waitIdle();
+    gpu_.dev().waitIdle();
     const auto extent = as_extent(sz);
 
-    auto params = device_rendering_params::choose(*phydev_, render_target_.surface(), extent);
+    auto params = choose_swapchain_params(*gpu_.phydev(), render_target_.surface(), extent);
     if (!params)
       throw std::runtime_error{"Restore swapchain params after resize have failed"};
 
     render_target_.resize(
-        device_, phydev_.getMemoryProperties(), *render_pass_, find_max_usable_samples(phydev_),
-        params->swapchain_info, extent
+        gpu_.dev(), gpu_.memory_properties(), *render_pass_, gpu_.find_max_usable_samples(), *params, extent
     );
 
     if (sz.height > 0 && sz.height > 0)
@@ -556,21 +588,24 @@ public:
   }
 
   void draw(frames_clock::time_point ts) override {
-    if (auto ec =
-            make_error_code(device_.waitForFences({*frame_done_}, true, std::numeric_limits<uint64_t>::max())
-            ))
-      throw std::system_error(ec, "vkWaitForFence");
-    device_.resetFences({*frame_done_});
-
+    wait_last_frame_done();
     draw(render_target_.start_frame(*image_available_), ts).present(*render_finished_);
   }
 
 private:
+  void wait_last_frame_done() {
+    if (auto ec = make_error_code(
+            gpu_.dev().waitForFences({*frame_done_}, true, std::numeric_limits<uint64_t>::max())
+        ))
+      throw std::system_error(ec, "vkWaitForFence");
+    gpu_.dev().resetFences({*frame_done_});
+  }
+
   vlk::render_target::frame draw(vlk::render_target::frame frame, frames_clock::time_point ts) {
     const size_t next_uniform = (ts.time_since_epoch() / 3s) % uniforms_.castle_textures.size();
     if (std::exchange(cur_uniform_, next_uniform) != next_uniform) {
-      uniforms_.switch_castle_image(device_, cur_uniform_);
-      descriptor_bindings_.update(0, *device_, uniforms_);
+      uniforms_.switch_castle_image(gpu_.dev(), cur_uniform_);
+      descriptor_bindings_.update(0, *gpu_.dev(), uniforms_);
     }
     scene::update_world(ts, *uniforms_.world);
 
@@ -634,19 +669,8 @@ private:
     );
   }
 
-  static vk::SampleCountFlagBits find_max_usable_samples(vk::PhysicalDevice dev) {
-    using enum vk::SampleCountFlagBits;
-    constexpr vk::SampleCountFlagBits prio_order[] = {e64, e32, e16, e8, e4, e2};
-
-    const auto counts_mask = dev.getProperties().limits.framebufferColorSampleCounts;
-    const auto it = std::ranges::find_if(prio_order, [&](auto e) { return bool{e & counts_mask}; });
-    return it != std::end(prio_order) ? *it : e1;
-  }
-
 private:
-  vk::raii::Instance instance_;
-  vk::raii::PhysicalDevice phydev_;
-  vk::raii::Device device_;
+  gpu_device gpu_;
 
   vlk::uniform_pools uniform_pools_;
   vlk::memory_pools mempools_;
