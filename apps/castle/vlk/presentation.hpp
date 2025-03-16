@@ -101,6 +101,8 @@ public:
 
   vk::Extent2D extent() const noexcept { return swapchain_.extent(); }
 
+  vk::Format image_format() const noexcept { return swapchain_.image_format(); }
+
   class frame {
   public:
     frame() noexcept = default;

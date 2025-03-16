@@ -143,63 +143,58 @@ constexpr vk::Extent2D as_extent(size sz) noexcept {
   return {static_cast<uint32_t>(sz.width), static_cast<uint32_t>(sz.height)};
 }
 
-bool has_required_extensions(const vk::PhysicalDevice& dev) {
+bool has_required_extensions(vk::PhysicalDevice dev) {
   spdlog::debug(
       "Checking required extensions on suitable device {}", std::string_view{dev.getProperties().deviceName}
   );
 
-  auto exts = dev.enumerateDeviceExtensionProperties();
-  std::ranges::sort(exts, [](const vk::ExtensionProperties& l, const vk::ExtensionProperties& r) {
-    return l.extensionName < r.extensionName;
-  });
+  std::vector<vk::ExtensionProperties> exts = dev.enumerateDeviceExtensionProperties();
+  std::ranges::sort(exts, std::less<>{}, &vk::ExtensionProperties::extensionName);
 
-  bool has_missing_exts = false;
-  std::span<const char* const> remaining_required{required_device_extensions};
-  for (const vk::ExtensionProperties& ext : exts) {
-    std::string_view name{ext.extensionName};
-    if (remaining_required.empty() || name < remaining_required.front())
-      continue;
+  std::vector<std::string_view> missing_exts;
+  std::ranges::set_difference(
+      required_device_extensions,
+      exts | std::views::transform(as_string_view<&vk::ExtensionProperties::extensionName>),
+      std::back_inserter(missing_exts), std::less<std::string_view>{}
+  );
+  for (auto ext : missing_exts)
+    spdlog::debug("\tMissing required extension {}", ext);
 
-    while (!remaining_required.empty() && !(name < remaining_required.front())) {
-      if (name != remaining_required.front()) {
-        has_missing_exts = true;
-        spdlog::debug("\tMissing required extension {}", remaining_required.front());
-      }
-      remaining_required = remaining_required.subspan(1);
-    }
-  }
-  for (auto missing : remaining_required) {
-    spdlog::debug("\tMissing required extension {}", missing);
-    has_missing_exts = true;
-  }
-  return !has_missing_exts;
+  return missing_exts.empty();
 }
 
-std::optional<vk::SwapchainCreateInfoKHR>
-choose_swapchain_params(const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf, vk::Extent2D sz) {
+bool check_device(vk::PhysicalDevice dev) {
+  if (dev.getProperties().apiVersion < VK_API_VERSION_1_2)
+    return false;
+  if (!dev.getFeatures().samplerAnisotropy)
+    return false;
+
+  return has_required_extensions(dev);
+}
+
+bool check_suitable_presentation_params(vk::PhysicalDevice dev, vk::SurfaceKHR surf) {
+  if (!std::ranges::any_of(dev.getSurfaceFormatsKHR(surf), [](vk::SurfaceFormatKHR fmt) {
+        return fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear &&
+               (fmt.format == vk::Format::eR8G8B8A8Srgb || fmt.format == vk::Format::eB8G8R8A8Srgb);
+      }))
+    return false;
+
+  if (!std::ranges::contains(dev.getSurfacePresentModesKHR(surf), vk::PresentModeKHR::eMailbox))
+    return false;
+
+  return true;
+}
+
+vk::SwapchainCreateInfoKHR
+make_swapchain_create_info(vk::PhysicalDevice dev, vk::SurfaceKHR surf, vk::Format img_fmt, vk::Extent2D sz) {
   const auto capabilities = dev.getSurfaceCapabilitiesKHR(surf);
-  const auto formats = dev.getSurfaceFormatsKHR(surf);
-  const auto modes = dev.getSurfacePresentModesKHR(surf);
-
-  const auto fmt_it = std::ranges::find_if(formats, [](vk::SurfaceFormatKHR fmt) {
-    return fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear &&
-           (fmt.format == vk::Format::eR8G8B8A8Srgb || fmt.format == vk::Format::eB8G8R8A8Srgb);
-  });
-  if (fmt_it == formats.end())
-    return std::nullopt;
-
-  // TODO: choose eFifo if it's available while eMailbox is not
-  const auto mode_it = std::ranges::find(modes, vk::PresentModeKHR::eMailbox);
-  if (mode_it == modes.end())
-    return std::nullopt;
-
   return vk::SwapchainCreateInfoKHR{}
       .setSurface(surf)
       .setMinImageCount(std::min(
           capabilities.minImageCount + 1,
           capabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max() : capabilities.maxImageCount
       ))
-      .setImageFormat(fmt_it->format)
+      .setImageFormat(img_fmt)
       .setImageExtent(vk::Extent2D{
           std::clamp(sz.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
           std::clamp(sz.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
@@ -208,24 +203,15 @@ choose_swapchain_params(const vk::PhysicalDevice& dev, const vk::SurfaceKHR& sur
       .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
       .setPreTransform(capabilities.currentTransform)
       .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
-      .setPresentMode(*mode_it)
+      .setPresentMode(vk::PresentModeKHR::eMailbox)
       .setClipped(true);
 }
 
-struct device_rendering_params {
-  struct {
-    uint32_t graphics;
-    uint32_t presentation;
-  } queue_families;
-  vk::SwapchainCreateInfoKHR swapchain_info;
+struct device_queue_families {
+  uint32_t graphics;
+  uint32_t presentation;
 
-  static std::optional<device_rendering_params>
-  choose(const vk::PhysicalDevice& dev, const vk::SurfaceKHR& surf, vk::Extent2D sz) {
-    if (dev.getProperties().apiVersion < VK_API_VERSION_1_2)
-      return std::nullopt;
-    if (!dev.getFeatures().samplerAnisotropy)
-      return std::nullopt;
-
+  static std::optional<device_queue_families> find(vk::PhysicalDevice dev, vk::SurfaceKHR surf) {
     std::optional<uint32_t> graphics_family;
     std::optional<uint32_t> presentation_family;
     for (const auto& [idx, queue_family] : std::views::enumerate(dev.getQueueFamilyProperties())) {
@@ -234,27 +220,9 @@ struct device_rendering_params {
       if (dev.getSurfaceSupportKHR(idx, surf))
         presentation_family = idx;
     }
-    if (graphics_family && presentation_family && has_required_extensions(dev)) {
-      if (auto res = choose_swapchain_params(dev, surf, sz).transform([&](auto swapchain_info) {
-            return device_rendering_params{
-                .queue_families = {.graphics = *graphics_family, .presentation = *presentation_family},
-                .swapchain_info = swapchain_info
-            };
-          })) {
-        // TODO: get rid of this strange patching
-        std::array<uint32_t, 2> queues{*graphics_family, *presentation_family};
-        if (graphics_family != presentation_family) {
-          res->swapchain_info.imageSharingMode = vk::SharingMode::eConcurrent;
-          res->swapchain_info.queueFamilyIndexCount = queues.size();
-          res->swapchain_info.pQueueFamilyIndices = queues.data();
-        } else {
-          res->swapchain_info.queueFamilyIndexCount = 1;
-          res->swapchain_info.pQueueFamilyIndices = queues.data();
-        }
-        return res;
-      }
-    }
-    return std::nullopt;
+    if (!graphics_family || !presentation_family)
+      return std::nullopt;
+    return device_queue_families{.graphics = *graphics_family, .presentation = *presentation_family};
   }
 };
 
@@ -262,14 +230,12 @@ class gpu_device {
 public:
   gpu_device() noexcept = default;
   gpu_device(
-      vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_rendering_params params
+      vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families
   ) noexcept
       : instance_{std::move(inst)}, phydev_{std::move(dev)},
-        device_{
-            create_logical_device(phydev_, params.queue_families.graphics, params.queue_families.presentation)
-        } {}
+        device_{create_logical_device(phydev_, families.graphics, families.presentation)},
+        families_{families} {}
 
-  const vk::raii::PhysicalDevice& phydev() const noexcept { return phydev_; }
   const vk::raii::Device& dev() const noexcept { return device_; }
 
   vk::PhysicalDeviceMemoryProperties memory_properties() const noexcept {
@@ -286,10 +252,41 @@ public:
     return it != std::end(prio_order) ? *it : e1;
   }
 
+  device_queue_families families() const noexcept { return families_; }
+
+  std::optional<vk::Format> find_compatible_format_for(vk::SurfaceKHR surf) const {
+    const auto formats = phydev_.getSurfaceFormatsKHR(surf);
+    const auto fmt_it = std::ranges::find_if(formats, [](vk::SurfaceFormatKHR fmt) {
+      return fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear &&
+             (fmt.format == vk::Format::eR8G8B8A8Srgb || fmt.format == vk::Format::eB8G8R8A8Srgb);
+    });
+    if (fmt_it == formats.end())
+      return std::nullopt;
+    return fmt_it->format;
+  }
+
+  vk::SwapchainCreateInfoKHR
+  make_swapchain_info(vk::SurfaceKHR surf, vk::Format img_fmt, vk::Extent2D sz) const {
+    auto res = make_swapchain_create_info(*phydev_, surf, img_fmt, sz);
+    // TODO: Get rid of this strange patching.
+    // FIXME: This code returns pointers to local array :( !!! And always was.
+    std::array<uint32_t, 2> queues{families_.graphics, families_.presentation};
+    if (families_.graphics != families_.presentation) {
+      res.imageSharingMode = vk::SharingMode::eConcurrent;
+      res.queueFamilyIndexCount = queues.size();
+      res.pQueueFamilyIndices = queues.data();
+    } else {
+      res.queueFamilyIndexCount = 1;
+      res.pQueueFamilyIndices = queues.data();
+    }
+    return res;
+  }
+
 private:
-  vk::raii::Instance instance_ = nullptr;
-  vk::raii::PhysicalDevice phydev_ = nullptr;
-  vk::raii::Device device_ = nullptr;
+  vk::raii::Instance instance_{nullptr};
+  vk::raii::PhysicalDevice phydev_{nullptr};
+  vk::raii::Device device_{nullptr};
+  device_queue_families families_{};
 };
 
 class mesh {
@@ -466,10 +463,10 @@ struct uniform_objects {
 class render_environment : public renderer_iface {
 public:
   render_environment(
-      vk::raii::Instance inst, vk::raii::PhysicalDevice dev, vk::raii::SurfaceKHR surf,
-      device_rendering_params params
+      gpu_device gpu, vk::raii::SurfaceKHR surf, device_queue_families families,
+      vk::SwapchainCreateInfoKHR swapchain_info
   )
-      : gpu_{std::move(inst), std::move(dev), params},
+      : gpu_{std::move(gpu)},
         uniform_pools_{
             gpu_.dev(), gpu_.memory_properties(), gpu_.limits(),
             vlk::descriptor_pool_builder{}
@@ -491,19 +488,16 @@ public:
              .textures_capacity = 256 * 1024 * 1024,
              .staging_size = 64 * 1024 * 1024}
         },
-        render_pass_{
-            make_render_pass(gpu_.dev(), params.swapchain_info.imageFormat, gpu_.find_max_usable_samples())
+        render_pass_{make_render_pass(gpu_.dev(), swapchain_info.imageFormat, gpu_.find_max_usable_samples())
         },
-        render_target_{
-            gpu_.dev(),
-            gpu_.memory_properties(),
-            params.queue_families.presentation,
-            std::move(surf),
-            params.swapchain_info,
-            *render_pass_,
-            gpu_.find_max_usable_samples()
-        },
-        cmd_buffs_{gpu_.dev(), params.queue_families.graphics},
+        render_target_{gpu_.dev(),
+                       gpu_.memory_properties(),
+                       families.presentation,
+                       std::move(surf),
+                       swapchain_info,
+                       *render_pass_,
+                       gpu_.find_max_usable_samples()},
+        cmd_buffs_{gpu_.dev(), families.graphics},
         uniforms_{
             gpu_.dev(),
             gpu_.limits(),
@@ -553,7 +547,7 @@ public:
         render_finished_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
-    uniforms_.world->camera = scene::setup_camera(params.swapchain_info.imageExtent);
+    uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
     uniforms_.transformations->models[0] =
         glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
     uniforms_.transformations->models[5] = glm::translate(glm::mat4{1.}, {-1, -2, 0});
@@ -575,12 +569,9 @@ public:
     gpu_.dev().waitIdle();
     const auto extent = as_extent(sz);
 
-    auto params = choose_swapchain_params(*gpu_.phydev(), render_target_.surface(), extent);
-    if (!params)
-      throw std::runtime_error{"Restore swapchain params after resize have failed"};
-
     render_target_.resize(
-        gpu_.dev(), gpu_.memory_properties(), *render_pass_, gpu_.find_max_usable_samples(), *params, extent
+        gpu_.dev(), gpu_.memory_properties(), *render_pass_, gpu_.find_max_usable_samples(),
+        gpu_.make_swapchain_info(render_target_.surface(), render_target_.image_format(), extent), extent
     );
 
     if (sz.height > 0 && sz.height > 0)
@@ -694,11 +685,13 @@ private:
   vk::raii::Fence frame_done_;
 };
 
-auto select_suitable_device(const vk::raii::Instance& inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
+auto select_suitable_device(vk::raii::Instance inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
   for (vk::raii::PhysicalDevice dev : inst.enumeratePhysicalDevices()) {
-    if (auto params = device_rendering_params::choose(*dev, surf, sz)) {
-      spdlog::info("Using Vulkan device: {}", std::string_view{dev.getProperties().deviceName});
-      return std::pair{dev, *params};
+    if (check_device(dev) && check_suitable_presentation_params(dev, surf)) {
+      if (const auto families = device_queue_families::find(dev, surf)) {
+        spdlog::info("Using Vulkan device: {}", std::string_view{dev.getProperties().deviceName});
+        return gpu_device{std::move(inst), std::move(dev), *families};
+      }
     }
     spdlog::debug("Vulkan device '{}' is rejected", std::string_view{dev.getProperties().deviceName});
   }
@@ -714,7 +707,10 @@ std::unique_ptr<renderer_iface> make_vk_renderer(wl_display& display, wl_surface
       inst, vk::WaylandSurfaceCreateInfoKHR{}.setDisplay(&display).setSurface(&surf)
   };
 
-  auto [dev, params] = select_suitable_device(inst, *vk_surf, as_extent(sz));
+  gpu_device gpu = select_suitable_device(std::move(inst), *vk_surf, as_extent(sz));
+  const auto families = gpu.families();
+  const auto swapchain_info =
+      gpu.make_swapchain_info(*vk_surf, *gpu.find_compatible_format_for(*vk_surf), as_extent(sz));
 
-  return std::make_unique<render_environment>(std::move(inst), std::move(dev), std::move(vk_surf), params);
+  return std::make_unique<render_environment>(std::move(gpu), std::move(vk_surf), families, swapchain_info);
 }
