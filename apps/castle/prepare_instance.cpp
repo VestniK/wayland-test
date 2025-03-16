@@ -310,14 +310,16 @@ public:
         },
         render_pass_{make_render_pass(gpu_.dev(), swapchain_info.imageFormat, gpu_.find_max_usable_samples())
         },
-        render_target_{gpu_.dev(),
-                       gpu_.memory_properties(),
-                       gpu_.families().presentation,
-                       std::move(surf),
-                       swapchain_info,
-                       *render_pass_,
-                       gpu_.find_max_usable_samples()},
-        cmd_buffs_{gpu_.dev(), gpu_.families().graphics},
+        render_target_{
+            gpu_.dev(),
+            gpu_.memory_properties(),
+            gpu_.create_presentation_queue(),
+            std::move(surf),
+            swapchain_info,
+            *render_pass_,
+            gpu_.find_max_usable_samples()
+        },
+        cmd_buffs_{gpu_.create_cmd_buffs<1>()},
         uniforms_{
             gpu_.dev(),
             gpu_.limits(),

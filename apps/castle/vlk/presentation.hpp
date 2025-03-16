@@ -84,11 +84,11 @@ public:
 
   render_target(
       const vk::raii::Device& dev, const vk::PhysicalDeviceMemoryProperties& props,
-      uint32_t presentation_queue_family, vk::raii::SurfaceKHR surf,
+      vk::raii::Queue presentation_queue, vk::raii::SurfaceKHR surf,
       const vk::SwapchainCreateInfoKHR& swapchain_info, const vk::RenderPass& render_pass,
       vk::SampleCountFlagBits samples
   )
-      : presentation_queue_{dev.getQueue(presentation_queue_family, 0)}, surf_{std::move(surf)},
+      : presentation_queue_{std::move(presentation_queue)}, surf_{std::move(surf)},
         swapchain_{dev, props, *surf_, swapchain_info, render_pass, samples} {}
 
   void resize(

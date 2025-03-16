@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
+#include "cmds.hpp"
+
 namespace vlk {
 
 struct device_queue_families {
@@ -18,6 +20,9 @@ public:
 
   const vk::raii::Device& dev() const noexcept { return device_; }
 
+  vk::raii::Queue create_graphics_queue() const { return device_.getQueue(families_.graphics, 0); }
+  vk::raii::Queue create_presentation_queue() const { return device_.getQueue(families_.presentation, 0); }
+
   vk::PhysicalDeviceMemoryProperties memory_properties() const noexcept {
     return phydev_.getMemoryProperties();
   }
@@ -25,12 +30,15 @@ public:
 
   vk::SampleCountFlagBits find_max_usable_samples() const noexcept;
 
-  device_queue_families families() const noexcept { return families_; }
-
   std::optional<vk::Format> find_compatible_format_for(vk::SurfaceKHR surf) const;
 
   vk::SwapchainCreateInfoKHR
   make_swapchain_info(vk::SurfaceKHR surf, vk::Format img_fmt, vk::Extent2D sz) const;
+
+  template <size_t N>
+  vlk::command_buffers<N> create_cmd_buffs() {
+    return {device_, families_.graphics};
+  }
 
 private:
   vk::raii::Instance instance_{nullptr};
