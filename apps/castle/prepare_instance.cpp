@@ -81,22 +81,37 @@ vk::raii::Instance create_instance() {
   return inst;
 }
 
-vk::raii::Device create_logical_device(
-    const vk::raii::PhysicalDevice& dev, uint32_t graphics_queue_family, uint32_t presentation_queue_family
-) {
+struct device_queue_families {
+  uint32_t graphics;
+  uint32_t presentation;
+
+  static std::optional<device_queue_families> find(vk::PhysicalDevice dev, vk::SurfaceKHR surf) {
+    std::optional<uint32_t> graphics_family;
+    std::optional<uint32_t> presentation_family;
+    for (const auto& [idx, queue_family] : std::views::enumerate(dev.getQueueFamilyProperties())) {
+      if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
+        graphics_family = idx;
+      if (dev.getSurfaceSupportKHR(idx, surf))
+        presentation_family = idx;
+    }
+    if (!graphics_family || !presentation_family)
+      return std::nullopt;
+    return device_queue_families{.graphics = *graphics_family, .presentation = *presentation_family};
+  }
+};
+
+vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev, device_queue_families families) {
   const float queue_prio = 1.0f;
   std::array<vk::DeviceQueueCreateInfo, 2> device_queues{
-      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(graphics_queue_family).setQueuePriorities(queue_prio),
-      vk::DeviceQueueCreateInfo{}
-          .setQueueFamilyIndex(presentation_queue_family)
-          .setQueuePriorities(queue_prio),
+      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.graphics).setQueuePriorities(queue_prio),
+      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.presentation).setQueuePriorities(queue_prio),
   };
 
   constexpr auto features = vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true);
 
   auto device_create_info = vk::DeviceCreateInfo{}
                                 .setQueueCreateInfoCount(
-                                    graphics_queue_family == presentation_queue_family ? 1u : 2u
+                                    families.graphics == families.presentation ? 1u : 2u
                                 ) // TODO: better duplication needed
                                 .setPQueueCreateInfos(device_queues.data())
                                 .setPEnabledExtensionNames(required_device_extensions)
@@ -207,25 +222,6 @@ make_swapchain_create_info(vk::PhysicalDevice dev, vk::SurfaceKHR surf, vk::Form
       .setClipped(true);
 }
 
-struct device_queue_families {
-  uint32_t graphics;
-  uint32_t presentation;
-
-  static std::optional<device_queue_families> find(vk::PhysicalDevice dev, vk::SurfaceKHR surf) {
-    std::optional<uint32_t> graphics_family;
-    std::optional<uint32_t> presentation_family;
-    for (const auto& [idx, queue_family] : std::views::enumerate(dev.getQueueFamilyProperties())) {
-      if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
-        graphics_family = idx;
-      if (dev.getSurfaceSupportKHR(idx, surf))
-        presentation_family = idx;
-    }
-    if (!graphics_family || !presentation_family)
-      return std::nullopt;
-    return device_queue_families{.graphics = *graphics_family, .presentation = *presentation_family};
-  }
-};
-
 class gpu_device {
 public:
   gpu_device() noexcept = default;
@@ -233,8 +229,7 @@ public:
       vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families
   ) noexcept
       : instance_{std::move(inst)}, phydev_{std::move(dev)},
-        device_{create_logical_device(phydev_, families.graphics, families.presentation)},
-        families_{families} {}
+        device_{create_logical_device(phydev_, families)}, families_{families} {}
 
   const vk::raii::Device& dev() const noexcept { return device_; }
 
@@ -462,10 +457,7 @@ struct uniform_objects {
 
 class render_environment : public renderer_iface {
 public:
-  render_environment(
-      gpu_device gpu, vk::raii::SurfaceKHR surf, device_queue_families families,
-      vk::SwapchainCreateInfoKHR swapchain_info
-  )
+  render_environment(gpu_device gpu, vk::raii::SurfaceKHR surf, vk::SwapchainCreateInfoKHR swapchain_info)
       : gpu_{std::move(gpu)},
         uniform_pools_{
             gpu_.dev(), gpu_.memory_properties(), gpu_.limits(),
@@ -492,12 +484,12 @@ public:
         },
         render_target_{gpu_.dev(),
                        gpu_.memory_properties(),
-                       families.presentation,
+                       gpu_.families().presentation,
                        std::move(surf),
                        swapchain_info,
                        *render_pass_,
                        gpu_.find_max_usable_samples()},
-        cmd_buffs_{gpu_.dev(), families.graphics},
+        cmd_buffs_{gpu_.dev(), gpu_.families().graphics},
         uniforms_{
             gpu_.dev(),
             gpu_.limits(),
@@ -547,7 +539,7 @@ public:
         render_finished_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
-    uniforms_.world->camera = scene::setup_camera(swapchain_info.imageExtent);
+    uniforms_.world->camera = scene::setup_camera(render_target_.extent());
     uniforms_.transformations->models[0] =
         glm::translate(glm::scale(glm::mat4{1.}, {1. / 6., 1. / 6., 1. / 6.}), {0, -12, 0});
     uniforms_.transformations->models[5] = glm::translate(glm::mat4{1.}, {-1, -2, 0});
@@ -685,7 +677,7 @@ private:
   vk::raii::Fence frame_done_;
 };
 
-auto select_suitable_device(vk::raii::Instance inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
+gpu_device select_suitable_device(vk::raii::Instance inst, vk::SurfaceKHR surf, vk::Extent2D sz) {
   for (vk::raii::PhysicalDevice dev : inst.enumeratePhysicalDevices()) {
     if (check_device(dev) && check_suitable_presentation_params(dev, surf)) {
       if (const auto families = device_queue_families::find(dev, surf)) {
@@ -708,9 +700,8 @@ std::unique_ptr<renderer_iface> make_vk_renderer(wl_display& display, wl_surface
   };
 
   gpu_device gpu = select_suitable_device(std::move(inst), *vk_surf, as_extent(sz));
-  const auto families = gpu.families();
   const auto swapchain_info =
       gpu.make_swapchain_info(*vk_surf, *gpu.find_compatible_format_for(*vk_surf), as_extent(sz));
 
-  return std::make_unique<render_environment>(std::move(gpu), std::move(vk_surf), families, swapchain_info);
+  return std::make_unique<render_environment>(std::move(gpu), std::move(vk_surf), swapchain_info);
 }
