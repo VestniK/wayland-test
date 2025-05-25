@@ -366,7 +366,6 @@ public:
             }
         },
         mesh_{mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
-        render_finished_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
     uniforms_.world->camera = scene::setup_camera(render_target_.extent());
@@ -402,7 +401,7 @@ public:
 
   void draw(frames_clock::time_point ts) override {
     wait_last_frame_done();
-    draw(render_target_.start_frame(*image_available_), ts).present(*render_finished_);
+    draw(render_target_.start_frame(*image_available_), ts).present();
   }
 
 private:
@@ -430,7 +429,7 @@ private:
         std::next(std::begin(uniforms_.transformations->models))
     );
 
-    submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()));
+    submit_cmd_buf(record_cmd_buffer(cmd_buffs_.front(), frame.buffer()), frame.render_done_sem());
     return frame;
   }
 
@@ -468,7 +467,7 @@ private:
     return cmd;
   }
 
-  void submit_cmd_buf(const vk::CommandBuffer& cmd) const {
+  void submit_cmd_buf(const vk::CommandBuffer& cmd, vk::Semaphore render_done) const {
     uniform_pools_.flush(descriptor_bindings_.flush_region(0));
 
     const vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -477,7 +476,7 @@ private:
             .setWaitSemaphores(*image_available_)
             .setPWaitDstStageMask(&wait_stage)
             .setCommandBuffers(cmd)
-            .setSignalSemaphores(*render_finished_),
+            .setSignalSemaphores(render_done),
         *frame_done_
     );
   }
@@ -502,7 +501,6 @@ private:
   mesh mesh_;
   size_t cur_uniform_ = 0;
 
-  vk::raii::Semaphore render_finished_;
   vk::raii::Semaphore image_available_;
   vk::raii::Fence frame_done_;
 };

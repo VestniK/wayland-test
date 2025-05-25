@@ -14,7 +14,8 @@ public:
   class available_framebuffer {
   public:
     available_framebuffer() noexcept = default;
-    available_framebuffer(vk::Framebuffer fb, uint32_t idx) noexcept : fb_{std::move(fb)}, idx_{idx} {}
+    available_framebuffer(vk::Framebuffer fb, vk::Semaphore done_sem, uint32_t idx) noexcept
+        : fb_{std::move(fb)}, done_sem_{done_sem}, idx_{idx} {}
 
     available_framebuffer(const available_framebuffer&) = delete;
     available_framebuffer& operator=(const available_framebuffer&) = delete;
@@ -25,12 +26,11 @@ public:
     ~available_framebuffer() noexcept = default;
 
     const vk::Framebuffer& framebuffer() const noexcept { return fb_; }
+    const vk::Semaphore& render_done_sem() const noexcept { return done_sem_; }
 
-    void present(
-        const vk::SwapchainKHR& swpchain, const vk::Queue& presentation_queue, const vk::Semaphore& done_sem
-    ) const {
+    void present(const vk::SwapchainKHR& swpchain, const vk::Queue& presentation_queue) const {
       const auto ec = make_error_code(presentation_queue.presentKHR(
-          vk::PresentInfoKHR{}.setWaitSemaphores(done_sem).setSwapchains(swpchain).setPImageIndices(&idx_)
+          vk::PresentInfoKHR{}.setWaitSemaphores(done_sem_).setSwapchains(swpchain).setPImageIndices(&idx_)
       ));
       if (ec)
         throw std::system_error(ec, "vkQueuePresentKHR");
@@ -38,6 +38,7 @@ public:
 
   private:
     vk::Framebuffer fb_;
+    vk::Semaphore done_sem_;
     uint32_t idx_;
   };
 
@@ -63,9 +64,8 @@ public:
 
   available_framebuffer acqure_framebuffer(const vk::Semaphore& image_available) const;
 
-  void present(available_framebuffer&& fb, const vk::Queue& presentation_queue, const vk::Semaphore& done_sem)
-      const {
-    fb.present(*swapchain_, presentation_queue, done_sem);
+  void present(available_framebuffer&& fb, const vk::Queue& presentation_queue) const {
+    fb.present(*swapchain_, presentation_queue);
   }
 
 private:
@@ -110,10 +110,9 @@ public:
         : parent_{parent}, fb_{parent->swapchain_.acqure_framebuffer(ready_to_present)} {}
 
     vk::Framebuffer buffer() const { return fb_.framebuffer(); }
+    vk::Semaphore render_done_sem() { return fb_.render_done_sem(); }
 
-    void present(vk::Semaphore done_sem) && {
-      parent_->swapchain_.present(std::move(fb_), *parent_->presentation_queue_, done_sem);
-    }
+    void present() && { parent_->swapchain_.present(std::move(fb_), *parent_->presentation_queue_); }
 
   private:
     const render_target* parent_ = nullptr;

@@ -44,7 +44,8 @@ public:
                 .setLayerCount(1)
             )
         }
-      , framebuf_{make_fb_helper(dev, render_pass, extent, {multisampling_img, *view_})} {}
+      , framebuf_{make_fb_helper(dev, render_pass, extent, {multisampling_img, *view_})}
+      , render_finished_{dev, vk::SemaphoreCreateInfo{}} {}
 
   static std::vector<frame> from_images(
       const vk::raii::Device& dev, vk::RenderPass render_pass, vk::ImageView multisampling_img,
@@ -59,10 +60,12 @@ public:
 
   vk::ImageView image_view() const noexcept { return *view_; }
   vk::Framebuffer frameuffer() const noexcept { return *framebuf_; }
+  vk::Semaphore render_done_sem() const noexcept { return *render_finished_; }
 
 private:
   vk::raii::ImageView view_{nullptr};
   vk::raii::Framebuffer framebuf_{nullptr};
+  vk::raii::Semaphore render_finished_{nullptr};
 };
 
 swapchain::swapchain() noexcept = default;
@@ -119,7 +122,7 @@ swapchain::available_framebuffer swapchain::acqure_framebuffer(const vk::Semapho
   if (ec)
     throw std::system_error(ec, "vkAcquireNextImageKHR");
   assert(idx < frames_.size());
-  return {frames_[idx].frameuffer(), idx};
+  return {frames_[idx].frameuffer(), frames_[idx].render_done_sem(), idx};
 }
 
 void render_target::resize(
