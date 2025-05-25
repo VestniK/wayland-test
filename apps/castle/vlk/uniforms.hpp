@@ -175,9 +175,16 @@ public:
   template <uniform_type... U>
   constexpr descriptor_pool_builder& add_binding(uint32_t times = 1) noexcept {
     sizes_[0].descriptorCount += times * descriptors_count<U...>(eUniformBuffer);
+    sizes_[0].type = vk::DescriptorType::eUniformBuffer;
+
     sizes_[1].descriptorCount += times * descriptors_count<U...>(eCombinedImageSampler);
+    sizes_[1].type = vk::DescriptorType::eCombinedImageSampler;
+
     sizes_[2].descriptorCount += times * descriptors_count<U...>(eSampler);
+    sizes_[2].type = vk::DescriptorType::eSampler;
+
     sizes_[3].descriptorCount += times * descriptors_count<U...>(eSampledImage);
+    sizes_[3].type = vk::DescriptorType::eSampledImage;
     return *this;
   }
 
