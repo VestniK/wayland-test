@@ -1,4 +1,5 @@
 find_package(VulkanHeaders REQUIRED)
+find_package(vulkan-memory-allocator)
 find_package(Catch2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
@@ -8,6 +9,7 @@ cpp_unit(
   STD cxx_std_23
   LIBS
     vulkan-headers::vulkan-headers
+    vulkan-memory-allocator::vulkan-memory-allocator
     spdlog::spdlog
     memtricks
   TEST_LIBS

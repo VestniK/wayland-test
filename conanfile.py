@@ -13,7 +13,8 @@ class Deps(ConanFile):
         self.requires("mp-units/2.3.0")
         self.requires("spdlog/1.14.1")
         self.requires("tracy/cci.20220130")
-        self.requires("vulkan-headers/1.3.296.0")
+        self.requires("vulkan-headers/1.3.296.0", override=True)
+        self.requires("vulkan-memory-allocator/3.0.1")
         self.requires("freetype/2.13.3")
 
     def build_requirements(self):
