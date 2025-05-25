@@ -118,9 +118,9 @@ device_queue_families::find(vk::PhysicalDevice dev, vk::SurfaceKHR surf) {
   return device_queue_families{.graphics = *graphics_family, .presentation = *presentation_family};
 }
 
-gpu::gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families) noexcept
+gpu::gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families)
     : instance_{std::move(inst)}, phydev_{std::move(dev)}, device_{create_logical_device(phydev_, families)},
-      families_{families} {}
+      families_{families}, alloc_{make_vma_allocator(*instance_, *phydev_, *device_)} {}
 
 vk::SampleCountFlagBits gpu::find_max_usable_samples() const noexcept {
   using enum vk::SampleCountFlagBits;

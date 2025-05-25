@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_raii.hpp>
 
 #include "cmds.hpp"
+#include "vma.hpp"
 
 namespace vlk {
 
@@ -16,7 +17,7 @@ struct device_queue_families {
 class gpu {
 public:
   gpu() noexcept = default;
-  gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families) noexcept;
+  gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families);
 
   const vk::raii::Device& dev() const noexcept { return device_; }
 
@@ -45,6 +46,7 @@ private:
   vk::raii::PhysicalDevice phydev_{nullptr};
   vk::raii::Device device_{nullptr};
   device_queue_families families_{};
+  vma_allocator alloc_;
 };
 
 gpu select_suitable_device(vk::raii::Instance inst, vk::SurfaceKHR surf, vk::Extent2D sz);
