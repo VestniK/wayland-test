@@ -185,7 +185,7 @@ reader font::text_image_reader(std::string_view text) {
             throw std::system_error{ec, ft::category, "FT_Render_Glyph"};
 
           const std::byte* bitmap_pos = reinterpret_cast<const std::byte*>(font->glyph->bitmap.buffer);
-          for (auto row = 0; row < font->glyph->bitmap.rows; ++row) {
+          for (unsigned row = 0; row < font->glyph->bitmap.rows; ++row) {
             const auto y = top - font->glyph->bitmap_top + row + 1;
             const auto x = left + font->glyph->bitmap_left;
             auto* dest_pos = dest.data() + (y * width + x) * pixel_byte_size(pixel_fmt::rgba);
