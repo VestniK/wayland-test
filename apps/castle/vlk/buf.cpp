@@ -195,21 +195,10 @@ vk::raii::Buffer memory_pools::prepare_buffer(
   return res;
 }
 
-vk::raii::Image memory_pools::prepare_image(
-    const vk::raii::Device& dev, const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
-    image_purpose p, staging_memory data, vk::Format fmt, vk::Extent2D sz
+void copy(
+    vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, image_purpose p,
+    vk::Extent2D sz
 ) {
-  assert(data.get_deleter().parent() == this);
-  staging_mem_.mem_source().flush(data);
-  vk::raii::Buffer staging_buf =
-      staging_mem_.mem_source().bind_buffer(dev, vk::BufferUsageFlagBits::eTransferSrc, data);
-
-  auto res = dev.createImage(make_image_create_info(purpose_to_usage(p), fmt, sz));
-  const auto req = (*dev).getImageMemoryRequirements(*res);
-
-  auto [arena_memory, region] = arenas_.lock_memory_for(p, req.size, req.alignment);
-  res.bindMemory(arena_memory.get(), region.offset);
-
   cmd.begin(vk::CommandBufferBeginInfo{});
 
   const auto img_dst_barrier = vk::ImageMemoryBarrier{}
@@ -219,7 +208,7 @@ vk::raii::Image memory_pools::prepare_image(
                                    .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
                                    .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
                                    .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-                                   .setImage(*res)
+                                   .setImage(dst)
                                    .setSubresourceRange(vk::ImageSubresourceRange{}
                                                             .setAspectMask(vk::ImageAspectFlagBits::eColor)
                                                             .setLevelCount(1)
@@ -234,7 +223,7 @@ vk::raii::Image memory_pools::prepare_image(
           .setImageSubresource(
               vk::ImageSubresourceLayers{}.setLayerCount(1).setAspectMask(vk::ImageAspectFlagBits::eColor)
           );
-  cmd.copyBufferToImage(staging_buf, res, vk::ImageLayout::eTransferDstOptimal, copy_region);
+  cmd.copyBufferToImage(src, dst, vk::ImageLayout::eTransferDstOptimal, copy_region);
 
   const auto img_sampler_barrier =
       vk::ImageMemoryBarrier{}
@@ -244,7 +233,7 @@ vk::raii::Image memory_pools::prepare_image(
           .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
           .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
           .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-          .setImage(*res)
+          .setImage(dst)
           .setSubresourceRange(vk::ImageSubresourceRange{}
                                    .setAspectMask(vk::ImageAspectFlagBits::eColor)
                                    .setLevelCount(1)
@@ -257,8 +246,6 @@ vk::raii::Image memory_pools::prepare_image(
 
   transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));
   transfer_queue.waitIdle();
-
-  return res;
 }
 
 } // namespace vlk

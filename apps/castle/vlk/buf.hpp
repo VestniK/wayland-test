@@ -162,11 +162,6 @@ public:
       buffer_purpose p, staging_memory data
   );
 
-  vk::raii::Image prepare_image(
-      const vk::raii::Device& dev, const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
-      image_purpose p, staging_memory data, vk::Format fmt, vk::Extent2D sz
-  );
-
 private:
   void deallocate_staging(std::span<const std::byte> data) noexcept {
     if (--allocations_counter_ == 0)
@@ -178,5 +173,10 @@ private:
   unsigned allocations_counter_ = 0;
   detail::arena_pools<memory> arenas_;
 };
+
+void copy(
+    vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, image_purpose p,
+    vk::Extent2D sz
+);
 
 } // namespace vlk

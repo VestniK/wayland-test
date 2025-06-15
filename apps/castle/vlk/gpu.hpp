@@ -20,6 +20,7 @@ public:
   gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families);
 
   const vk::raii::Device& dev() const noexcept { return device_; }
+  const vma_allocator& allocator() const noexcept { return alloc_; }
 
   vk::raii::Queue create_graphics_queue() const { return device_.getQueue(families_.graphics, 0); }
   vk::raii::Queue create_presentation_queue() const { return device_.getQueue(families_.presentation, 0); }

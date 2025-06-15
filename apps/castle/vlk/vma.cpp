@@ -8,7 +8,9 @@
 
 namespace vlk {
 
-vma_allocator make_vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev) {
+namespace {
+
+auto make_vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev) {
   VmaVulkanFunctions funcs{
       .vkGetInstanceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr,
       .vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr,
@@ -57,7 +59,64 @@ vma_allocator make_vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, 
   if (const auto ec = vk::make_error_code(res))
     throw std::system_error(ec, "vmaCreateAllocator");
 
-  return vma_allocator{alloc};
+  return detail::vma_allocator_ptr{alloc};
+}
+
+} // namespace
+
+void staging_buf::flush() {
+  const auto ec =
+      make_error_code(static_cast<vk::Result>(vmaFlushAllocation(allocator(), allocation(), 0, VK_WHOLE_SIZE))
+      );
+  if (ec)
+    throw std::system_error{ec, "vmaFlushAllocation"};
+}
+
+vma_allocator::vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev)
+    : detail::vma_allocator_ptr{make_vma_allocator(inst, phy_dev, dev)} {}
+
+staging_buf vma_allocator::allocate_staging_buffer(size_t size) const {
+  VmaAllocationCreateInfo alloc_info{};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+  alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+  const VkBufferCreateInfo buf_inf =
+      vk::BufferCreateInfo{}.setSize(size).setUsage(vk::BufferUsageFlagBits::eTransferSrc);
+
+  VkBuffer buf;
+  VmaAllocation mem;
+
+  const auto ec = make_error_code(
+      static_cast<vk::Result>(vmaCreateBuffer(get(), &buf_inf, &alloc_info, &buf, &mem, nullptr))
+  );
+  if (ec)
+    throw std::system_error{ec, "vmaCreateBuffer"};
+
+  return {get(), buf, mem};
+}
+
+allocated_resource<VkImage> vma_allocator::allocate_image(vk::Format fmt, vk::Extent2D sz) const {
+  VmaAllocationCreateInfo alloc_info{};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+
+  VkImageCreateInfo img_inf =
+      vk::ImageCreateInfo{}
+          .setImageType(vk::ImageType::e2D)
+          .setFormat(fmt)
+          .setExtent(vk::Extent3D{sz, 1})
+          .setMipLevels(1)
+          .setArrayLayers(1)
+          .setUsage(vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
+
+  VkImage img;
+  VmaAllocation mem;
+  const auto ec = make_error_code(
+      static_cast<vk::Result>(vmaCreateImage(get(), &img_inf, &alloc_info, &img, &mem, nullptr))
+  );
+  if (ec)
+    throw std::system_error{ec, "vmaCreateBuffer"};
+
+  return {get(), img, mem};
 }
 
 } // namespace vlk

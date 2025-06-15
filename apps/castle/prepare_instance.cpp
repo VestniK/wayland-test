@@ -138,9 +138,8 @@ private:
   size_t count_;
 };
 
-vk::raii::Image load_text_texture(
-    vlk::memory_pools& pools, const vk::raii::Device& dev, vk::Queue transfer_queue, vk::CommandBuffer cmd,
-    std::string_view text
+vlk::allocated_resource<VkImage> load_text_texture(
+    const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, std::string_view text
 ) {
   auto resources = sfx::archive::open_self();
   auto& fd = resources.open("fonts/RuthlessSketch.ttf");
@@ -160,18 +159,20 @@ vk::raii::Image load_text_texture(
     break;
   }
 
-  auto stage_mem = pools.allocate_staging_memory(reader.pixels_size());
-  reader.read_pixels(stage_mem);
-
-  return pools.prepare_image(
-      dev, transfer_queue, cmd, vlk::image_purpose::texture, std::move(stage_mem), fmt,
+  auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
+  reader.read_pixels(staging.mapping());
+  staging.flush();
+  auto res = alloc.allocate_image(fmt, as_extent(reader.size()));
+  vlk::copy(
+      transfer_queue, cmd, staging.resource(), res.resource(), vlk::image_purpose::texture,
       as_extent(reader.size())
   );
+
+  return res;
 }
 
-vk::raii::Image load_sfx_texture(
-    vlk::memory_pools& pools, const vk::raii::Device& dev, vk::Queue transfer_queue, vk::CommandBuffer cmd,
-    const fs::path& sfx_path
+vlk::allocated_resource<VkImage> load_sfx_texture(
+    const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, const fs::path& sfx_path
 ) {
   auto resources = sfx::archive::open_self();
   auto& fd = resources.open(sfx_path);
@@ -190,13 +191,16 @@ vk::raii::Image load_sfx_texture(
     break;
   }
 
-  auto stage_mem = pools.allocate_staging_memory(reader.pixels_size());
-  reader.read_pixels(stage_mem);
-
-  return pools.prepare_image(
-      dev, transfer_queue, cmd, vlk::image_purpose::texture, std::move(stage_mem), fmt,
+  auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
+  reader.read_pixels(staging.mapping());
+  staging.flush();
+  auto res = alloc.allocate_image(fmt, as_extent(reader.size()));
+  vlk::copy(
+      transfer_queue, cmd, staging.resource(), res.resource(), vlk::image_purpose::texture,
       as_extent(reader.size())
   );
+
+  return res;
 }
 
 static vk::raii::Sampler make_sampler(const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
@@ -222,40 +226,41 @@ static vk::raii::ImageView make_view(const vk::raii::Device& dev, vk::Image img)
                                                           .setLayerCount(1)));
 }
 
-std::tuple<vk::raii::Image, vk::raii::ImageView>
-make_image_view(const vk::raii::Device& dev, vk::raii::Image&& img) {
-  auto view = make_view(dev, *img);
+std::tuple<vlk::allocated_resource<VkImage>, vk::raii::ImageView>
+make_image_view(const vk::raii::Device& dev, vlk::allocated_resource<VkImage>&& img) {
+  auto view = make_view(dev, img.resource());
   return std::tuple{std::move(img), std::move(view)};
 }
 
 struct uniform_objects {
   uniform_objects(
-      const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits, std::array<vk::raii::Image, 4> img,
-      vk::raii::Image fwheel, vk::raii::Image rwheel, vk::raii::Image platform, vk::raii::Image arm,
-      vk::raii::Image word_img
+      const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits,
+      std::array<vlk::allocated_resource<VkImage>, 4> img, vlk::allocated_resource<VkImage> fwheel,
+      vlk::allocated_resource<VkImage> rwheel, vlk::allocated_resource<VkImage> platform,
+      vlk::allocated_resource<VkImage> arm, vlk::allocated_resource<VkImage> word_img
   )
       : sampler{make_sampler(dev, limits)}, castle_textures{std::move(img)},
-        castle_texture_view{make_view(dev, *castle_textures[0])},
+        castle_texture_view{make_view(dev, castle_textures[0].resource())},
         catapult{
             make_image_view(dev, std::move(fwheel)), make_image_view(dev, std::move(rwheel)),
             make_image_view(dev, std::move(platform)), make_image_view(dev, std::move(arm))
         },
-        word{std::move(word_img)}, word_view{make_view(dev, *word)} {}
+        word{std::move(word_img)}, word_view{make_view(dev, word.resource())} {}
 
   vlk::ubo::unique_ptr<scene::world_transformations> world;
   vlk::ubo::unique_ptr<scene::light_source> light;
   vlk::ubo::unique_ptr<scene::texture_transform> transformations;
 
   vk::raii::Sampler sampler;
-  std::array<vk::raii::Image, 4> castle_textures;
+  std::array<vlk::allocated_resource<VkImage>, 4> castle_textures;
   vk::raii::ImageView castle_texture_view;
 
-  std::array<std::tuple<vk::raii::Image, vk::raii::ImageView>, 4> catapult;
-  vk::raii::Image word;
+  std::array<std::tuple<vlk::allocated_resource<VkImage>, vk::raii::ImageView>, 4> catapult;
+  vlk::allocated_resource<VkImage> word;
   vk::raii::ImageView word_view;
 
   void switch_castle_image(const vk::raii::Device& dev, size_t n) {
-    castle_texture_view = make_view(dev, *castle_textures[n]);
+    castle_texture_view = make_view(dev, castle_textures[n].resource());
   }
 
   void bind(vlk::ubo_builder& bldr) {
@@ -324,33 +329,30 @@ public:
             gpu_.dev(),
             gpu_.limits(),
             {load_sfx_texture(
-                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-0hit.png"
+                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-0hit.png"
              ),
              load_sfx_texture(
-                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-1hit.png"
+                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-1hit.png"
              ),
              load_sfx_texture(
-                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-2hit.png"
+                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-2hit.png"
              ),
              load_sfx_texture(
-                 mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-3hit.png"
+                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-3hit.png"
              )},
             load_sfx_texture(
-                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(),
-                "textures/catapult-front-wheel.png"
+                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-front-wheel.png"
             ),
             load_sfx_texture(
-                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(),
-                "textures/catapult-rear-wheel.png"
+                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-rear-wheel.png"
             ),
             load_sfx_texture(
-                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(),
-                "textures/catapult-platform.png"
+                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-platform.png"
             ),
             load_sfx_texture(
-                mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
+                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
             ),
-            load_text_texture(mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), "привет")
+            load_text_texture(gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "привет")
         },
         descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
             uniform_objects, 1, vlk::graphics_uniform<scene::world_transformations>,
