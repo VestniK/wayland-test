@@ -95,6 +95,24 @@ staging_buf vma_allocator::allocate_staging_buffer(size_t size) const {
   return {get(), buf, mem};
 }
 
+allocated_resource<VkBuffer> vma_allocator::allocate_buffer(vk::BufferUsageFlags usage, size_t count) const {
+  VmaAllocationCreateInfo alloc_info{};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+
+  VkBufferCreateInfo buf_inf = vk::BufferCreateInfo{}.setSize(count).setUsage(usage);
+
+  VkBuffer buf;
+  VmaAllocation mem;
+
+  const auto ec = make_error_code(
+      static_cast<vk::Result>(vmaCreateBuffer(get(), &buf_inf, &alloc_info, &buf, &mem, nullptr))
+  );
+  if (ec)
+    throw std::system_error{ec, "vmaCreateBuffer"};
+
+  return {get(), buf, mem};
+}
+
 allocated_resource<VkImage> vma_allocator::allocate_image(vk::Format fmt, vk::Extent2D sz) const {
   VmaAllocationCreateInfo alloc_info{};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;

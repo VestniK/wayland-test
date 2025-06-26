@@ -115,26 +115,39 @@ constexpr vk::Extent2D as_extent(size sz) noexcept {
 class mesh {
 public:
   mesh(
-      vlk::memory_pools& pools, const vk::raii::Device& dev, const vk::Queue& transfer_queue,
-      const vk::CommandBuffer& copy_cmd, vlk::mesh_data_view<scene::vertex, uint16_t> data
+      const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer copy_cmd,
+      vlk::mesh_data_view<scene::vertex, uint16_t> data
   )
-      : vbo_{pools.prepare_buffer(
-            dev, transfer_queue, copy_cmd, vlk::memory_pools::vbo,
-            pools.allocate_staging_memory(std::as_bytes(data.vertices))
+      : vbo_{load_buffer(
+            alloc, transfer_queue, copy_cmd, vk::BufferUsageFlagBits::eVertexBuffer,
+            std::as_bytes(data.vertices)
         )},
-        ibo_{pools.prepare_buffer(
-            dev, transfer_queue, copy_cmd, vlk::memory_pools::ibo,
-            pools.allocate_staging_memory(std::as_bytes(data.indices))
+        ibo_{load_buffer(
+            alloc, transfer_queue, copy_cmd, vk::BufferUsageFlagBits::eIndexBuffer,
+            std::as_bytes(data.indices)
         )},
         count_{data.indices.size()} {}
 
-  const vk::Buffer& get_vbo() const noexcept { return *vbo_; }
-  const vk::Buffer& get_ibo() const noexcept { return *ibo_; }
+  vk::Buffer get_vbo() const noexcept { return vbo_.resource(); }
+  vk::Buffer get_ibo() const noexcept { return ibo_.resource(); }
   const size_t size() const noexcept { return count_; }
 
 private:
-  vk::raii::Buffer vbo_;
-  vk::raii::Buffer ibo_;
+  static vlk::allocated_resource<VkBuffer> load_buffer(
+      const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd,
+      vk::BufferUsageFlagBits usage, std::span<const std::byte> data
+  ) {
+    auto staging = alloc.allocate_staging_buffer(data.size());
+    std::ranges::copy(data, staging.mapping().data());
+    auto res = alloc.allocate_buffer(vk::BufferUsageFlagBits::eTransferDst | usage, data.size());
+    staging.flush();
+    vlk::copy(transfer_queue, cmd, staging.resource(), res.resource(), data.size());
+    return res;
+  }
+
+private:
+  vlk::allocated_resource<VkBuffer> vbo_;
+  vlk::allocated_resource<VkBuffer> ibo_;
   size_t count_;
 };
 
@@ -304,15 +317,6 @@ public:
                 .build(gpu_.dev(), 1),
             128 * 1024
         },
-        mempools_{
-            gpu_.dev(),
-            gpu_.memory_properties(),
-            gpu_.limits(),
-            {.vbo_capacity = 2 * 1024 * 1024,
-             .ibo_capacity = 2 * 1024 * 1024,
-             .textures_capacity = 256 * 1024 * 1024,
-             .staging_size = 64 * 1024 * 1024}
-        },
         render_pass_{make_render_pass(gpu_.dev(), swapchain_info.imageFormat, gpu_.find_max_usable_samples())
         },
         render_target_{
@@ -367,7 +371,7 @@ public:
                 .fragment = {_binary_triangle_frag_spv_start, _binary_triangle_frag_spv_end}
             }
         },
-        mesh_{mempools_, gpu_.dev(), cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
+        mesh_{gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
         image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
     uniforms_.world->camera = scene::setup_camera(render_target_.extent());
@@ -459,7 +463,8 @@ private:
     cmd.setScissor(0, {vk::Rect2D{{0, 0}, render_target_.extent()}});
 
     vk::DeviceSize offsets[] = {0};
-    cmd.bindVertexBuffers(0, 1, &mesh_.get_vbo(), offsets);
+    const auto vbo = mesh_.get_vbo();
+    cmd.bindVertexBuffers(0, 1, &vbo, offsets);
     cmd.bindIndexBuffer(mesh_.get_ibo(), 0, vk::IndexType::eUint16);
 
     descriptor_bindings_.use(0, cmd, pipelines_.layout());
@@ -487,7 +492,6 @@ private:
   vlk::gpu gpu_;
 
   vlk::uniform_pools uniform_pools_;
-  vlk::memory_pools mempools_;
 
   vk::raii::RenderPass render_pass_;
   vlk::render_target render_target_;

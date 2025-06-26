@@ -2,8 +2,6 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "arena.impl.hpp"
-
 namespace vlk {
 
 namespace {
@@ -18,29 +16,6 @@ uint32_t choose_mem_type(
     }
   }
   throw std::runtime_error{"Failed to find suitable GPU memory type"};
-}
-
-vk::BufferUsageFlags purpose_to_usage(buffer_purpose p) {
-  vk::BufferUsageFlags buf_usage;
-  switch (p) {
-  case memory_pools::vbo:
-    buf_usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-    break;
-  case memory_pools::ibo:
-    buf_usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-    break;
-  }
-  return buf_usage;
-}
-
-vk::ImageUsageFlags purpose_to_usage(image_purpose p) noexcept {
-  vk::ImageUsageFlags buf_usage;
-  switch (p) {
-  case memory_pools::texture:
-    buf_usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
-    break;
-  }
-  return buf_usage;
 }
 
 constexpr vk::AccessFlags purpose_access_mask(image_purpose p) noexcept {
@@ -67,17 +42,6 @@ vk::BufferCreateInfo make_bufer_create_info(vk::BufferUsageFlags usage, size_t s
   return vk::BufferCreateInfo{}.setSize(sz).setUsage(usage);
 }
 
-vk::ImageCreateInfo
-make_image_create_info(vk::ImageUsageFlags usage, vk::Format fmt, vk::Extent2D sz) noexcept {
-  return vk::ImageCreateInfo{}
-      .setImageType(vk::ImageType::e2D)
-      .setFormat(fmt)
-      .setExtent(vk::Extent3D{sz, 1})
-      .setMipLevels(1)
-      .setArrayLayers(1)
-      .setUsage(usage);
-}
-
 vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::BufferUsageFlags usage) {
   // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap12.html#VkMemoryRequirements
   // > The implementation guarantees certain properties about the memory
@@ -96,36 +60,6 @@ vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::BufferUsageFlags 
   const vk::BufferCreateInfo buf_create_info = make_bufer_create_info(usage, dummy_size);
   return dev
       .getBufferMemoryRequirementsKHR(vk::DeviceBufferMemoryRequirements{}.setPCreateInfo(&buf_create_info))
-      .memoryRequirements;
-}
-
-vk::MemoryRequirements query_memreq(const vk::Device& dev, vk::ImageUsageFlags usage) {
-  // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap12.html#VkMemoryRequirements
-  //
-  // If the maintenance4 feature is enabled, then the alignment member is
-  // identical for all VkImage objects created with the same combination of
-  // values for the flags, imageType, format, extent, mipLevels, arrayLayers,
-  // samples, tiling and usage members in the VkImageCreateInfo structure passed
-  // to vkCreateImage.
-  //
-  // For images created with a color format, the memoryTypeBits member is
-  // identical for all VkImage objects created with the same combination of
-  // values for the tiling member, the VK_IMAGE_CREATE_SPARSE_BINDING_BIT bit
-  // and VK_IMAGE_CREATE_PROTECTED_BIT bit of the flags member, the
-  // VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT bit of the flags member,
-  // the VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT bit of the usage member if the
-  // VkPhysicalDeviceHostImageCopyPropertiesEXT::identicalMemoryTypeRequirements
-  // property is VK_FALSE, handleTypes member of
-  // VkExternalMemoryImageCreateInfo, and the
-  // VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT of the usage member in the
-  // VkImageCreateInfo structure passed to vkCreateImage.
-  //
-  // This means that alignment requiremetns of arena are useless for images
-  // because different pixel formats and even diferent extents might affect
-  // exact image allignment requirements.
-  const vk::ImageCreateInfo img_create_info = make_image_create_info(usage, vk::Format::eR8G8B8A8Srgb, {});
-  return dev
-      .getImageMemoryRequirementsKHR(vk::DeviceImageMemoryRequirements{}.setPCreateInfo(&img_create_info))
       .memoryRequirements;
 }
 
@@ -157,42 +91,6 @@ memory memory::allocate(
       ),
       size, limits
   };
-}
-
-memory_pools::memory_pools(
-    const vk::raii::Device& dev, const vk::PhysicalDeviceMemoryProperties& props,
-    const vk::PhysicalDeviceLimits& limits, detail::sizes pool_sizes
-)
-    : staging_mem_{mapped_memory::allocate(
-          dev, props, limits, vk::BufferUsageFlagBits::eTransferSrc, pool_sizes.staging_size
-      )},
-      arenas_{
-          pool_sizes, [&dev](auto purpose) { return query_memreq(*dev, purpose_to_usage(purpose)); },
-          [&dev, &props](uint32_t memoryTypeBits, size_t size) {
-            return memory::alocate(dev, props, memoryTypeBits, size);
-          }
-      } {}
-
-vk::raii::Buffer memory_pools::prepare_buffer(
-    const vk::raii::Device& dev, const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
-    buffer_purpose p, staging_memory data
-) {
-  assert(data.get_deleter().parent() == this);
-  staging_mem_.mem_source().flush(data);
-  vk::raii::Buffer staging_buf =
-      staging_mem_.mem_source().bind_buffer(dev, vk::BufferUsageFlagBits::eTransferSrc, data);
-
-  auto [arena_memory, region] = arenas_.lock_memory_for(p, data.size());
-  auto res = arena_memory.bind_buffer(dev, purpose_to_usage(p), region);
-
-  cmd.begin(vk::CommandBufferBeginInfo{});
-  cmd.copyBuffer(*staging_buf, *res, vk::BufferCopy{}.setSize(data.size()));
-  cmd.end();
-
-  transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));
-  transfer_queue.waitIdle();
-
-  return res;
 }
 
 void copy(
@@ -242,6 +140,15 @@ void copy(
       vk::PipelineStageFlagBits::eTransfer, purpose_pipeline_stage(p), {}, {}, {}, img_sampler_barrier
   );
 
+  cmd.end();
+
+  transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));
+  transfer_queue.waitIdle();
+}
+
+void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Buffer dst, size_t count) {
+  cmd.begin(vk::CommandBufferBeginInfo{});
+  cmd.copyBuffer(src, dst, vk::BufferCopy{}.setSize(count));
   cmd.end();
 
   transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));

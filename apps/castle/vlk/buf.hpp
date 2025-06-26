@@ -7,9 +7,9 @@
 #include <libs/memtricks/monotonic_arena.hpp>
 #include <libs/memtricks/region.hpp>
 
-#include "arena.hpp"
-
 namespace vlk {
+
+enum class image_purpose { texture };
 
 class memory {
 public:
@@ -110,73 +110,11 @@ private:
   vk::DeviceSize non_coherent_atom_size_ = 0;
 };
 
-class memory_pools {
-public:
-  using enum buffer_purpose;
-  using enum image_purpose;
-
-  class staging_deleter {
-  public:
-    explicit staging_deleter(size_t sz, memory_pools* parent) noexcept : size_{sz}, parent_{parent} {}
-
-    void operator()(const std::byte* ptr) const noexcept { parent_->deallocate_staging({ptr, size_}); }
-
-    size_t size() const noexcept { return size_; }
-    const memory_pools* parent() const noexcept { return parent_; }
-
-  private:
-    size_t size_ = 0;
-    memory_pools* parent_ = nullptr;
-  };
-
-  struct staging_memory : std::unique_ptr<std::byte[], staging_deleter> {
-    staging_memory(std::byte* ptr, staging_deleter del) noexcept
-        : std::unique_ptr<std::byte[], staging_deleter>{ptr, del} {}
-
-    std::byte* data() const noexcept { return get(); }
-    size_t size() const noexcept { return get_deleter().size(); }
-
-    operator std::span<std::byte>() const noexcept { return {data(), size()}; }
-    operator std::span<const std::byte>() const noexcept { return {data(), size()}; }
-  };
-
-public:
-  memory_pools(
-      const vk::raii::Device& dev, const vk::PhysicalDeviceMemoryProperties& props,
-      const vk::PhysicalDeviceLimits& limits, detail::sizes pool_sizes
-  );
-
-  staging_memory allocate_staging_memory(size_t size) {
-    ++allocations_counter_;
-    return staging_memory{static_cast<std::byte*>(staging_mem_.allocate(size)), staging_deleter{size, this}};
-  }
-
-  staging_memory allocate_staging_memory(std::span<const std::byte> data) {
-    auto res = allocate_staging_memory(data.size());
-    std::ranges::copy(data, res.data());
-    return res;
-  }
-
-  vk::raii::Buffer prepare_buffer(
-      const vk::raii::Device& dev, const vk::Queue& transfer_queue, const vk::CommandBuffer& cmd,
-      buffer_purpose p, staging_memory data
-  );
-
-private:
-  void deallocate_staging(std::span<const std::byte> data) noexcept {
-    if (--allocations_counter_ == 0)
-      staging_mem_.clear();
-  }
-
-private:
-  monotonic_arena<mapped_memory> staging_mem_;
-  unsigned allocations_counter_ = 0;
-  detail::arena_pools<memory> arenas_;
-};
-
 void copy(
     vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, image_purpose p,
     vk::Extent2D sz
 );
+
+void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Buffer dst, size_t count);
 
 } // namespace vlk

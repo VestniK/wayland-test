@@ -80,6 +80,7 @@ struct vma_allocator : detail::vma_allocator_ptr {
   vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev);
 
   staging_buf allocate_staging_buffer(size_t size) const;
+  allocated_resource<VkBuffer> allocate_buffer(vk::BufferUsageFlags usage, size_t count) const;
   allocated_resource<VkImage> allocate_image(vk::Format fmt, vk::Extent2D sz) const;
 };
 
