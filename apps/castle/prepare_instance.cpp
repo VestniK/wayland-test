@@ -133,7 +133,7 @@ public:
   const size_t size() const noexcept { return count_; }
 
 private:
-  static vlk::allocated_resource<VkBuffer> load_buffer(
+  static vlk::allocated_resource<vk::Buffer> load_buffer(
       const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd,
       vk::BufferUsageFlagBits usage, std::span<const std::byte> data
   ) {
@@ -146,8 +146,8 @@ private:
   }
 
 private:
-  vlk::allocated_resource<VkBuffer> vbo_;
-  vlk::allocated_resource<VkBuffer> ibo_;
+  vlk::allocated_resource<vk::Buffer> vbo_;
+  vlk::allocated_resource<vk::Buffer> ibo_;
   size_t count_;
 };
 
@@ -163,7 +163,7 @@ constexpr vk::Format to_vk_fmt(img::pixel_fmt fmt) noexcept {
   std::unreachable();
 }
 
-vlk::allocated_resource<VkImage> create_texture(
+vlk::allocated_resource<vk::Image> create_texture(
     img::reader& reader, const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd
 ) {
   auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
@@ -174,7 +174,7 @@ vlk::allocated_resource<VkImage> create_texture(
   return res;
 }
 
-vlk::allocated_resource<VkImage> load_text_texture(
+vlk::allocated_resource<vk::Image> load_text_texture(
     const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, std::string_view text
 ) {
   auto resources = sfx::archive::open_self();
@@ -184,7 +184,7 @@ vlk::allocated_resource<VkImage> load_text_texture(
   return create_texture(reader, alloc, transfer_queue, cmd);
 }
 
-vlk::allocated_resource<VkImage> load_sfx_texture(
+vlk::allocated_resource<vk::Image> load_sfx_texture(
     const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, const fs::path& sfx_path
 ) {
   auto resources = sfx::archive::open_self();
@@ -216,8 +216,8 @@ static vk::raii::ImageView make_view(const vk::raii::Device& dev, vk::Image img)
                                                           .setLayerCount(1)));
 }
 
-std::tuple<vlk::allocated_resource<VkImage>, vk::raii::ImageView>
-make_image_view(const vk::raii::Device& dev, vlk::allocated_resource<VkImage>&& img) {
+std::tuple<vlk::allocated_resource<vk::Image>, vk::raii::ImageView>
+make_image_view(const vk::raii::Device& dev, vlk::allocated_resource<vk::Image>&& img) {
   auto view = make_view(dev, img.resource());
   return std::tuple{std::move(img), std::move(view)};
 }
@@ -225,9 +225,9 @@ make_image_view(const vk::raii::Device& dev, vlk::allocated_resource<VkImage>&& 
 struct uniform_objects {
   uniform_objects(
       const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits,
-      std::array<vlk::allocated_resource<VkImage>, 4> img, vlk::allocated_resource<VkImage> fwheel,
-      vlk::allocated_resource<VkImage> rwheel, vlk::allocated_resource<VkImage> platform,
-      vlk::allocated_resource<VkImage> arm, vlk::allocated_resource<VkImage> word_img
+      std::array<vlk::allocated_resource<vk::Image>, 4> img, vlk::allocated_resource<vk::Image> fwheel,
+      vlk::allocated_resource<vk::Image> rwheel, vlk::allocated_resource<vk::Image> platform,
+      vlk::allocated_resource<vk::Image> arm, vlk::allocated_resource<vk::Image> word_img
   )
       : sampler{make_sampler(dev, limits)}, castle_textures{std::move(img)},
         castle_texture_view{make_view(dev, castle_textures[0].resource())},
@@ -242,11 +242,11 @@ struct uniform_objects {
   vlk::ubo::unique_ptr<scene::texture_transform> transformations;
 
   vk::raii::Sampler sampler;
-  std::array<vlk::allocated_resource<VkImage>, 4> castle_textures;
+  std::array<vlk::allocated_resource<vk::Image>, 4> castle_textures;
   vk::raii::ImageView castle_texture_view;
 
-  std::array<std::tuple<vlk::allocated_resource<VkImage>, vk::raii::ImageView>, 4> catapult;
-  vlk::allocated_resource<VkImage> word;
+  std::array<std::tuple<vlk::allocated_resource<vk::Image>, vk::raii::ImageView>, 4> catapult;
+  vlk::allocated_resource<vk::Image> word;
   vk::raii::ImageView word_view;
 
   void switch_castle_image(const vk::raii::Device& dev, size_t n) {

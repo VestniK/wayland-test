@@ -95,7 +95,8 @@ staging_buf vma_allocator::allocate_staging_buffer(size_t size) const {
   return {get(), buf, mem};
 }
 
-allocated_resource<VkBuffer> vma_allocator::allocate_buffer(vk::BufferUsageFlags usage, size_t count) const {
+allocated_resource<vk::Buffer>
+vma_allocator::allocate_buffer(vk::BufferUsageFlags usage, size_t count) const {
   VmaAllocationCreateInfo alloc_info{};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
@@ -113,7 +114,7 @@ allocated_resource<VkBuffer> vma_allocator::allocate_buffer(vk::BufferUsageFlags
   return {get(), buf, mem};
 }
 
-allocated_resource<VkImage> vma_allocator::allocate_image(vk::Format fmt, vk::Extent2D sz) const {
+allocated_resource<vk::Image> vma_allocator::allocate_image(vk::Format fmt, vk::Extent2D sz) const {
   VmaAllocationCreateInfo alloc_info{};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 

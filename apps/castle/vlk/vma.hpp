@@ -49,9 +49,9 @@ public:
 
 private:
   inline void clear() noexcept {
-    if constexpr (std::is_same_v<Res, VkBuffer>)
+    if constexpr (std::is_same_v<Res, vk::Buffer>)
       vmaDestroyBuffer(alloc_, resource_, mem_);
-    else if constexpr (std::is_same_v<Res, VkImage>)
+    else if constexpr (std::is_same_v<Res, vk::Image>)
       vmaDestroyImage(alloc_, resource_, mem_);
   }
 
@@ -61,10 +61,10 @@ private:
   VmaAllocation mem_ = nullptr;
 };
 
-class staging_buf : public allocated_resource<VkBuffer> {
+class staging_buf : public allocated_resource<vk::Buffer> {
 public:
   staging_buf(VmaAllocator alloc, VkBuffer res, VmaAllocation mem) noexcept
-      : allocated_resource<VkBuffer>{alloc, res, mem} {}
+      : allocated_resource<vk::Buffer>{alloc, res, mem} {}
 
   std::span<std::byte> mapping() const noexcept {
     VmaAllocationInfo info;
@@ -80,8 +80,8 @@ struct vma_allocator : detail::vma_allocator_ptr {
   vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev);
 
   staging_buf allocate_staging_buffer(size_t size) const;
-  allocated_resource<VkBuffer> allocate_buffer(vk::BufferUsageFlags usage, size_t count) const;
-  allocated_resource<VkImage> allocate_image(vk::Format fmt, vk::Extent2D sz) const;
+  allocated_resource<vk::Buffer> allocate_buffer(vk::BufferUsageFlags usage, size_t count) const;
+  allocated_resource<vk::Image> allocate_image(vk::Format fmt, vk::Extent2D sz) const;
 };
 
 } // namespace vlk
