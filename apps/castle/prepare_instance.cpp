@@ -151,6 +151,29 @@ private:
   size_t count_;
 };
 
+constexpr vk::Format to_vk_fmt(img::pixel_fmt fmt) noexcept {
+  switch (fmt) {
+  case img::pixel_fmt::rgb:
+    return vk::Format::eR8G8B8Srgb;
+  case img::pixel_fmt::rgba:
+    return vk::Format::eR8G8B8A8Srgb;
+  case img::pixel_fmt::grayscale:
+    return vk::Format::eR8Srgb;
+  }
+  std::unreachable();
+}
+
+vlk::allocated_resource<VkImage> create_texture(
+    img::reader& reader, const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd
+) {
+  auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
+  reader.read_pixels(staging.mapping());
+  staging.flush();
+  auto res = alloc.allocate_image(to_vk_fmt(reader.format()), as_extent(reader.size()));
+  vlk::copy(transfer_queue, cmd, staging.resource(), res.resource(), as_extent(reader.size()));
+  return res;
+}
+
 vlk::allocated_resource<VkImage> load_text_texture(
     const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, std::string_view text
 ) {
@@ -158,30 +181,7 @@ vlk::allocated_resource<VkImage> load_text_texture(
   auto& fd = resources.open("fonts/RuthlessSketch.ttf");
   auto font = img::font::load(fd);
   auto reader = font.text_image_reader(text);
-
-  vk::Format fmt;
-  switch (reader.format()) {
-  case img::pixel_fmt::rgb:
-    fmt = vk::Format::eR8G8B8Srgb;
-    break;
-  case img::pixel_fmt::rgba:
-    fmt = vk::Format::eR8G8B8A8Srgb;
-    break;
-  case img::pixel_fmt::grayscale:
-    fmt = vk::Format::eR8Srgb;
-    break;
-  }
-
-  auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
-  reader.read_pixels(staging.mapping());
-  staging.flush();
-  auto res = alloc.allocate_image(fmt, as_extent(reader.size()));
-  vlk::copy(
-      transfer_queue, cmd, staging.resource(), res.resource(), vlk::image_purpose::texture,
-      as_extent(reader.size())
-  );
-
-  return res;
+  return create_texture(reader, alloc, transfer_queue, cmd);
 }
 
 vlk::allocated_resource<VkImage> load_sfx_texture(
@@ -190,30 +190,7 @@ vlk::allocated_resource<VkImage> load_sfx_texture(
   auto resources = sfx::archive::open_self();
   auto& fd = resources.open(sfx_path);
   auto reader = img::load_reader(fd);
-
-  vk::Format fmt;
-  switch (reader.format()) {
-  case img::pixel_fmt::rgb:
-    fmt = vk::Format::eR8G8B8Srgb;
-    break;
-  case img::pixel_fmt::rgba:
-    fmt = vk::Format::eR8G8B8A8Srgb;
-    break;
-  case img::pixel_fmt::grayscale:
-    fmt = vk::Format::eR8Srgb;
-    break;
-  }
-
-  auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
-  reader.read_pixels(staging.mapping());
-  staging.flush();
-  auto res = alloc.allocate_image(fmt, as_extent(reader.size()));
-  vlk::copy(
-      transfer_queue, cmd, staging.resource(), res.resource(), vlk::image_purpose::texture,
-      as_extent(reader.size())
-  );
-
-  return res;
+  return create_texture(reader, alloc, transfer_queue, cmd);
 }
 
 static vk::raii::Sampler make_sampler(const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {

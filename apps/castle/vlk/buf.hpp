@@ -9,8 +9,6 @@
 
 namespace vlk {
 
-enum class image_purpose { texture };
-
 class memory {
 public:
   memory() noexcept = default;
@@ -110,10 +108,7 @@ private:
   vk::DeviceSize non_coherent_atom_size_ = 0;
 };
 
-void copy(
-    vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, image_purpose p,
-    vk::Extent2D sz
-);
+void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, vk::Extent2D sz);
 
 void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Buffer dst, size_t count);
 

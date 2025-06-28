@@ -18,26 +18,6 @@ uint32_t choose_mem_type(
   throw std::runtime_error{"Failed to find suitable GPU memory type"};
 }
 
-constexpr vk::AccessFlags purpose_access_mask(image_purpose p) noexcept {
-  vk::AccessFlags res;
-  switch (p) {
-  case image_purpose::texture:
-    res = vk::AccessFlagBits::eShaderRead;
-    break;
-  }
-  return res;
-}
-
-constexpr vk::PipelineStageFlags purpose_pipeline_stage(image_purpose p) noexcept {
-  vk::PipelineStageFlags res;
-  switch (p) {
-  case image_purpose::texture:
-    res = vk::PipelineStageFlagBits::eFragmentShader;
-    break;
-  }
-  return res;
-}
-
 vk::BufferCreateInfo make_bufer_create_info(vk::BufferUsageFlags usage, size_t sz) noexcept {
   return vk::BufferCreateInfo{}.setSize(sz).setUsage(usage);
 }
@@ -93,10 +73,7 @@ memory memory::allocate(
   };
 }
 
-void copy(
-    vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, image_purpose p,
-    vk::Extent2D sz
-) {
+void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, vk::Extent2D sz) {
   cmd.begin(vk::CommandBufferBeginInfo{});
 
   const auto img_dst_barrier = vk::ImageMemoryBarrier{}
@@ -126,7 +103,7 @@ void copy(
   const auto img_sampler_barrier =
       vk::ImageMemoryBarrier{}
           .setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
-          .setDstAccessMask(purpose_access_mask(p))
+          .setDstAccessMask(vk::AccessFlagBits::eShaderRead)
           .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
           .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
           .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
@@ -137,7 +114,8 @@ void copy(
                                    .setLevelCount(1)
                                    .setLayerCount(1));
   cmd.pipelineBarrier(
-      vk::PipelineStageFlagBits::eTransfer, purpose_pipeline_stage(p), {}, {}, {}, img_sampler_barrier
+      vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {},
+      img_sampler_barrier
   );
 
   cmd.end();
