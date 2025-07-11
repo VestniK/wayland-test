@@ -64,10 +64,24 @@ gui_shell::create_maximized_window(event_loop& eloop, asio::io_context::executor
   co_return sized_window<shell_window>{.window = std::move(wnd), .sz = szdelegate.wnd_size.value()};
 }
 
+sized_window<shell_window> gui_shell::create_window(event_loop& eloop, size sz) {
+  shell_window wnd;
+  if (get_ivi())
+    wnd = shell_window{ivi::window{*get_compositor(), *get_ivi(), ivi_main_glapp_id, nullptr}};
+  else {
+    xdg::toplevel_window xdg_wnd{*get_compositor(), *get_xdg_wm(), nullptr};
+    wnd = shell_window{std::move(xdg_wnd)};
+  }
+
+  return sized_window<shell_window>{.window = std::move(wnd), .sz = sz};
+}
+
 void gui_shell::global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver) {
   gui_shell* self = reinterpret_cast<gui_shell*>(data);
   if (name == wl::service_trait<wl_compositor>::name)
     self->compositor_ = {wl::bind<wl_compositor>(reg, id, ver), id};
+  if (name == wl::service_trait<wl_shm>::name)
+    self->shm_ = {wl::bind<wl_shm>(reg, id, ver), id};
   if (name == wl::service_trait<ivi_application>::name)
     self->ivi_ = {wl::bind<ivi_application>(reg, id, ver), id};
   if (name == wl::service_trait<xdg_wm_base>::name)
@@ -78,6 +92,8 @@ void gui_shell::global_remove(void* data, wl_registry*, uint32_t id) {
   gui_shell* self = reinterpret_cast<gui_shell*>(data);
   if (id == self->compositor_.id)
     self->compositor_ = {{}, {}};
+  if (id == self->shm_.id)
+    self->shm_ = {{}, {}};
   if (id == self->ivi_.id)
     self->ivi_ = {{}, {}};
   if (id == self->xdg_wm_.id)

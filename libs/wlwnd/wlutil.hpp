@@ -63,6 +63,12 @@ struct service_trait<wl_shell> {
 };
 
 template <>
+struct service_trait<wl_shm> {
+  static constexpr auto name = "wl_shm"sv;
+  static constexpr const wl_interface* iface = &wl_shm_interface;
+};
+
+template <>
 struct service_trait<wl_output> {
   static constexpr auto name = "wl_output"sv;
   static constexpr const wl_interface* iface = &wl_output_interface;

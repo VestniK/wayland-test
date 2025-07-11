@@ -19,7 +19,7 @@ include(FetchContent)
 FetchContent_Declare(
   thinsys
   GIT_REPOSITORY https://github.com/VestniK/thinsys.git
-  GIT_TAG f988028d5dada131388d57e8e4e42658fd0aa55e
+  GIT_TAG 12eb216f39746d1ea6472626b0673ff3bd71a260
   OVERRIDE_FIND_PACKAGE
 )
 

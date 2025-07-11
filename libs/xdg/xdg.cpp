@@ -96,4 +96,11 @@ fs::path find_data(fs::path relative) {
   return {};
 }
 
+std::filesystem::path runtime_dir() {
+  const char* env = ::getenv("XDG_RUNTIME_DIR");
+  if (env && *env != 0)
+    return env;
+  return {};
+}
+
 } // namespace xdg

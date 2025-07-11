@@ -20,6 +20,7 @@ public:
   ~gui_shell() noexcept = default;
 
   [[nodiscard]] wl_compositor* get_compositor() const noexcept { return compositor_.service.get(); }
+  [[nodiscard]] wl_shm* get_shm() const noexcept { return shm_.service.get(); }
   [[nodiscard]] ivi_application* get_ivi() const noexcept { return ivi_.service.get(); }
   [[nodiscard]] xdg_wm_base* get_xdg_wm() const noexcept { return xdg_wm_.service.get(); }
 
@@ -27,6 +28,8 @@ public:
 
   asio::awaitable<sized_window<shell_window>>
   create_maximized_window(event_loop& eloop, asio::io_context::executor_type io_exec);
+
+  sized_window<shell_window> create_window(event_loop& eloop, size sz);
 
 private:
   static void global(void* data, wl_registry* reg, uint32_t id, const char* name, uint32_t ver);
@@ -36,6 +39,7 @@ private:
   wl::unique_ptr<wl_registry> registry_;
   wl_registry_listener listener_ = {&global, &global_remove};
   identified<wl_compositor> compositor_;
+  identified<wl_shm> shm_;
   identified<ivi_application> ivi_;
   identified<xdg_wm_base> xdg_wm_;
   xdg_wm_base_listener xdg_listener_;
