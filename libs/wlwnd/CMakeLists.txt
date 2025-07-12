@@ -1,6 +1,7 @@
 find_package(Catch2 REQUIRED)
 find_package(asio REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(thinsys REQUIRED)
 
 cpp_unit(
   NAME wlwnd
@@ -12,6 +13,8 @@ cpp_unit(
     Wayland::client
     asio::asio
     spdlog::spdlog
+    thinsys-io
+    xdg
   TEST_LIBS
     Catch2::Catch2
     Catch2::Catch2WithMain

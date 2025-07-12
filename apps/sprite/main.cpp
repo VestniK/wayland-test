@@ -16,9 +16,9 @@
 #include <libs/sfx/sfx.hpp>
 #include <libs/wlwnd/animation_window.hpp>
 #include <libs/wlwnd/event_loop.hpp>
+#include <libs/wlwnd/framebuf.hpp>
 #include <libs/wlwnd/gui_shell.hpp>
 #include <libs/wlwnd/vsync_frames.hpp>
-#include <libs/xdg/xdg.hpp>
 
 namespace {
 
@@ -31,22 +31,24 @@ struct opts {
           .default_value(nullptr);
 };
 
-animation_function make_animation_function(wl_buffer* buf) {
-  return [buf](
+animation_function make_animation_function(wl_shm& shm, img::image<img::pixel_fmt::rgba> img) {
+  return [&shm, img = std::move(img)](
              wl_display& display, wl_surface& surf, vsync_frames& frames,
              value_update_channel<size>& resize_channel
          ) {
     const size sz = resize_channel.get_current();
 
-    wl_surface_damage(&surf, 0, 0, sz.width, sz.height);
-    wl_surface_attach(&surf, buf, 0, 0);
-    wl_surface_commit(&surf);
+    wl::framebuf fb{shm, sz};
+    std::ranges::copy(img.bytes(), fb.front().data());
+    fb.swap(surf);
+
     for (auto ts [[maybe_unused]] : frames) {
       if (const auto sz = resize_channel.get_update()) {
+        fb = wl::framebuf{shm, sz.value()};
       }
-      wl_surface_damage(&surf, 0, 0, sz.width, sz.height);
-      wl_surface_attach(&surf, buf, 0, 0);
-      wl_surface_commit(&surf);
+
+      std::ranges::copy(img.bytes(), fb.front().data());
+      fb.swap(surf);
     }
   };
 }
@@ -71,27 +73,12 @@ asio::awaitable<int> main(io_executor io_exec, pool_executor pool_exec, std::spa
 
   auto res = sfx::archive::open_self();
   auto& fd = res.open("images/head.png");
-  auto reader = img::load_reader(fd);
-  assert(reader.format() == img::pixel_fmt::rgba);
-  const size sz = reader.size();
-  const size_t pixel_size = 4 * sz.width * sz.height;
-
-  auto mapping_fd = thinsys::io::open_anonymous(xdg::runtime_dir(), thinsys::io::mode::read_write);
-  thinsys::io::truncate(mapping_fd, pixel_size);
-  wl::unique_ptr<wl_shm_pool> spool{
-      wl_shm_create_pool(shell.get_shm(), mapping_fd.native_handle(), pixel_size)
-  };
-
-  auto mapping = thinsys::io::mmap_mut(mapping_fd, 0, pixel_size, thinsys::io::map_sharing::sahre);
-  reader.read_pixels(std::span{data(mapping), thinsys::io::size(mapping)});
-
-  wl::unique_ptr<wl_buffer> buf{
-      wl_shm_pool_create_buffer(spool.get(), 0, sz.width, sz.height, 4 * sz.width, WL_SHM_FORMAT_ARGB8888)
-  };
+  auto img = img::load<img::pixel_fmt::rgba>(fd);
+  const size sz = img.size();
 
   animation_window wnd{
-      eloop.make_queue(), pool_exec, shell.create_window(eloop, reader.size()),
-      make_animation_function(buf.get())
+      eloop.make_queue(), pool_exec, shell.create_window(eloop, sz),
+      make_animation_function(*shell.get_shm(), std::move(img))
   };
 
   co_await eloop.dispatch_while(io_exec, [&] {
