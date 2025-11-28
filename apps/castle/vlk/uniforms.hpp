@@ -41,6 +41,7 @@ constexpr bool is_image_descriptor_type(vk::DescriptorType type) noexcept {
   case eStorageBuffer:
   case eAccelerationStructureKHR:
   case eAccelerationStructureNV:
+  case ePartitionedAccelerationStructureNV:
   case eMutableEXT:
     break;
   }
@@ -123,7 +124,8 @@ struct uniform<S, vk::ImageView> {
   }
 
   static constexpr vk::DescriptorImageInfo make_descriptor_info(const value_type& val) {
-    return vk::DescriptorImageInfo{}.setImageView(val).setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal
+    return vk::DescriptorImageInfo{}.setImageView(val).setImageLayout(
+        vk::ImageLayout::eShaderReadOnlyOptimal
     );
   }
 };
