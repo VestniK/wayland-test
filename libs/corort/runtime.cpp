@@ -7,7 +7,7 @@
 
 #include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
-#include <asio/io_service.hpp>
+#include <asio/io_context.hpp>
 #include <asio/static_thread_pool.hpp>
 
 #include <spdlog/cfg/env.h>
@@ -41,7 +41,7 @@ extern unsigned min_threads;
 int main(int argc, char** argv) {
   setup_logger(std::filesystem::path{argv[0]}.filename().string());
 
-  asio::io_service io;
+  asio::io_context io;
   asio::static_thread_pool pool{std::max(co::min_threads, std::thread::hardware_concurrency()) - 1};
 
   std::variant<std::monostate, int, std::exception_ptr> rc;
