@@ -16,7 +16,7 @@ void wl_egl_window_destroy(struct wl_egl_window* egl_window);
 
 namespace wl {
 
-using std::literals::operator"" sv;
+using std::literals::operator""sv;
 
 struct deleter {
   void operator()(wl_buffer* ptr) noexcept { wl_buffer_destroy(ptr); }
