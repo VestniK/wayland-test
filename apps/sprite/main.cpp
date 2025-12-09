@@ -42,7 +42,7 @@ animation_function make_animation_function(wl_shm& shm, img::image<img::pixel_fm
     std::ranges::copy(img.bytes(), fb.front().data());
     fb.swap(surf);
 
-    for (auto ts [[maybe_unused]] : frames) {
+    for (auto ts [[maybe_unused]] : frames.iter()) {
       if (const auto sz = resize_channel.get_update()) {
         fb = wl::framebuf{shm, sz.value()};
       }

@@ -31,9 +31,10 @@ private:
 template <renderer Renderer, typename... A>
   requires std::constructible_from<Renderer, A...>
 animation_function make_gles_animation_function(A&&... a) {
-  return [... args = std::forward<A>(a
-          )](wl_display& display, wl_surface& surf, vsync_frames& frames,
-             value_update_channel<size>& resize_channel) mutable {
+  return [... args = std::forward<A>(a)](
+             wl_display& display, wl_surface& surf, vsync_frames& frames,
+             value_update_channel<size>& resize_channel
+         ) mutable {
     gles_context ctx(display, surf, resize_channel.get_current());
     spdlog::debug("OpenGL ES2 context created");
 
@@ -41,7 +42,7 @@ animation_function make_gles_animation_function(A&&... a) {
     Renderer render{std::move(args)...};
     render.resize(ctx.get_size());
 
-    for (auto frame_time : frames) {
+    for (auto frame_time : frames.iter()) {
       if (const auto sz = resize_channel.get_update()) {
         ctx.resize(sz.value());
         render.resize(sz.value());

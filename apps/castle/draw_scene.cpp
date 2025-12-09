@@ -20,7 +20,7 @@ animation_function make_vk_animation_function() {
             value_update_channel<size>& resize_channel) {
     auto render = make_vk_renderer(display, surf, resize_channel.get_current());
     render->draw({});
-    for (auto ts : frames) {
+    for (auto ts : frames.iter()) {
       if (const auto sz = resize_channel.get_update()) {
         render->resize(sz.value());
       }
