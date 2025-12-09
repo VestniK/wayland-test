@@ -1,5 +1,4 @@
 find_package(Catch2 REQUIRED)
-find_package(fmt REQUIRED)
 find_package(glm REQUIRED)
 find_package(mp-units REQUIRED)
 
@@ -10,7 +9,6 @@ cpp_unit(
     glm::glm
     mp-units::systems
   TEST_LIBS
-    fmt::fmt
     Catch2::Catch2
     Catch2::Catch2WithMain
     mp-units::core

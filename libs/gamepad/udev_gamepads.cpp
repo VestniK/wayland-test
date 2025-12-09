@@ -5,8 +5,6 @@
 
 #include <libudev.h>
 
-#include <fmt/ranges.h>
-
 #include <spdlog/spdlog.h>
 
 #include <asio/co_spawn.hpp>
@@ -41,18 +39,16 @@ void log_gamepad_info(std::string_view action, std::string_view devnode, udev_de
   using detail::udev::list_range;
   spdlog::debug(
       "{} gamepad:\n\t{}\n\t{}\n  sysnum: {}\n  "
-      "devpath: {}\n  subsystem: {}\n  devtype: {}\n  props:\n\t{}",
+      "devpath: {}\n  subsystem: {}\n  devtype: {}\n  props:{:n:}",
       action, syspath, devnode, sysnum, as_sv(udev_device_get_devpath(&dev)),
       as_sv(udev_device_get_subsystem(&dev)), as_sv(udev_device_get_devtype(&dev)),
-      fmt::join(
-          list_range{udev_device_get_properties_list_entry(&dev)
-          } | std::views::transform([](udev_list_entry& entry) {
-            return fmt::format(
-                "{} = {}", as_sv(udev_list_entry_get_name(&entry)), as_sv(udev_list_entry_get_value(&entry))
+      list_range{udev_device_get_properties_list_entry(&dev)} |
+          std::views::transform([](udev_list_entry& entry) {
+            return std::format(
+                "\n\t{} = {}", as_sv(udev_list_entry_get_name(&entry)),
+                as_sv(udev_list_entry_get_value(&entry))
             );
-          }),
-          "\n\t"
-      )
+          })
   );
 }
 

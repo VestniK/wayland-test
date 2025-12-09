@@ -1,7 +1,6 @@
 find_package(VulkanHeaders REQUIRED)
 find_package(VulkanMemoryAllocator REQUIRED)
 find_package(Catch2 REQUIRED)
-find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 
 cpp_unit(
@@ -13,7 +12,6 @@ cpp_unit(
     spdlog::spdlog
     memtricks
   TEST_LIBS
-    fmt::fmt
     Catch2::Catch2
     Catch2::Catch2WithMain
   TEST_ARGS --order rand --rng-seed time

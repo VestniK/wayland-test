@@ -1,6 +1,6 @@
 #include "evio.hpp"
 
-#include <fmt/format.h>
+#include <format>
 
 namespace evio {
 
@@ -17,7 +17,7 @@ input_absinfo load_absinfo(asio::posix::stream_descriptor& dev, evio::axe axe) {
   input_absinfo axis_limits{};
   if (ioctl(dev.native_handle(), EVIOCGABS(axe.code), &axis_limits) == -1)
     throw std::system_error{
-        errno, std::system_category(), fmt::format("ioctl(EVIOCGNAME({}))", axe.define_name)
+        errno, std::system_category(), std::format("ioctl(EVIOCGNAME({}))", axe.define_name)
     };
   return axis_limits;
 }

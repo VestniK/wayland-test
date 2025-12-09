@@ -11,7 +11,6 @@
 #include <asio/detached.hpp>
 #include <asio/posix/stream_descriptor.hpp>
 
-#include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
 
 #include <thinsys/io/io.hpp>

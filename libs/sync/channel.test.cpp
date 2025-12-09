@@ -1,3 +1,4 @@
+#include <format>
 #include <latch>
 #include <random>
 #include <stop_token>
@@ -6,8 +7,6 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
-
-#include <fmt/format.h>
 
 #include <asio/post.hpp>
 
@@ -58,7 +57,7 @@ namespace Catch {
 template <>
 struct StringMaker<size> {
   static std::string convert(size val) {
-    return fmt::format("{{.width={}, .height={}}}", val.width, val.height);
+    return std::format("{{.width={}, .height={}}}", val.width, val.height);
   }
 };
 
@@ -111,8 +110,10 @@ TEMPLATE_TEST_CASE("value_update_channel", "", mutex_value_update_channel<size>,
         REQUIRE(channel.get_current() == size{100, 500});
       }
 
-      THEN("new value is returned on call get_current after multiple "
-           "get_update") {
+      THEN(
+          "new value is returned on call get_current after multiple "
+          "get_update"
+      ) {
         channel.get_update();
         channel.get_update();
         REQUIRE(channel.get_current() == size{100, 500});
@@ -213,7 +214,10 @@ private:
 
 } // namespace
 
-TEMPLATE_TEST_CASE("value_update_channel consumer API benchmarks", "[!benchmark]", mutex_value_update_channel<int>, value_update_channel<int>) {
+TEMPLATE_TEST_CASE(
+    "value_update_channel consumer API benchmarks", "[!benchmark]", mutex_value_update_channel<int>,
+    value_update_channel<int>
+) {
   TestType channel;
 
   BENCHMARK_ADVANCED("check for empty update without thread contention")

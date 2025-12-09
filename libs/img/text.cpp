@@ -8,8 +8,6 @@
 
 #include <iconv.h>
 
-#include <fmt/format.h>
-
 namespace {
 
 static_assert(std::is_pointer_v<iconv_t>);

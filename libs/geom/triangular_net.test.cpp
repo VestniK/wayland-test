@@ -1,3 +1,5 @@
+#include <format>
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/generators/catch_generators_adapters.hpp>
@@ -6,18 +8,15 @@
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-#include <fmt/format.h>
-
 #include <libs/geom/triangular_net.hpp>
 
 using Catch::Generators::random;
-using namespace fmt::literals;
 
 namespace Catch {
 
 template <>
 struct StringMaker<triangular::point> {
-  static std::string convert(triangular::point pt) { return fmt::format("{{x: {}, y: {}}}", pt.x, pt.y); }
+  static std::string convert(triangular::point pt) { return std::format("{{x: {}, y: {}}}", pt.x, pt.y); }
 };
 
 } // namespace Catch

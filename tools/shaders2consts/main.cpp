@@ -1,16 +1,13 @@
-#include <expected>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <print>
 #include <string_view>
 #include <system_error>
 #include <vector>
-
-#include <fmt/format.h>
-#include <fmt/ostream.h>
-#include <fmt/ranges.h>
 
 #include <libs/cli/struct_args.hpp>
 
@@ -38,14 +35,14 @@ struct opts {
 std::ifstream ifopen(const fs::path& path) {
   std::ifstream in{path};
   if (!in)
-    throw std::system_error{errno, std::system_category(), fmt::format("std::ifstream{{{}}}", path.string())};
+    throw std::system_error{errno, std::system_category(), std::format("std::ifstream{{{}}}", path.string())};
   return in;
 }
 
 std::ofstream ofopen(const fs::path& path) {
   std::ofstream out{path};
   if (!out)
-    throw std::system_error{errno, std::system_category(), fmt::format("std::ofstream{{{}}}", path.string())};
+    throw std::system_error{errno, std::system_category(), std::format("std::ofstream{{{}}}", path.string())};
   return out;
 }
 
@@ -88,35 +85,24 @@ void write_src(const shaders& shaders, const fs::path& output) {
   out << "namespace shaders {\n\n";
   out << "namespace {\n";
 
-  fmt::print(
-      out, R"FMT(
-constexpr const char* shader_strings[] = {{
-  {}
-}};
-)FMT",
-      fmt::join(
-          shaders.strings |
-              std::views::transform([](auto&& v) { return fmt::format("R\"GLSL({})GLSL\"", v); }),
-          ",\n\n  "
-      )
+  std::println(
+      out, "constexpr const char* shader_strings[] = {{{:n:}}};",
+      shaders.strings | std::views::transform([](std::string_view code) {
+        return std::format("\nR\"GLSL({})GLSL\"", code);
+      })
   );
 
   for (const auto& [name, idxs] : shaders.inputs) {
-    fmt::print(
-        out, R"FMT(
-constexpr const char* {}_arr[] = {{{}}};
-)FMT",
-        name,
-        fmt::join(
-            idxs | std::views::transform([](size_t i) { return fmt::format("shader_strings[{}]", i); }), ", "
-        )
+    std::println(
+        out, "constexpr const char* {}_arr[] = {{{:n:}}};", name,
+        idxs | std::views::transform([](auto idx) { return std::format("shader_strings[{}]", idx); })
     );
   }
 
   out << "\n} // namespace\n\n";
 
   for (const auto& [name, _] : shaders.inputs) {
-    fmt::print(out, "std::span<const char* const> {0}{{{0}_arr}};\n", name);
+    std::print(out, "std::span<const char* const> {0}{{{0}_arr}};\n", name);
   }
 
   out << "\n} // namespace shaders\n";
@@ -127,7 +113,7 @@ void write_hdr(const shaders& shaders, const fs::path& output) {
   out << "#include <span>\n\n";
   out << "namespace shaders {\n\n";
   for (const auto& [name, _] : shaders.inputs) {
-    fmt::print(out, "extern std::span<const char* const> {0};\n", name);
+    std::print(out, "extern std::span<const char* const> {0};\n", name);
   }
   out << "\n} // namespace shaders\n";
 }

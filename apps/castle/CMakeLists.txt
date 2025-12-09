@@ -1,6 +1,5 @@
 find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
-find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(VulkanHeaders REQUIRED)
 find_package(VulkanMemoryAllocator REQUIRED)
@@ -12,7 +11,6 @@ cpp_unit(
     asio::asio
     cli
     corort
-    fmt::fmt
     img
     sfx
     spdlog::spdlog

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <format>
 #include <numeric>
 
 #include <mp-units/format.h>
@@ -10,11 +11,8 @@
 #include <catch2/generators/catch_generators_range.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-#include <fmt/format.h>
-
 #include <libs/geom/hexagon_tiles.hpp>
 
-using namespace fmt::literals;
 using namespace mp_units::si::unit_symbols;
 
 namespace test {
@@ -66,7 +64,7 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
   const auto columns = GENERATE(range(1, 4));
   const auto rows = GENERATE(range(2, 4));
   const auto radius = (10.f * cm) * GENERATE(range(9, 11));
-  INFO(fmt::format("{}x{} hexagons of size {}", columns, rows, radius));
+  INFO(std::format("{}x{} hexagons of size {}", columns, rows, radius));
   const auto land = hexagon_tiles<glm::vec2>::generate(radius, columns, rows, std::identity{});
   auto tiles_unit = hexagon_tiles<glm::vec2>::radius_t::unit;
 
@@ -98,17 +96,19 @@ TEST_CASE("generate_flat_landscape", "[landscape]") {
       std::array<glm::vec2, vertixies_in_hexagon> triangles_set =
           get_triangles<triangles_in_hexagon>(land, index_set_start);
 
-      SECTION(fmt::format(
-          "triangles {} - {} of {} forms hexagon", index_set_start, index_set_start + vertixies_in_hexagon,
-          land.indexes().size()
-      )) {
+      SECTION(
+          std::format(
+              "triangles {} - {} of {} forms hexagon", index_set_start,
+              index_set_start + vertixies_in_hexagon, land.indexes().size()
+          )
+      ) {
         for (size_t triangle_offset = 0; triangle_offset < triangles_set.size();
              triangle_offset += vertixies_in_triangle) {
           std::span<const glm::vec2, vertixies_in_triangle> triangle{
               triangles_set.data() + triangle_offset, vertixies_in_triangle
           };
 
-          SECTION(fmt::format("triangle {} is equilateral", triangle_offset / triangles_in_hexagon)) {
+          SECTION(std::format("triangle {} is equilateral", triangle_offset / triangles_in_hexagon)) {
             const auto equilateral_triangle_sides_dot_prod =
                 (0.5 * radius * radius).numerical_value_in(tiles_unit * tiles_unit);
             CHECK(

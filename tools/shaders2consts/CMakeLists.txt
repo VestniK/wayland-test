@@ -1,7 +1,6 @@
 include(tool_targets)
 
 find_package(Catch2 REQUIRED)
-find_package(fmt REQUIRED)
 find_package(thinsys REQUIRED)
 
 cpp_unit(
@@ -10,7 +9,6 @@ cpp_unit(
   LIBS
     cli
     thinsys-io
-    fmt::fmt
   TEST_LIBS
     testmatchers
     testprinters

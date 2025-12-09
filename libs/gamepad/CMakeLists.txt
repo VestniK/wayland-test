@@ -2,7 +2,6 @@ add_subdirectory(types)
 
 find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
-find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(thinsys REQUIRED)
 
@@ -16,7 +15,6 @@ cpp_unit(
     sync
     thinsys-io
     PkgConfig::UDEV
-    fmt::fmt
     spdlog::spdlog
     asio::asio
     gamepad-types

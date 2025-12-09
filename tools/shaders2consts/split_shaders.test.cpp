@@ -1,12 +1,10 @@
 #include <algorithm>
 #include <filesystem>
-#include <iterator>
+#include <format>
 #include <ranges>
 #include <sstream>
 #include <system_error>
 #include <unordered_map>
-
-#include <fmt/format.h>
 
 #include "catch2/matchers/catch_matchers_container_properties.hpp"
 #include <catch2/catch_test_macros.hpp>
@@ -178,16 +176,17 @@ struct {
     if (it == files.end())
       throw std::system_error{
           std::make_error_code(std::errc::no_such_file_or_directory),
-          fmt::format("ifstream{{{}}}", path.string())
+          std::format("ifstream{{{}}}", path.string())
       };
 
     return std::stringstream{it->second};
   }
 } test_resolver{
-    .files =
-        {{"foo.glsl", "other text\nfrom include"},
-         {"bar.glsl", "step aside"},
-         {"baz.glsl", "@include \"bar.glsl\"\nand back again"}}
+    .files = {
+        {"foo.glsl", "other text\nfrom include"},
+        {"bar.glsl", "step aside"},
+        {"baz.glsl", "@include \"bar.glsl\"\nand back again"}
+    }
 };
 
 TEST_CASE("parse shaders into reusable pieces") {
@@ -206,11 +205,11 @@ TEST_CASE("parse shaders into reusable pieces") {
     );
   }
   const auto pices = std::move(builder).finish();
-  SECTION(fmt::format("no pices repeats for '{}'", val.name)) { REQUIRE_THAT(pices, are_unique()); }
-  SECTION(fmt::format("no empty pices for '{}'", val.name)) { REQUIRE_THAT(pices, NoneMatch(IsEmpty())); }
+  SECTION(std::format("no pices repeats for '{}'", val.name)) { REQUIRE_THAT(pices, are_unique()); }
+  SECTION(std::format("no empty pices for '{}'", val.name)) { REQUIRE_THAT(pices, NoneMatch(IsEmpty())); }
 
   for (const auto& [idx, inl_res] : parse_res | std::views::enumerate) {
-    SECTION(fmt::format("check inline result '{}' input {}", val.name, idx)) {
+    SECTION(std::format("check inline result '{}' input {}", val.name, idx)) {
       const auto inlined =
           std::ranges::fold_left(inl_res.piece_indexes, ""s, [&pices](std::string acc, size_t cur) {
             return acc + pices[cur];

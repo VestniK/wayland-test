@@ -1,9 +1,8 @@
 #include <filesystem>
+#include <print>
 #include <span>
 #include <thread>
 #include <variant>
-
-#include <fmt/format.h>
 
 #include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
@@ -63,7 +62,7 @@ int main(int argc, char** argv) {
 
   switch (rc.index()) {
   case 0:
-    fmt::print(stderr, "Interrupted\n");
+    std::println(stderr, "Interrupted");
     break;
   case 1:
     return std::get<int>(rc);

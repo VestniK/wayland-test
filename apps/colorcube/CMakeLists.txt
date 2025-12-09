@@ -1,7 +1,6 @@
 include(target_shaders)
 
 find_package(Catch2 REQUIRED)
-find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(asio REQUIRED)
 find_package(Tracy REQUIRED)
@@ -23,7 +22,6 @@ cpp_unit(
     memtricks
     gamepad
     gamepad-types
-    fmt::fmt
     Tracy::TracyClient
   TEST_LIBS
     Catch2::Catch2
