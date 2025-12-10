@@ -77,19 +77,19 @@ reader load_reader(thinsys::io::file_descriptor& in) {
                              "images are supportted"};
   }
 
-  return {img_size, fmt, [png_struct = std::move(png_struct)](std::span<std::byte> dest) {
-            const size_t row_sz = png_get_rowbytes(png_struct.get(), png_struct.get_deleter().info);
-            const uint32_t height = png_get_image_height(png_struct.get(), png_struct.get_deleter().info);
-            if (dest.size() < row_sz * height)
-              throw std::runtime_error{"Buffer too small"};
+  return {
+      img_size, fmt, [png_struct = std::move(png_struct)](std::span<std::byte> dest) {
+        const size_t row_sz = png_get_rowbytes(png_struct.get(), png_struct.get_deleter().info);
+        const uint32_t height = png_get_image_height(png_struct.get(), png_struct.get_deleter().info);
+        if (dest.size() < row_sz * height)
+          throw std::runtime_error{"Buffer too small"};
 
-            for (uint32_t row = 0; row < height; ++row) {
-              png_read_row(
-                  png_struct.get(), reinterpret_cast<png_bytep>(dest.data() + row * row_sz), nullptr
-              );
-            }
-            return height * row_sz;
-          }};
+        for (uint32_t row = 0; row < height; ++row) {
+          png_read_row(png_struct.get(), reinterpret_cast<png_bytep>(dest.data() + row * row_sz), nullptr);
+        }
+        return height * row_sz;
+      }
+  };
 }
 
 } // namespace img

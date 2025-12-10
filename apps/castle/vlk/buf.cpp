@@ -56,9 +56,11 @@ memory memory::allocate(
     const vk::raii::Device& dev, const vk::PhysicalDeviceMemoryProperties& props,
     vk::MemoryPropertyFlags flags, uint32_t type_filter, vk::DeviceSize size
 ) {
-  return memory{dev.allocateMemory(vk::MemoryAllocateInfo{}.setAllocationSize(size).setMemoryTypeIndex(
-      choose_mem_type(type_filter, props, flags)
-  ))};
+  return memory{dev.allocateMemory(
+      vk::MemoryAllocateInfo{}.setAllocationSize(size).setMemoryTypeIndex(
+          choose_mem_type(type_filter, props, flags)
+      )
+  )};
 }
 
 [[nodiscard]] mapped_memory mapped_memory::allocate(
@@ -84,10 +86,12 @@ void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::I
                                    .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
                                    .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
                                    .setImage(dst)
-                                   .setSubresourceRange(vk::ImageSubresourceRange{}
-                                                            .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                                                            .setLevelCount(1)
-                                                            .setLayerCount(1));
+                                   .setSubresourceRange(
+                                       vk::ImageSubresourceRange{}
+                                           .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                           .setLevelCount(1)
+                                           .setLayerCount(1)
+                                   );
   cmd.pipelineBarrier(
       vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, img_dst_barrier
   );
@@ -100,19 +104,20 @@ void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::I
           );
   cmd.copyBufferToImage(src, dst, vk::ImageLayout::eTransferDstOptimal, copy_region);
 
-  const auto img_sampler_barrier =
-      vk::ImageMemoryBarrier{}
-          .setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
-          .setDstAccessMask(vk::AccessFlagBits::eShaderRead)
-          .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-          .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-          .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
-          .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-          .setImage(dst)
-          .setSubresourceRange(vk::ImageSubresourceRange{}
-                                   .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                                   .setLevelCount(1)
-                                   .setLayerCount(1));
+  const auto img_sampler_barrier = vk::ImageMemoryBarrier{}
+                                       .setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
+                                       .setDstAccessMask(vk::AccessFlagBits::eShaderRead)
+                                       .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+                                       .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                                       .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
+                                       .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
+                                       .setImage(dst)
+                                       .setSubresourceRange(
+                                           vk::ImageSubresourceRange{}
+                                               .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                               .setLevelCount(1)
+                                               .setLayerCount(1)
+                                       );
   cmd.pipelineBarrier(
       vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {},
       img_sampler_barrier

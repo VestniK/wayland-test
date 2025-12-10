@@ -76,30 +76,34 @@ swapchain::swapchain(
     const vk::RenderPass& render_pass, vk::SampleCountFlagBits samples
 )
     : swapchain_{device, swapchain_info},
-      multisampling_img_{device.createImage(vk::ImageCreateInfo{}
-                                                .setImageType(vk::ImageType::e2D)
-                                                .setFormat(swapchain_info.imageFormat)
-                                                .setExtent(vk::Extent3D{swapchain_info.imageExtent, 1})
-                                                .setMipLevels(1)
-                                                .setArrayLayers(1)
-                                                .setSamples(samples)
-                                                .setUsage(
-                                                    vk::ImageUsageFlagBits::eTransientAttachment |
-                                                    vk::ImageUsageFlagBits::eColorAttachment
-                                                ))},
+      multisampling_img_{device.createImage(
+          vk::ImageCreateInfo{}
+              .setImageType(vk::ImageType::e2D)
+              .setFormat(swapchain_info.imageFormat)
+              .setExtent(vk::Extent3D{swapchain_info.imageExtent, 1})
+              .setMipLevels(1)
+              .setArrayLayers(1)
+              .setSamples(samples)
+              .setUsage(
+                  vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment
+              )
+      )},
       swapchain_image_format_{swapchain_info.imageFormat}, swapchain_extent_{swapchain_info.imageExtent} {
   const auto req = multisampling_img_.getMemoryRequirements();
   multisampling_mem_ = vlk::memory::alocate(device, props, req.memoryTypeBits, req.size);
   (*device).bindImageMemory(*multisampling_img_, *multisampling_mem_.get(), 0);
-  multisampling_view_ =
-      device.createImageView(vk::ImageViewCreateInfo{}
-                                 .setImage(multisampling_img_)
-                                 .setViewType(vk::ImageViewType::e2D)
-                                 .setFormat(swapchain_image_format_)
-                                 .setSubresourceRange(vk::ImageSubresourceRange{}
-                                                          .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                                                          .setLevelCount(1)
-                                                          .setLayerCount(1)));
+  multisampling_view_ = device.createImageView(
+      vk::ImageViewCreateInfo{}
+          .setImage(multisampling_img_)
+          .setViewType(vk::ImageViewType::e2D)
+          .setFormat(swapchain_image_format_)
+          .setSubresourceRange(
+              vk::ImageSubresourceRange{}
+                  .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                  .setLevelCount(1)
+                  .setLayerCount(1)
+          )
+  );
   frames_ = frame::from_images(
       device, render_pass, *multisampling_view_, swapchain_.getImages(), swapchain_info.imageExtent,
       swapchain_info.imageFormat

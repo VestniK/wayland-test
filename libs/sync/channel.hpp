@@ -31,8 +31,9 @@ public:
       return std::nullopt;
     return consumer_val();
   }
-  T get_current() const
-      noexcept(std::is_nothrow_copy_constructible_v<T> && std::is_nothrow_move_constructible_v<T>) {
+  T get_current() const noexcept(
+      std::is_nothrow_copy_constructible_v<T> && std::is_nothrow_move_constructible_v<T>
+  ) {
     const T val = consumer_val();
     if (try_fetch_update())
       return consumer_val();

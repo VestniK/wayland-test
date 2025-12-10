@@ -9,7 +9,8 @@ namespace ivi {
 
 window::window(wl_compositor& compositor, ivi_application& shell, uint32_t ivi_id, delegate* delegate)
     : surface_{wl::unique_ptr<wl_surface>{wl_compositor_create_surface(&compositor)}},
-      ivi_surface_{wl::unique_ptr<ivi_surface>{ivi_application_surface_create(&shell, ivi_id, surface_.get())}
+      ivi_surface_{
+          wl::unique_ptr<ivi_surface>{ivi_application_surface_create(&shell, ivi_id, surface_.get())}
       } {
   ivi_surface_add_listener(ivi_surface_.get(), &ivi_listener, delegate);
 }

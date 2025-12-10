@@ -35,11 +35,15 @@ TEST_CASE("scalar gl::resource") {
   deleted_handles.clear();
 
   SECTION("free must not be called on default constructed resource") {
-    { scalar_resource res; }
+    {
+      scalar_resource res;
+    }
     REQUIRE_THAT(deleted_handles, IsEmpty());
   }
   SECTION("free must be called once on nonzero resource") {
-    { scalar_resource res{scalar_handle{5}}; }
+    {
+      scalar_resource res{scalar_handle{5}};
+    }
     REQUIRE(deleted_handles == std::vector<GLuint>{5});
   }
   SECTION("free must not be called on object moved to constructor") {
@@ -71,13 +75,17 @@ TEST_CASE("array gl::resource") {
   deleted_handles.clear();
 
   SECTION("free must not be called on default constructed resource") {
-    { array_resource<2> res; }
+    {
+      array_resource<2> res;
+    }
     REQUIRE_THAT(deleted_handles, IsEmpty());
   }
 
   std::array<array_handle, 2> handls{array_handle{5}, array_handle{6}};
   SECTION("free must be called once on nonzero resource") {
-    { array_resource<2> res{handls}; }
+    {
+      array_resource<2> res{handls};
+    }
     REQUIRE(deleted_handles == std::vector<GLuint>{5, 6});
   }
   SECTION("free must not be called on object moved to constructor") {

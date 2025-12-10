@@ -65,9 +65,9 @@ auto make_vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Devic
 } // namespace
 
 void staging_buf::flush() {
-  const auto ec =
-      make_error_code(static_cast<vk::Result>(vmaFlushAllocation(allocator(), allocation(), 0, VK_WHOLE_SIZE))
-      );
+  const auto ec = make_error_code(
+      static_cast<vk::Result>(vmaFlushAllocation(allocator(), allocation(), 0, VK_WHOLE_SIZE))
+  );
   if (ec)
     throw std::system_error{ec, "vmaFlushAllocation"};
 }

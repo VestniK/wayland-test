@@ -19,9 +19,8 @@ struct animation_window::impl : public xdg::delegate {
   )
       : resize_channel{initial_size},
         render_task_guard{
-            exec,
-            [&surf, &resize_channel = resize_channel, &queue,
-             render_func = std::move(render_func)](std::stop_token stop) mutable {
+            exec, [&surf, &resize_channel = resize_channel, &queue,
+                   render_func = std::move(render_func)](std::stop_token stop) mutable {
               std::stop_callback wake_queue_on_stop{stop, [&queue] { queue.wake(); }};
               vsync_frames frames{queue, surf, stop};
               render_func(queue.display(), surf, frames, resize_channel);

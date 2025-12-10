@@ -84,15 +84,20 @@ make_swapchain_create_info(vk::PhysicalDevice dev, vk::SurfaceKHR surf, vk::Form
   const auto capabilities = dev.getSurfaceCapabilitiesKHR(surf);
   return vk::SwapchainCreateInfoKHR{}
       .setSurface(surf)
-      .setMinImageCount(std::min(
-          capabilities.minImageCount + 1,
-          capabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max() : capabilities.maxImageCount
-      ))
+      .setMinImageCount(
+          std::min(
+              capabilities.minImageCount + 1, capabilities.maxImageCount == 0
+                                                  ? std::numeric_limits<uint32_t>::max()
+                                                  : capabilities.maxImageCount
+          )
+      )
       .setImageFormat(img_fmt)
-      .setImageExtent(vk::Extent2D{
-          std::clamp(sz.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-          std::clamp(sz.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
-      })
+      .setImageExtent(
+          vk::Extent2D{
+              std::clamp(sz.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+              std::clamp(sz.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+          }
+      )
       .setImageArrayLayers(1)
       .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
       .setPreTransform(capabilities.currentTransform)

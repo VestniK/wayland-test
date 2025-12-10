@@ -39,8 +39,9 @@ void toplevel_window::configure_surface(void*, xdg_surface* surf, uint32_t seria
   xdg_surface_ack_configure(surf, serial);
 }
 
-void toplevel_window::
-    configure_toplevel(void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*) {
+void toplevel_window::configure_toplevel(
+    void* data, xdg_toplevel*, int32_t width, int32_t height, wl_array*
+) {
   auto* self = reinterpret_cast<delegate*>(data);
   self->resize({width, height});
 }

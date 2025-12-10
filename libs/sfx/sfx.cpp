@@ -238,12 +238,11 @@ archive archive::open_self() {
   for (int i = 0; i < cd_end.total_entries_count; ++i) {
     const auto file_rec = cd_file_header::read(self);
     entries.emplace(
-        file_rec.filename,
-        entry{
-            .size = file_rec.base_info.raw_size,
-            .offset = file_rec.file_attrs.local_header_offset,
-            .offset_is_adjusted = false
-        }
+        file_rec.filename, entry{
+                               .size = file_rec.base_info.raw_size,
+                               .offset = file_rec.file_attrs.local_header_offset,
+                               .offset_is_adjusted = false
+                           }
     );
   }
 

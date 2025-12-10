@@ -65,8 +65,10 @@ vk::raii::Instance create_instance() {
 
 #if !defined(NDEBUG)
   std::array<const char*, 1> debug_layers{"VK_LAYER_KHRONOS_validation"};
-  if (std::ranges::contains(vk::enumerateInstanceLayerProperties(VULKAN_HPP_DEFAULT_DISPATCHER),
-          std::string_view{debug_layers.front()}, as_string_view<&vk::LayerProperties::layerName>)) {
+  if (std::ranges::contains(
+          vk::enumerateInstanceLayerProperties(VULKAN_HPP_DEFAULT_DISPATCHER),
+          std::string_view{debug_layers.front()}, as_string_view<&vk::LayerProperties::layerName>
+      )) {
     inst_create_info.setPEnabledLayerNames(debug_layers);
   }
 #endif
@@ -194,26 +196,32 @@ vlk::allocated_resource<vk::Image> load_sfx_texture(
 }
 
 static vk::raii::Sampler make_sampler(const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
-  return dev.createSampler(vk::SamplerCreateInfo{}
-                               .setMagFilter(vk::Filter::eLinear)
-                               .setMinFilter(vk::Filter::eLinear)
-                               .setMipmapMode(vk::SamplerMipmapMode::eLinear)
-                               .setAddressModeU(vk::SamplerAddressMode::eClampToBorder)
-                               .setAddressModeV(vk::SamplerAddressMode::eClampToBorder)
-                               .setAddressModeW(vk::SamplerAddressMode::eClampToBorder)
-                               .setAnisotropyEnable(true)
-                               .setMaxAnisotropy(limits.maxSamplerAnisotropy));
+  return dev.createSampler(
+      vk::SamplerCreateInfo{}
+          .setMagFilter(vk::Filter::eLinear)
+          .setMinFilter(vk::Filter::eLinear)
+          .setMipmapMode(vk::SamplerMipmapMode::eLinear)
+          .setAddressModeU(vk::SamplerAddressMode::eClampToBorder)
+          .setAddressModeV(vk::SamplerAddressMode::eClampToBorder)
+          .setAddressModeW(vk::SamplerAddressMode::eClampToBorder)
+          .setAnisotropyEnable(true)
+          .setMaxAnisotropy(limits.maxSamplerAnisotropy)
+  );
 }
 
 static vk::raii::ImageView make_view(const vk::raii::Device& dev, vk::Image img) {
-  return dev.createImageView(vk::ImageViewCreateInfo{}
-                                 .setImage(img)
-                                 .setViewType(vk::ImageViewType::e2D)
-                                 .setFormat(vk::Format::eR8G8B8A8Srgb)
-                                 .setSubresourceRange(vk::ImageSubresourceRange{}
-                                                          .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                                                          .setLevelCount(1)
-                                                          .setLayerCount(1)));
+  return dev.createImageView(
+      vk::ImageViewCreateInfo{}
+          .setImage(img)
+          .setViewType(vk::ImageViewType::e2D)
+          .setFormat(vk::Format::eR8G8B8A8Srgb)
+          .setSubresourceRange(
+              vk::ImageSubresourceRange{}
+                  .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                  .setLevelCount(1)
+                  .setLayerCount(1)
+          )
+  );
 }
 
 std::tuple<vlk::allocated_resource<vk::Image>, vk::raii::ImageView>
@@ -294,7 +302,8 @@ public:
                 .build(gpu_.dev(), 1),
             128 * 1024
         },
-        render_pass_{make_render_pass(gpu_.dev(), swapchain_info.imageFormat, gpu_.find_max_usable_samples())
+        render_pass_{
+            make_render_pass(gpu_.dev(), swapchain_info.imageFormat, gpu_.find_max_usable_samples())
         },
         render_target_{
             gpu_.dev(),
