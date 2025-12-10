@@ -132,7 +132,7 @@ public:
 
   vk::Buffer get_vbo() const noexcept { return vbo_.resource(); }
   vk::Buffer get_ibo() const noexcept { return ibo_.resource(); }
-  const size_t size() const noexcept { return count_; }
+  size_t size() const noexcept { return count_; }
 
 private:
   static vlk::allocated_resource<vk::Buffer> load_buffer(

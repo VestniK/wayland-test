@@ -18,15 +18,15 @@ constexpr auto required_device_extensions = make_sorted_array<const char*>(
 vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev, device_queue_families families) {
   const float queue_prio = 1.0f;
   std::array<vk::DeviceQueueCreateInfo, 2> device_queues{
-      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.graphics).setQueuePriorities(queue_prio),
-      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.presentation).setQueuePriorities(queue_prio),
+      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.graphics()).setQueuePriorities(queue_prio),
+      vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.presentation()).setQueuePriorities(queue_prio),
   };
 
   constexpr auto features = vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true);
 
   auto device_create_info = vk::DeviceCreateInfo{}
                                 .setQueueCreateInfoCount(
-                                    families.graphics == families.presentation ? 1u : 2u
+                                    families.graphics() == families.presentation() ? 1u : 2u
                                 ) // TODO: better duplication needed
                                 .setPQueueCreateInfos(device_queues.data())
                                 .setPEnabledExtensionNames(required_device_extensions)
@@ -120,7 +120,7 @@ device_queue_families::find(vk::PhysicalDevice dev, vk::SurfaceKHR surf) {
   }
   if (!graphics_family || !presentation_family)
     return std::nullopt;
-  return device_queue_families{.graphics = *graphics_family, .presentation = *presentation_family};
+  return device_queue_families{*graphics_family, *presentation_family};
 }
 
 gpu::gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families)
@@ -151,15 +151,13 @@ vk::SwapchainCreateInfoKHR
 gpu::make_swapchain_info(vk::SurfaceKHR surf, vk::Format img_fmt, vk::Extent2D sz) const {
   auto res = make_swapchain_create_info(*phydev_, surf, img_fmt, sz);
   // TODO: Get rid of this strange patching.
-  // FIXME: This code returns pointers to local array :( !!! And always was.
-  std::array<uint32_t, 2> queues{families_.graphics, families_.presentation};
-  if (families_.graphics != families_.presentation) {
+  if (families_.graphics() != families_.presentation()) {
     res.imageSharingMode = vk::SharingMode::eConcurrent;
-    res.queueFamilyIndexCount = queues.size();
-    res.pQueueFamilyIndices = queues.data();
+    res.queueFamilyIndexCount = families_.families().size();
+    res.pQueueFamilyIndices = families_.families().data();
   } else {
     res.queueFamilyIndexCount = 1;
-    res.pQueueFamilyIndices = queues.data();
+    res.pQueueFamilyIndices = families_.families().data();
   }
   return res;
 }

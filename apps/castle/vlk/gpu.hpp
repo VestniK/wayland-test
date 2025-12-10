@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <span>
+
 #include <vulkan/vulkan_raii.hpp>
 
 #include "cmds.hpp"
@@ -7,11 +10,22 @@
 
 namespace vlk {
 
-struct device_queue_families {
-  uint32_t graphics;
-  uint32_t presentation;
-
+class device_queue_families {
+public:
   static std::optional<device_queue_families> find(vk::PhysicalDevice dev, vk::SurfaceKHR surf);
+
+  device_queue_families() noexcept = default;
+  device_queue_families(uint32_t graphics, uint32_t presentation) noexcept
+      : families_{graphics, presentation}, graphics_{0}, presentation_{1} {}
+
+  std::span<const uint32_t> families() const noexcept { return families_; }
+  uint32_t graphics() const noexcept { return families_[graphics_]; }
+  uint32_t presentation() const noexcept { return families_[presentation_]; }
+
+private:
+  std::array<uint32_t, 2> families_{};
+  size_t graphics_{0};
+  size_t presentation_{0};
 };
 
 class gpu {
@@ -22,8 +36,8 @@ public:
   const vk::raii::Device& dev() const noexcept { return device_; }
   const vma_allocator& allocator() const noexcept { return alloc_; }
 
-  vk::raii::Queue create_graphics_queue() const { return device_.getQueue(families_.graphics, 0); }
-  vk::raii::Queue create_presentation_queue() const { return device_.getQueue(families_.presentation, 0); }
+  vk::raii::Queue create_graphics_queue() const { return device_.getQueue(families_.graphics(), 0); }
+  vk::raii::Queue create_presentation_queue() const { return device_.getQueue(families_.presentation(), 0); }
 
   vk::PhysicalDeviceMemoryProperties memory_properties() const noexcept {
     return phydev_.getMemoryProperties();
@@ -39,7 +53,7 @@ public:
 
   template <size_t N>
   vlk::command_buffers<N> create_cmd_buffs() {
-    return {device_, families_.graphics};
+    return {device_, families_.graphics()};
   }
 
 private:
