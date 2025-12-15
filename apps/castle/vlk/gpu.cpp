@@ -22,15 +22,17 @@ vk::raii::Device create_logical_device(const vk::raii::PhysicalDevice& dev, devi
       vk::DeviceQueueCreateInfo{}.setQueueFamilyIndex(families.presentation()).setQueuePriorities(queue_prio),
   };
 
-  constexpr auto features = vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true);
-
+  auto dev_addr_features = vk::PhysicalDeviceBufferDeviceAddressFeatures{}.setBufferDeviceAddress(true);
+  auto dev_features = vk::PhysicalDeviceFeatures2{}
+                          .setFeatures(vk::PhysicalDeviceFeatures{}.setSamplerAnisotropy(true))
+                          .setPNext(&dev_addr_features);
   auto device_create_info = vk::DeviceCreateInfo{}
                                 .setQueueCreateInfoCount(
                                     families.graphics() == families.presentation() ? 1u : 2u
                                 ) // TODO: better duplication needed
                                 .setPQueueCreateInfos(device_queues.data())
                                 .setPEnabledExtensionNames(required_device_extensions)
-                                .setPEnabledFeatures(&features);
+                                .setPNext(&dev_features);
 
   vk::raii::Device device{dev, device_create_info};
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
