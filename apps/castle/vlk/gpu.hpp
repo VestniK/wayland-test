@@ -56,6 +56,8 @@ public:
     return {device_, families_.graphics()};
   }
 
+  const device_queue_families& queue_families() const noexcept { return families_; }
+
 private:
   vk::raii::Instance instance_{nullptr};
   vk::raii::PhysicalDevice phydev_{nullptr};

@@ -24,6 +24,7 @@
 #include <apps/castle/vlk/gpu.hpp>
 #include <apps/castle/vlk/pipelines.hpp>
 #include <apps/castle/vlk/presentation.hpp>
+#include <apps/castle/vlk/resource_uploader.hpp>
 #include <apps/castle/vlk/uniforms.hpp>
 #include <apps/castle/vlk/vertex.hpp>
 
@@ -358,6 +359,14 @@ public:
             }
         },
         mesh_{gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
+        resource_uploader_{
+            gpu_.dev(), gpu_.allocator(), cmd_buffs_.queue(),
+            vk::raii::CommandPool{
+                gpu_.dev(), vk::CommandPoolCreateInfo{}
+                                .setQueueFamilyIndex(gpu_.queue_families().graphics())
+                                .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+            }
+        },
         image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
     uniforms_.world->camera = scene::setup_camera(render_target_.extent());
@@ -491,6 +500,7 @@ private:
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;
+  vlk::resource_uploader resource_uploader_;
   size_t cur_uniform_ = 0;
 
   vk::raii::Semaphore image_available_;
