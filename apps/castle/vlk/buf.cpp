@@ -75,60 +75,6 @@ memory memory::allocate(
   };
 }
 
-void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Image dst, vk::Extent2D sz) {
-  cmd.begin(vk::CommandBufferBeginInfo{});
-
-  const auto img_dst_barrier = vk::ImageMemoryBarrier{}
-                                   .setSrcAccessMask(vk::AccessFlagBits::eNone)
-                                   .setDstAccessMask(vk::AccessFlagBits::eTransferWrite)
-                                   .setOldLayout(vk::ImageLayout::eUndefined)
-                                   .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-                                   .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
-                                   .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-                                   .setImage(dst)
-                                   .setSubresourceRange(
-                                       vk::ImageSubresourceRange{}
-                                           .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                                           .setLevelCount(1)
-                                           .setLayerCount(1)
-                                   );
-  cmd.pipelineBarrier(
-      vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, img_dst_barrier
-  );
-
-  auto copy_region =
-      vk::BufferImageCopy{}
-          .setImageExtent(vk::Extent3D{sz, 1})
-          .setImageSubresource(
-              vk::ImageSubresourceLayers{}.setLayerCount(1).setAspectMask(vk::ImageAspectFlagBits::eColor)
-          );
-  cmd.copyBufferToImage(src, dst, vk::ImageLayout::eTransferDstOptimal, copy_region);
-
-  const auto img_sampler_barrier = vk::ImageMemoryBarrier{}
-                                       .setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
-                                       .setDstAccessMask(vk::AccessFlagBits::eShaderRead)
-                                       .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-                                       .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-                                       .setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
-                                       .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-                                       .setImage(dst)
-                                       .setSubresourceRange(
-                                           vk::ImageSubresourceRange{}
-                                               .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                                               .setLevelCount(1)
-                                               .setLayerCount(1)
-                                       );
-  cmd.pipelineBarrier(
-      vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {},
-      img_sampler_barrier
-  );
-
-  cmd.end();
-
-  transfer_queue.submit(vk::SubmitInfo{}.setCommandBuffers(cmd));
-  transfer_queue.waitIdle();
-}
-
 void copy(vk::Queue transfer_queue, vk::CommandBuffer cmd, vk::Buffer src, vk::Buffer dst, size_t count) {
   cmd.begin(vk::CommandBufferBeginInfo{});
   cmd.copyBuffer(src, dst, vk::BufferCopy{}.setSize(count));

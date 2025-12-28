@@ -2,121 +2,87 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <libs/img/reader.hpp>
+
 namespace vlk {
 
+namespace {
+
+constexpr vk::Extent2D as_extent(size sz) noexcept {
+  return {static_cast<uint32_t>(sz.width), static_cast<uint32_t>(sz.height)};
+}
+
+constexpr vk::Format to_vk_fmt(img::pixel_fmt fmt) noexcept {
+  switch (fmt) {
+  case img::pixel_fmt::rgb:
+    return vk::Format::eR8G8B8Srgb;
+  case img::pixel_fmt::rgba:
+    return vk::Format::eR8G8B8A8Srgb;
+  case img::pixel_fmt::grayscale:
+    return vk::Format::eR8Srgb;
+  }
+  std::unreachable();
+}
+
+} // namespace
+
 resource_uploader::resource_uploader(
-    const vk::raii::Device& device, const vma_allocator& allocator, vk::Queue transfer_queue,
-    vk::raii::CommandPool command_pool
+    const vk::raii::Device& device, const vma_allocator& allocator, vk::Queue transfer_queue
 )
-    : device_(device), allocator_(allocator), transfer_queue_(transfer_queue),
-      command_pool_(std::move(command_pool)) {}
+    : device_{device}, allocator_{allocator}, transfer_queue_{transfer_queue} {}
 
-resource_uploader::staging_buffer resource_uploader::create_staging_buffer(size_t size) {
-  return staging_buffer(allocator_.allocate_staging_buffer(size));
-}
-
-resource_uploader::upload_result<vlk::allocated_resource<vk::Buffer>>
-resource_uploader::create_buffer_with_staging(
-    vk::BufferUsageFlags usage, const data_provider& data_provider
+vlk::allocated_resource<vk::Buffer> resource_uploader::create_buffer(
+    vk::CommandBuffer cmd, vk::BufferUsageFlags usage, std::span<const std::byte> data
 ) {
-  // Create staging buffer
-  auto staging = create_staging_buffer(data_provider.data_size());
-
-  // Write data to staging buffer
-  data_provider.write_data(staging.mapped_memory());
+  auto staging = allocator_.allocate_staging_buffer(data.size());
+  std::ranges::copy(data, staging.mapping().data());
   staging.flush();
 
-  // Create destination buffer
-  auto destination =
-      allocator_.allocate_buffer(vk::BufferUsageFlagBits::eTransferDst | usage, data_provider.data_size());
-
-  // Create command buffer and fence for transfer
-  vk::raii::CommandBuffer cmd_buffer = std::move(device_
-                                                     .allocateCommandBuffers(
-                                                         vk::CommandBufferAllocateInfo{}
-                                                             .setCommandPool(*command_pool_)
-                                                             .setLevel(vk::CommandBufferLevel::ePrimary)
-                                                             .setCommandBufferCount(1)
-                                                     )
-                                                     .front());
+  auto destination = allocator_.allocate_buffer(vk::BufferUsageFlagBits::eTransferDst | usage, data.size());
 
   vk::raii::Fence transfer_fence = vk::raii::Fence(device_, vk::FenceCreateInfo{});
 
   // Record transfer commands
-  copy_buffer_to_buffer(
-      staging.underlying_buffer().resource(), destination.resource(), data_provider.data_size(), cmd_buffer
-  );
+  copy_buffer_to_buffer(staging.resource(), destination.resource(), data.size(), cmd);
 
   // Submit transfer command
   vk::SubmitInfo submit_info{};
-  submit_info.setCommandBuffers(*cmd_buffer);
+  submit_info.setCommandBuffers(cmd);
   transfer_queue_.submit(submit_info, *transfer_fence);
+  if (auto ec = make_error_code(
+          device_.waitForFences({*transfer_fence}, true, std::numeric_limits<uint64_t>::max())
+      ))
+    throw std::system_error(ec, "vkWaitForFence");
 
-  return upload_result<vlk::allocated_resource<vk::Buffer>>{
-      std::move(destination), std::move(transfer_fence)
-  };
-}
+  return destination;
+};
 
-resource_uploader::upload_result<vlk::allocated_resource<vk::Buffer>>
-resource_uploader::create_buffer_with_staging(vk::BufferUsageFlags usage, std::span<const std::byte> data) {
-  class simple_data_provider : public data_provider {
-  public:
-    simple_data_provider(std::span<const std::byte> data) : data_(data) {}
-    size_t data_size() const override { return data_.size(); }
-    void write_data(std::span<std::byte> destination) const override {
-      std::ranges::copy(data_, destination.begin());
-    }
+vlk::allocated_resource<vk::Image>
+resource_uploader::create_image(vk::CommandBuffer cmd, img::reader&& reader) {
+  auto staging = allocator_.allocate_staging_buffer(reader.pixels_size());
 
-  private:
-    std::span<const std::byte> data_;
-  };
-
-  simple_data_provider provider(data);
-  return create_buffer_with_staging(usage, provider);
-}
-
-resource_uploader::upload_result<vlk::allocated_resource<vk::Image>>
-resource_uploader::create_image_with_staging(
-    vk::Format format, vk::Extent2D size, const data_provider& data_provider
-) {
-  // Create staging buffer
-  auto staging = create_staging_buffer(data_provider.data_size());
-
-  // Write data to staging buffer
-  data_provider.write_data(staging.mapped_memory());
+  reader.read_pixels(staging.mapping());
   staging.flush();
 
-  // Create destination image
-  auto destination = allocator_.allocate_image(format, size);
-
-  // Create command buffer and fence for transfer
-  vk::raii::CommandBuffer cmd_buffer = std::move(device_
-                                                     .allocateCommandBuffers(
-                                                         vk::CommandBufferAllocateInfo{}
-                                                             .setCommandPool(*command_pool_)
-                                                             .setLevel(vk::CommandBufferLevel::ePrimary)
-                                                             .setCommandBufferCount(1)
-                                                     )
-                                                     .front());
+  auto destination = allocator_.allocate_image(to_vk_fmt(reader.format()), as_extent(reader.size()));
 
   vk::raii::Fence transfer_fence = vk::raii::Fence(device_, vk::FenceCreateInfo{});
 
-  // Record transfer commands
-  copy_buffer_to_image(staging.underlying_buffer().resource(), destination.resource(), size, cmd_buffer);
+  copy_buffer_to_image(staging.resource(), destination.resource(), as_extent(reader.size()), cmd);
 
-  // Submit transfer command
   vk::SubmitInfo submit_info{};
-  submit_info.setCommandBuffers(*cmd_buffer);
+  submit_info.setCommandBuffers(cmd);
   transfer_queue_.submit(submit_info, *transfer_fence);
+  if (auto ec = make_error_code(
+          device_.waitForFences({*transfer_fence}, true, std::numeric_limits<uint64_t>::max())
+      ))
+    throw std::system_error(ec, "vkWaitForFence");
 
-  return upload_result<vlk::allocated_resource<vk::Image>>{
-      std::move(destination), std::move(transfer_fence)
-  };
+  return destination;
 }
 
 void resource_uploader::copy_buffer_to_buffer(
-    vk::Buffer src_buffer, vk::Buffer dst_buffer, vk::DeviceSize size,
-    const vk::raii::CommandBuffer& cmd_buffer
+    vk::Buffer src_buffer, vk::Buffer dst_buffer, vk::DeviceSize size, vk::CommandBuffer cmd_buffer
 ) {
   cmd_buffer.begin(vk::CommandBufferBeginInfo{});
   cmd_buffer.copyBuffer(src_buffer, dst_buffer, vk::BufferCopy{}.setSize(size));
@@ -124,7 +90,7 @@ void resource_uploader::copy_buffer_to_buffer(
 }
 
 void resource_uploader::copy_buffer_to_image(
-    vk::Buffer src_buffer, vk::Image dst_image, vk::Extent2D size, const vk::raii::CommandBuffer& cmd_buffer
+    vk::Buffer src_buffer, vk::Image dst_image, vk::Extent2D size, vk::CommandBuffer cmd_buffer
 ) {
   cmd_buffer.begin(vk::CommandBufferBeginInfo{});
 
@@ -174,12 +140,6 @@ void resource_uploader::copy_buffer_to_image(
   );
 
   cmd_buffer.end();
-}
-
-void resource_uploader::wait_for_transfer_completion(const vk::raii::Fence& fence) {
-  if (auto ec = make_error_code(device_.waitForFences({*fence}, true, std::numeric_limits<uint64_t>::max())))
-    throw std::system_error(ec, "vkWaitForFence");
-  device_.resetFences({*fence});
 }
 
 } // namespace vlk

@@ -154,46 +154,19 @@ private:
   size_t count_;
 };
 
-constexpr vk::Format to_vk_fmt(img::pixel_fmt fmt) noexcept {
-  switch (fmt) {
-  case img::pixel_fmt::rgb:
-    return vk::Format::eR8G8B8Srgb;
-  case img::pixel_fmt::rgba:
-    return vk::Format::eR8G8B8A8Srgb;
-  case img::pixel_fmt::grayscale:
-    return vk::Format::eR8Srgb;
-  }
-  std::unreachable();
-}
-
-vlk::allocated_resource<vk::Image> create_texture(
-    img::reader& reader, const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd
-) {
-  auto staging = alloc.allocate_staging_buffer(reader.pixels_size());
-  reader.read_pixels(staging.mapping());
-  staging.flush();
-  auto res = alloc.allocate_image(to_vk_fmt(reader.format()), as_extent(reader.size()));
-  vlk::copy(transfer_queue, cmd, staging.resource(), res.resource(), as_extent(reader.size()));
-  return res;
-}
-
-vlk::allocated_resource<vk::Image> load_text_texture(
-    const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, std::string_view text
-) {
+vlk::allocated_resource<vk::Image>
+load_text_texture(vk::CommandBuffer cmd, vlk::resource_uploader& uploader, std::string_view text) {
   auto resources = sfx::archive::open_self();
   auto& fd = resources.open("fonts/RuthlessSketch.ttf");
   auto font = img::font::load(fd);
-  auto reader = font.text_image_reader(text);
-  return create_texture(reader, alloc, transfer_queue, cmd);
+  return uploader.create_image(cmd, font.text_image_reader(text));
 }
 
-vlk::allocated_resource<vk::Image> load_sfx_texture(
-    const vlk::vma_allocator& alloc, vk::Queue transfer_queue, vk::CommandBuffer cmd, const fs::path& sfx_path
-) {
+vlk::allocated_resource<vk::Image>
+load_sfx_texture(vk::CommandBuffer cmd, vlk::resource_uploader& uploader, const fs::path& sfx_path) {
   auto resources = sfx::archive::open_self();
   auto& fd = resources.open(sfx_path);
-  auto reader = img::load_reader(fd);
-  return create_texture(reader, alloc, transfer_queue, cmd);
+  return uploader.create_image(cmd, img::load_reader(fd));
 }
 
 static vk::raii::Sampler make_sampler(const vk::raii::Device& dev, const vk::PhysicalDeviceLimits& limits) {
@@ -316,34 +289,19 @@ public:
             gpu_.find_max_usable_samples()
         },
         cmd_buffs_{gpu_.create_cmd_buffs<1>()},
+        resource_uploader_{gpu_.dev(), gpu_.allocator(), cmd_buffs_.queue()},
         uniforms_{
             gpu_.dev(),
             gpu_.limits(),
-            {load_sfx_texture(
-                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-0hit.png"
-             ),
-             load_sfx_texture(
-                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-1hit.png"
-             ),
-             load_sfx_texture(
-                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-2hit.png"
-             ),
-             load_sfx_texture(
-                 gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/castle-3hit.png"
-             )},
-            load_sfx_texture(
-                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-front-wheel.png"
-            ),
-            load_sfx_texture(
-                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-rear-wheel.png"
-            ),
-            load_sfx_texture(
-                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-platform.png"
-            ),
-            load_sfx_texture(
-                gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "textures/catapult-arm.png"
-            ),
-            load_text_texture(gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), "привет")
+            {load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/castle-0hit.png"),
+             load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/castle-1hit.png"),
+             load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/castle-2hit.png"),
+             load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/castle-3hit.png")},
+            load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/catapult-front-wheel.png"),
+            load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/catapult-rear-wheel.png"),
+            load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/catapult-platform.png"),
+            load_sfx_texture(cmd_buffs_.front(), resource_uploader_, "textures/catapult-arm.png"),
+            load_text_texture(cmd_buffs_.front(), resource_uploader_, "привет")
         },
         descriptor_bindings_{uniform_pools_.make_pipeline_bindings<
             uniform_objects, 1, vlk::graphics_uniform<scene::world_transformations>,
@@ -359,14 +317,6 @@ public:
             }
         },
         mesh_{gpu_.allocator(), cmd_buffs_.queue(), cmd_buffs_.front(), scene::make_paper()},
-        resource_uploader_{
-            gpu_.dev(), gpu_.allocator(), cmd_buffs_.queue(),
-            vk::raii::CommandPool{
-                gpu_.dev(), vk::CommandPoolCreateInfo{}
-                                .setQueueFamilyIndex(gpu_.queue_families().graphics())
-                                .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-            }
-        },
         image_available_{gpu_.dev(), vk::SemaphoreCreateInfo{}},
         frame_done_{gpu_.dev(), vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled)} {
     uniforms_.world->camera = scene::setup_camera(render_target_.extent());
@@ -492,6 +442,7 @@ private:
   vlk::render_target render_target_;
 
   vlk::command_buffers<1> cmd_buffs_;
+  vlk::resource_uploader resource_uploader_;
   uniform_objects uniforms_;
   vlk::pipeline_bindings<
       1, vlk::graphics_uniform<scene::world_transformations>, vlk::fragment_uniform<scene::light_source>,
@@ -500,7 +451,6 @@ private:
       descriptor_bindings_;
   vlk::pipelines_storage<1> pipelines_;
   mesh mesh_;
-  vlk::resource_uploader resource_uploader_;
   size_t cur_uniform_ = 0;
 
   vk::raii::Semaphore image_available_;
