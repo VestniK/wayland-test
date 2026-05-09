@@ -72,8 +72,9 @@ void staging_buf::flush() {
     throw std::system_error{ec, "vmaFlushAllocation"};
 }
 
-vma_allocator::vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev)
-    : detail::vma_allocator_ptr{make_vma_allocator(inst, phy_dev, dev)} {}
+vma_allocator::owned vma_allocator::create(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev) {
+  return owned{make_vma_allocator(inst, phy_dev, dev)};
+}
 
 staging_buf vma_allocator::allocate_staging_buffer(size_t size) const {
   VmaAllocationCreateInfo alloc_info{};
@@ -87,12 +88,12 @@ staging_buf vma_allocator::allocate_staging_buffer(size_t size) const {
   VmaAllocation mem;
 
   const auto ec = make_error_code(
-      static_cast<vk::Result>(vmaCreateBuffer(get(), &buf_inf, &alloc_info, &buf, &mem, nullptr))
+      static_cast<vk::Result>(vmaCreateBuffer(alloc_, &buf_inf, &alloc_info, &buf, &mem, nullptr))
   );
   if (ec)
     throw std::system_error{ec, "vmaCreateBuffer"};
 
-  return {get(), buf, mem};
+  return {alloc_, buf, mem};
 }
 
 allocated_resource<vk::Buffer>
@@ -106,12 +107,12 @@ vma_allocator::allocate_buffer(vk::BufferUsageFlags usage, size_t count) const {
   VmaAllocation mem;
 
   const auto ec = make_error_code(
-      static_cast<vk::Result>(vmaCreateBuffer(get(), &buf_inf, &alloc_info, &buf, &mem, nullptr))
+      static_cast<vk::Result>(vmaCreateBuffer(alloc_, &buf_inf, &alloc_info, &buf, &mem, nullptr))
   );
   if (ec)
     throw std::system_error{ec, "vmaCreateBuffer"};
 
-  return {get(), buf, mem};
+  return {alloc_, buf, mem};
 }
 
 allocated_resource<vk::Image> vma_allocator::allocate_image(vk::Format fmt, vk::Extent2D sz) const {
@@ -130,12 +131,12 @@ allocated_resource<vk::Image> vma_allocator::allocate_image(vk::Format fmt, vk::
   VkImage img;
   VmaAllocation mem;
   const auto ec = make_error_code(
-      static_cast<vk::Result>(vmaCreateImage(get(), &img_inf, &alloc_info, &img, &mem, nullptr))
+      static_cast<vk::Result>(vmaCreateImage(alloc_, &img_inf, &alloc_info, &img, &mem, nullptr))
   );
   if (ec)
     throw std::system_error{ec, "vmaCreateBuffer"};
 
-  return {get(), img, mem};
+  return {alloc_, img, mem};
 }
 
 } // namespace vlk

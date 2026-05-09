@@ -14,7 +14,10 @@ namespace vlk {
 
 class resource_uploader {
 public:
-  resource_uploader(const vk::raii::Device& device, const vma_allocator& allocator, vk::Queue transfer_queue);
+  resource_uploader(
+      const vk::raii::Device& device, vma_allocator allocator, vk::Queue transfer_queue
+  ) noexcept
+      : device_{device}, allocator_{allocator}, transfer_queue_{transfer_queue} {}
 
   vlk::allocated_resource<vk::Buffer>
   create_buffer(vk::CommandBuffer cmd, vk::BufferUsageFlags usage, std::span<const std::byte> data);
@@ -32,7 +35,7 @@ private:
 
 private:
   const vk::raii::Device& device_;
-  const vma_allocator& allocator_;
+  vma_allocator allocator_;
   vk::Queue transfer_queue_;
 };
 

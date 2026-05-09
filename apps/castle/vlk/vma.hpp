@@ -75,13 +75,21 @@ public:
   void flush();
 };
 
-struct vma_allocator : detail::vma_allocator_ptr {
+class vma_allocator {
+public:
+  using owned = detail::vma_allocator_ptr;
+
   vma_allocator() noexcept = default;
-  vma_allocator(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev);
+  explicit vma_allocator(const owned& owner) noexcept : alloc_{owner.get()} {}
+
+  static owned create(vk::Instance inst, vk::PhysicalDevice phy_dev, vk::Device dev);
 
   staging_buf allocate_staging_buffer(size_t size) const;
   allocated_resource<vk::Buffer> allocate_buffer(vk::BufferUsageFlags usage, size_t count) const;
   allocated_resource<vk::Image> allocate_image(vk::Format fmt, vk::Extent2D sz) const;
+
+private:
+  VmaAllocator alloc_ = nullptr;
 };
 
 } // namespace vlk

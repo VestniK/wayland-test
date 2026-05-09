@@ -26,11 +26,6 @@ constexpr vk::Format to_vk_fmt(img::pixel_fmt fmt) noexcept {
 
 } // namespace
 
-resource_uploader::resource_uploader(
-    const vk::raii::Device& device, const vma_allocator& allocator, vk::Queue transfer_queue
-)
-    : device_{device}, allocator_{allocator}, transfer_queue_{transfer_queue} {}
-
 vlk::allocated_resource<vk::Buffer> resource_uploader::create_buffer(
     vk::CommandBuffer cmd, vk::BufferUsageFlags usage, std::span<const std::byte> data
 ) {

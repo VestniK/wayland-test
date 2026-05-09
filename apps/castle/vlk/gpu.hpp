@@ -34,7 +34,7 @@ public:
   gpu(vk::raii::Instance&& inst, vk::raii::PhysicalDevice&& dev, device_queue_families families);
 
   const vk::raii::Device& dev() const noexcept { return device_; }
-  const vma_allocator& allocator() const noexcept { return alloc_; }
+  vma_allocator allocator() const noexcept { return vma_allocator{alloc_}; }
 
   vk::raii::Queue create_graphics_queue() const { return device_.getQueue(families_.graphics(), 0); }
   vk::raii::Queue create_presentation_queue() const { return device_.getQueue(families_.presentation(), 0); }
@@ -63,7 +63,7 @@ private:
   vk::raii::PhysicalDevice phydev_{nullptr};
   vk::raii::Device device_{nullptr};
   device_queue_families families_{};
-  vma_allocator alloc_;
+  vma_allocator::owned alloc_;
 };
 
 gpu select_suitable_device(vk::raii::Instance inst, vk::SurfaceKHR surf, vk::Extent2D sz);
