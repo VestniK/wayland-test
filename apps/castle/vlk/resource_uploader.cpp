@@ -1,5 +1,6 @@
 #include "resource_uploader.hpp"
 
+#include <limits>
 #include <vulkan/vulkan.hpp>
 
 #include <libs/img/reader.hpp>
@@ -24,6 +25,26 @@ constexpr vk::Format to_vk_fmt(img::pixel_fmt fmt) noexcept {
   std::unreachable();
 }
 
+class temp_fence {
+public:
+  explicit temp_fence(vk::Device device) noexcept
+      : device_{device}, fence_{device_.createFence(vk::FenceCreateInfo{})} {}
+
+  ~temp_fence() noexcept { device_.destroyFence(fence_); }
+
+  void wait() {
+    if (auto ec =
+            make_error_code(device_.waitForFences({fence_}, true, std::numeric_limits<uint64_t>::max())))
+      throw std::system_error(ec, "vkWaitForFence");
+  }
+
+  vk::Fence get() const noexcept { return fence_; }
+
+private:
+  vk::Device device_;
+  vk::Fence fence_;
+};
+
 } // namespace
 
 vlk::allocated_resource<vk::Buffer> resource_uploader::create_buffer(
@@ -35,7 +56,7 @@ vlk::allocated_resource<vk::Buffer> resource_uploader::create_buffer(
 
   auto destination = allocator_.allocate_buffer(vk::BufferUsageFlagBits::eTransferDst | usage, data.size());
 
-  vk::raii::Fence transfer_fence = vk::raii::Fence(device_, vk::FenceCreateInfo{});
+  temp_fence transfer_fence{device_};
 
   // Record transfer commands
   copy_buffer_to_buffer(staging.resource(), destination.resource(), data.size(), cmd);
@@ -43,11 +64,8 @@ vlk::allocated_resource<vk::Buffer> resource_uploader::create_buffer(
   // Submit transfer command
   vk::SubmitInfo submit_info{};
   submit_info.setCommandBuffers(cmd);
-  transfer_queue_.submit(submit_info, *transfer_fence);
-  if (auto ec = make_error_code(
-          device_.waitForFences({*transfer_fence}, true, std::numeric_limits<uint64_t>::max())
-      ))
-    throw std::system_error(ec, "vkWaitForFence");
+  transfer_queue_.submit(submit_info, transfer_fence.get());
+  transfer_fence.wait();
 
   return destination;
 };
@@ -61,18 +79,14 @@ resource_uploader::create_image(vk::CommandBuffer cmd, img::reader&& reader) {
 
   auto destination = allocator_.allocate_image(to_vk_fmt(reader.format()), as_extent(reader.size()));
 
-  vk::raii::Fence transfer_fence = vk::raii::Fence(device_, vk::FenceCreateInfo{});
+  temp_fence transfer_fence{device_};
 
   copy_buffer_to_image(staging.resource(), destination.resource(), as_extent(reader.size()), cmd);
 
   vk::SubmitInfo submit_info{};
   submit_info.setCommandBuffers(cmd);
-  transfer_queue_.submit(submit_info, *transfer_fence);
-  if (auto ec = make_error_code(
-          device_.waitForFences({*transfer_fence}, true, std::numeric_limits<uint64_t>::max())
-      ))
-    throw std::system_error(ec, "vkWaitForFence");
-
+  transfer_queue_.submit(submit_info, transfer_fence.get());
+  transfer_fence.wait();
   return destination;
 }
 
