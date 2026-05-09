@@ -21,14 +21,16 @@
 
 #include <apps/castle/vlk/buf.hpp>
 #include <apps/castle/vlk/cmds.hpp>
-#include <apps/castle/vlk/gpu.hpp>
 #include <apps/castle/vlk/pipelines.hpp>
 #include <apps/castle/vlk/presentation.hpp>
-#include <apps/castle/vlk/resource_uploader.hpp>
 #include <apps/castle/vlk/uniforms.hpp>
 #include <apps/castle/vlk/vertex.hpp>
 
 #include "scene.hpp"
+
+import vlk.gpu;
+import vlk.resource_uploader;
+import vlk.vma;
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 

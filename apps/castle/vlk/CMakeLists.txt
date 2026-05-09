@@ -20,3 +20,11 @@ target_compile_definitions(vlk PUBLIC
   VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
   VK_USE_PLATFORM_WAYLAND_KHR
 )
+
+target_sources(vlk PUBLIC
+  FILE_SET CXX_MODULES
+  FILES
+    gpu.cppm
+    resource_uploader.cppm
+    vma.cppm
+)

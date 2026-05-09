@@ -28,6 +28,8 @@ target_compile_definitions(castle.lib PRIVATE
   VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
   VK_USE_PLATFORM_WAYLAND_KHR
 )
+set_property(TARGET castle PROPERTY CXX_SCAN_FOR_MODULES On)
+set_property(TARGET castle.lib PROPERTY CXX_SCAN_FOR_MODULES On)
 
 find_program(GLSLC NAMES glslc REQUIRED)
 find_program(LD NAMES ld lld REQUIRED)
