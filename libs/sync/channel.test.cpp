@@ -1,8 +1,8 @@
 #include <format>
 #include <latch>
+#include <mutex>
 #include <random>
 #include <stop_token>
-#include <utility>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -26,13 +26,25 @@ public:
   }
 
   std::optional<T> get_update() {
-    const T val = (std::lock_guard{mutex_}, current_);
+    const T val = copy_current();
     if (val == prev_)
       return std::nullopt;
     return prev_ = val;
   }
-  T get_current() { return std::lock_guard{mutex_}, prev_ = current_; }
-  void update(const T& t) { std::lock_guard{mutex_}, current_ = t; }
+  T get_current() {
+    std::lock_guard guard{mutex_};
+    return prev_ = current_;
+  }
+  void update(const T& t) {
+    std::lock_guard guard{mutex_};
+    current_ = t;
+  }
+
+private:
+  T copy_current() {
+    std::lock_guard guard{mutex_};
+    return current_;
+  }
 
 private:
   std::mutex mutex_;
