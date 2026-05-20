@@ -1,4 +1,4 @@
-find_package(VulkanHeaders REQUIRED)
+find_package(VulkanHeaders REQUIRED COMPONENTS Headers)
 find_package(VulkanMemoryAllocator REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(spdlog REQUIRED)
@@ -7,7 +7,7 @@ cpp_unit(
   NAME vlk
   STD cxx_std_23
   LIBS
-    vulkan-headers::vulkan-headers
+    Vulkan::Headers
     GPUOpen::VulkanMemoryAllocator
     spdlog::spdlog
     memtricks

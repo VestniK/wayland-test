@@ -1,8 +1,7 @@
 find_package(asio REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(VulkanHeaders REQUIRED)
-find_package(VulkanMemoryAllocator REQUIRED)
+find_package(VulkanHeaders REQUIRED COMPONENTS Headers)
 
 cpp_unit(
   NAME castle
@@ -15,8 +14,7 @@ cpp_unit(
     sfx
     spdlog::spdlog
     vlk
-    vulkan-headers::vulkan-headers
-    GPUOpen::VulkanMemoryAllocator
+    Vulkan::Headers
     wlwnd
     xdg
   TEST_LIBS
