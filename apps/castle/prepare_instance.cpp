@@ -9,6 +9,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -19,18 +20,17 @@
 #include <libs/memtricks/projections.hpp>
 #include <libs/sfx/sfx.hpp>
 
-#include <apps/castle/vlk/buf.hpp>
-#include <apps/castle/vlk/cmds.hpp>
-#include <apps/castle/vlk/pipelines.hpp>
-#include <apps/castle/vlk/presentation.hpp>
-#include <apps/castle/vlk/uniforms.hpp>
-#include <apps/castle/vlk/vertex.hpp>
+import castle.scene;
 
-#include "scene.hpp"
-
+import vlk.buf;
+import vlk.cmds;
 import vlk.gpu;
+import vlk.pipelines;
+import vlk.presentation;
 import vlk.resource_uploader;
+import vlk.vertex;
 import vlk.vma;
+import vlk.uniforms;
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 

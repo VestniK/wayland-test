@@ -1,11 +1,13 @@
-#pragma once
+module;
 
 #include <array>
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace vlk {
+export module vlk.cmds;
+
+export namespace vlk {
 
 template <size_t N>
 class command_buffers : private vk::raii::CommandPool {
@@ -13,8 +15,9 @@ public:
   command_buffers() noexcept = default;
   command_buffers(const vk::raii::Device& dev, uint32_t queue_family)
       : vk::raii::CommandPool{
-          dev,
-          vk::CommandPoolCreateInfo{}.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer).setQueueFamilyIndex(queue_family)
+            dev, vk::CommandPoolCreateInfo{}
+                     .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+                     .setQueueFamilyIndex(queue_family)
         },
         queue_{dev.getQueue(queue_family, 0)} {
     auto alloc_info = vk::CommandBufferAllocateInfo{}

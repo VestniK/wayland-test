@@ -1,18 +1,23 @@
-#pragma once
+module;
+
+#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 #include <libs/memtricks/arity.hpp>
 #include <libs/memtricks/monotonic_arena.hpp>
 #include <libs/memtricks/object_bytes.hpp>
+#include <libs/memtricks/region.hpp>
 
-#include "buf.hpp"
+export module vlk.uniforms;
 
-namespace vlk {
+import vlk.buf;
+
+export namespace vlk {
 
 namespace ubo {
 
 template <typename T>
 using unique_ptr = monotonic_arena<mapped_memory>::unique_ptr<T>;
-
 }
 
 struct combined_image_sampler {

@@ -24,7 +24,13 @@ target_compile_definitions(vlk PUBLIC
 target_sources(vlk PUBLIC
   FILE_SET CXX_MODULES
   FILES
+    buf.cppm
+    cmds.cppm
     gpu.cppm
+    pipelines.cppm
+    presentation.cppm
     resource_uploader.cppm
+    uniforms.cppm
+    vertex.cppm
     vma.cppm
 )

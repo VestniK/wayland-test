@@ -1,4 +1,4 @@
-#pragma once
+module;
 
 #include <concepts>
 #include <span>
@@ -6,7 +6,9 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace vlk {
+export module vlk.vertex;
+
+export namespace vlk {
 
 template <typename Vertex>
 concept vertex_attributes = requires(Vertex v) {
