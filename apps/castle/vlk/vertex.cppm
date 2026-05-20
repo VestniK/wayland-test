@@ -6,7 +6,7 @@ module;
 
 #include <vulkan/vulkan.hpp>
 
-export module vlk.vertex;
+export module vlk:vertex;
 
 export namespace vlk {
 

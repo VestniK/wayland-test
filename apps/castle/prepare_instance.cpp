@@ -21,16 +21,7 @@
 #include <libs/sfx/sfx.hpp>
 
 import castle.scene;
-
-import vlk.buf;
-import vlk.cmds;
-import vlk.gpu;
-import vlk.pipelines;
-import vlk.presentation;
-import vlk.resource_uploader;
-import vlk.vertex;
-import vlk.vma;
-import vlk.uniforms;
+import vlk;
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 

@@ -5,7 +5,7 @@ module;
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-export module vlk.cmds;
+export module vlk:cmds;
 
 export namespace vlk {
 

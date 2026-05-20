@@ -8,7 +8,7 @@ module;
 #include <libs/memtricks/monotonic_arena.hpp>
 #include <libs/memtricks/region.hpp>
 
-export module vlk.buf;
+export module vlk:buf;
 
 export namespace vlk {
 

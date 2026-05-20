@@ -6,7 +6,7 @@ module;
 
 #include <vulkan/vulkan.hpp>
 
-export module vlk.vma;
+export module vlk:vma;
 
 namespace vlk {
 

@@ -11,10 +11,10 @@ module;
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-export module vlk.gpu;
+export module vlk:gpu;
 
-import vlk.cmds;
-import vlk.vma;
+import :cmds;
+import :vma;
 
 namespace vlk {
 

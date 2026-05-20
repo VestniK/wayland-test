@@ -5,9 +5,9 @@ module;
 
 #include <libs/img/reader.hpp>
 
-export module vlk.resource_uploader;
+export module vlk:resource_uploader;
 
-import vlk.vma;
+import :vma;
 
 namespace vlk {
 

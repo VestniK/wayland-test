@@ -13,7 +13,7 @@ module;
 
 export module castle.scene;
 
-import vlk.vertex;
+import vlk;
 
 export namespace scene {
 

@@ -8,9 +8,9 @@ module;
 #include <libs/memtricks/object_bytes.hpp>
 #include <libs/memtricks/region.hpp>
 
-export module vlk.uniforms;
+export module vlk:uniforms;
 
-import vlk.buf;
+import :buf;
 
 export namespace vlk {
 

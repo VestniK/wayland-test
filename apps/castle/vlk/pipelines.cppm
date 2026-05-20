@@ -6,9 +6,9 @@ module;
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-export module vlk.pipelines;
+export module vlk:pipelines;
 
-import vlk.vertex;
+import :vertex;
 
 export namespace vlk {
 

@@ -32,5 +32,6 @@ target_sources(vlk PUBLIC
     resource_uploader.cppm
     uniforms.cppm
     vertex.cppm
+    vlk.cppm
     vma.cppm
 )

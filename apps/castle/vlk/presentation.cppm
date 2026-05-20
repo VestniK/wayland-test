@@ -6,9 +6,9 @@ module;
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-export module vlk.presentation;
+export module vlk:presentation;
 
-import vlk.buf;
+import :buf;
 
 namespace vlk {
 
