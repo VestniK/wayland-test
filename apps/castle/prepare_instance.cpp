@@ -23,8 +23,6 @@
 import castle.scene;
 import vlk;
 
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-
 extern "C" {
 extern const std::byte _binary_triangle_vert_spv_start[];
 extern const std::byte _binary_triangle_vert_spv_end[];
