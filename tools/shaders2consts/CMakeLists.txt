@@ -17,3 +17,5 @@ cpp_unit(
   TEST_ARGS --order rand --rng-seed time
 )
 tool_target(shaders2consts)
+set_property(TARGET shaders2consts PROPERTY CXX_SCAN_FOR_MODULES On)
+set_property(TARGET shaders2consts.lib PROPERTY CXX_SCAN_FOR_MODULES On)

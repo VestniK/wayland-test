@@ -1,9 +1,9 @@
-#include <libs/cli/struct_args.hpp>
-
 #include "catch2/matchers/catch_matchers_container_properties.hpp"
 #include "catch2/matchers/catch_matchers_contains.hpp"
 #include "catch2/matchers/catch_matchers_range_equals.hpp"
 #include <catch2/catch_test_macros.hpp>
+
+import cli;
 
 using Catch::Matchers::Contains;
 using Catch::Matchers::IsEmpty;

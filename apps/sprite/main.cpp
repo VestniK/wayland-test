@@ -10,7 +10,6 @@
 #include <thinsys/io/io.hpp>
 #include <thinsys/io/mmap.hpp>
 
-#include <libs/cli/struct_args.hpp>
 #include <libs/corort/executors.hpp>
 #include <libs/img/load.hpp>
 #include <libs/sfx/sfx.hpp>
@@ -19,6 +18,8 @@
 #include <libs/wlwnd/framebuf.hpp>
 #include <libs/wlwnd/gui_shell.hpp>
 #include <libs/wlwnd/vsync_frames.hpp>
+
+import cli;
 
 namespace {
 

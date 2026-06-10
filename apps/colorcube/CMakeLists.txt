@@ -34,6 +34,7 @@ target_shaders(colorcube.lib
     shaders/basic_vert.glsl
     shaders/basic_frag.glsl
 )
+set_property(TARGET colorcube PROPERTY CXX_SCAN_FOR_MODULES On)
 
 target_sources(colorcube PRIVATE
   ${CMAKE_SOURCE_DIR}/conanfile.py

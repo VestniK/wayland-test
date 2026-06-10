@@ -1,4 +1,4 @@
-#pragma once
+module;
 
 #include <optional>
 #include <ostream>
@@ -6,11 +6,11 @@
 #include <string_view>
 #include <vector>
 
-#include <libs/cli/get_option.hpp>
+export module cli:struct_args;
 
-namespace args {
+import :get_option;
 
-namespace detail {
+namespace args::detail {
 
 struct option_info {
   std::string_view long_name;
@@ -89,7 +89,9 @@ concept sequential_container = std::ranges::forward_range<T> && std::default_ini
                                  { t.push_back(std::move(val)) };
                                };
 
-} // namespace detail
+} // namespace args::detail
+
+export namespace args {
 
 template <typename T>
 class option : private detail::option_info {

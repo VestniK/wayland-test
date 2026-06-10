@@ -7,13 +7,13 @@
 #include <asio/experimental/awaitable_operators.hpp>
 #include <asio/static_thread_pool.hpp>
 
-#include <libs/cli/struct_args.hpp>
-
 #include <apps/colorcube/controller.hpp>
 #include <apps/colorcube/draw_scene.hpp>
 #include <apps/colorcube/listen_gamepad.hpp>
 
 #include <libs/corort/executors.hpp>
+
+import cli;
 
 using namespace std::literals;
 using namespace asio::experimental::awaitable_operators;

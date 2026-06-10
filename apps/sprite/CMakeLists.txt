@@ -22,6 +22,7 @@ cpp_unit(
   TEST_ARGS --order rand --rng-seed time
 )
 
+set_property(TARGET sprite PROPERTY CXX_SCAN_FOR_MODULES On)
 find_program(OBJCOPY NAMES objcopy llvm-objcopy REQUIRED)
 
 target_sources(sprite PRIVATE

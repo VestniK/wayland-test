@@ -9,10 +9,10 @@
 #include <system_error>
 #include <vector>
 
-#include <libs/cli/struct_args.hpp>
-
 #include "parse_include.hpp"
 #include "split_shaders.hpp"
+
+import cli;
 
 namespace fs = std::filesystem;
 using namespace std::literals;

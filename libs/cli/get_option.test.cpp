@@ -3,7 +3,7 @@
 #include <string_view>
 #include <vector>
 
-#include <libs/cli/get_option.hpp>
+import cli;
 
 namespace test {
 
